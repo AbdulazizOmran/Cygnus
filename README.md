@@ -23,6 +23,24 @@ it started.
     [JSON Schema](docs/cam-1.schema.json)
   * [Architecture](docs/architecture-proposal.md)
 
+## Screenshots
+
+**Installing from Flathub:** what it is, how big, what access it asks for, where it goes, and a confirmation before anything happens.
+
+![Installing OBS Studio from Flathub](docs/screenshots/install-flathub.png)
+
+**Converting a vendor's .deb:** what would be left out, what Cygnus adds, and what the vendor's install scripts mention (they are never run; you can read them and see what they would have done).
+
+![Converting Google Chrome's .deb](docs/screenshots/install-deb.png)
+
+**Everything Cygnus manages, on the drive you chose:**
+
+![The applications Cygnus manages](docs/screenshots/applications.png)
+
+**Settings:** background checks, opening Flathub links and software files with Cygnus, and optional tools.
+
+![Settings](docs/screenshots/settings.png)
+
 ## What works today
 
 | | Install | Update | Uninstall | Move | Repair | Health |
