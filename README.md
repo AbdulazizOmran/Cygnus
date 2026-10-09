@@ -14,7 +14,7 @@ it started.
 > [audit guide](docs/audit-guide.md).
 
 * App ID: `io.github.omranabdulaziz.Cygnus`
-* License: GPL-3.0-or-later. You can buy finished builds or build Cygnus yourself.
+* License: GPL-3.0-or-later. You can get a ready-made package from [Gumroad](https://azizomran.gumroad.com/l/jtudib) (free during the beta) or build Cygnus yourself.
 * Documentation:
   * [User guide](docs/user-guide.md)
   * [Security model](docs/security.md)
@@ -52,8 +52,8 @@ it started.
 On CachyOS or Arch Linux with KDE Plasma (x86_64):
 
 * **From the AUR** (once published): `yay -S cygnus` (or any AUR helper).
-* **From a release package:** download `cygnus-VERSION-1-any.pkg.tar.zst` from the release page, then
-  `sudo pacman -U cygnus-VERSION-1-any.pkg.tar.zst`.
+* **Ready-made package:** download `cygnus-0.1.0-1-any.pkg.tar.zst` from [Gumroad](https://azizomran.gumroad.com/l/jtudib)
+  (free during the beta), then `sudo pacman -U cygnus-0.1.0-1-any.pkg.tar.zst`.
 * **From source:** `git clone https://github.com/AbdulazizOmran/Cygnus && cd Cygnus/packaging/arch && makepkg -si`
   (the build runs the test suite).
 
