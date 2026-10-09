@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.omranabdulaziz.Cygnus</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>Cygnus</name>
+  <summary>Install and manage applications on the drive you choose</summary>
+  <description>
+    <p>
+      Cygnus installs AppImages, Flatpak bundles and Arch packages, and lets you choose which
+      drive each application lives on. It checks that applications and the components they need
+      are working, explains what is wrong when they are not, and offers safe fixes.
+    </p>
+    <ul>
+      <li>Keeps large applications on a second drive, with menu entries that keep working when it is unplugged</li>
+      <li>Verifies downloads and vendor signatures before anything is installed</li>
+      <li>Every change is journaled and can be finished or undone after an interruption</li>
+      <li>Administrator rights only for the exact change you approved</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">io.github.omranabdulaziz.Cygnus.desktop</launchable>
+  <developer id="io.github.omranabdulaziz">
+    <name>AbdulazizOmran</name>
+  </developer>
+  <!-- Implied by the app ID (io.github.<user>.<App>); the repository must exist before release. -->
+  <url type="homepage">https://github.com/AbdulazizOmran/Cygnus</url>
+  <content_rating type="oars-1.1"/>
+  <provides>
+    <binary>cygnus</binary>
+    <binary>cygnus-gui</binary>
+  </provides>
+  <releases>
+    <release version="0.1.0" date="2026-10-09" type="development">
+      <description>
+        <p>First public beta. It has not had an independent security review; see the project page for what it can and cannot do.</p>
+      </description>
+    </release>
+  </releases>
+</component>

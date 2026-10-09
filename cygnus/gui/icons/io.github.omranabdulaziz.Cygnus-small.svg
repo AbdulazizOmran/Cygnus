@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <!-- Small-size variant (16–32 px): the same swan, drawn bolder. -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#2a3f8f"/>
+      <stop offset="1" stop-color="#121a3d"/>
+    </linearGradient>
+  </defs>
+  <rect x="1" y="1" width="30" height="30" rx="6.5" fill="url(#sky)"/>
+  <g stroke="#b9ccff" stroke-width="1.6" stroke-linecap="round">
+    <line x1="16" y1="6.5" x2="16" y2="25.5"/>
+    <line x1="7" y1="12.5" x2="25" y2="16.5"/>
+  </g>
+  <circle cx="16" cy="6.5" r="2.6" fill="#ffffff"/>
+  <circle cx="16" cy="14.5" r="2.2" fill="#ffffff"/>
+  <circle cx="7" cy="12.5" r="1.8" fill="#ffffff"/>
+  <circle cx="25" cy="16.5" r="1.8" fill="#ffffff"/>
+  <circle cx="16" cy="25.5" r="2" fill="#ffd27a"/>
+</svg>

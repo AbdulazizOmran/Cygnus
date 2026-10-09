@@ -1,0 +1,271 @@
+{
+  "manifest_version": 1,
+  "serial": 2026100601,
+  "expires": "2027-04-06T00:00:00Z",
+  "application": {
+    "id": "org.whatpulse.WhatPulse",
+    "appstream_ids": [
+      "org.whatpulse.WhatPulse"
+    ],
+    "flatpak_ids": [
+      "org.whatpulse.WhatPulse"
+    ],
+    "package_names": [
+      "whatpulse"
+    ],
+    "desktop_ids": [
+      "whatpulse.desktop",
+      "org.whatpulse.WhatPulse.desktop"
+    ],
+    "name": "WhatPulse",
+    "vendor": {
+      "name": "WhatPulse",
+      "domain": "whatpulse.org"
+    },
+    "homepage": "https://whatpulse.org",
+    "license": "LicenseRef-proprietary",
+    "supported_versions": ">=6.0",
+    "platforms": [
+      {
+        "os": "linux",
+        "arch": [
+          "x86_64"
+        ],
+        "sessions": [
+          "x11",
+          "wayland"
+        ]
+      }
+    ]
+  },
+  "sources": [
+    {
+      "id": "appimage",
+      "format": "appimage",
+      "label": "AppImage",
+      "url": "https://releases.whatpulse.org/latest/linux/whatpulse-linux-latest_amd64.AppImage",
+      "update": {
+        "type": "zsync",
+        "self_updating": true,
+        "url": "https://releases.whatpulse.org/latest/linux/whatpulse-linux-latest_amd64.AppImage.zsync"
+      },
+      "verification": {
+        "type": "tls-only"
+      },
+      "recommended_when": [
+        "default",
+        "relocatable",
+        "wayland-window-tracking"
+      ],
+      "notes": "The vendor's primary Linux format. The AppImage is not signed (empty signature sections); integrity relies on HTTPS. WhatPulse can update it in place itself."
+    },
+    {
+      "id": "flatpak-bundle",
+      "format": "flatpak-bundle",
+      "label": "Flatpak bundle",
+      "url": "https://releases-dev.whatpulse.org/6.3.2/linux/whatpulse-linux-6.3.2_amd64.flatpak",
+      "runtime": "org.freedesktop.Platform/x86_64/23.08",
+      "update": {
+        "type": "manual"
+      },
+      "verification": {
+        "type": "tls-only"
+      },
+      "known_issues": [
+        "runtime-eol:org.freedesktop.Platform/x86_64/23.08",
+        "no-update-source",
+        "no-native-wayland-window-tracking"
+      ],
+      "notes": "Single-file bundle without an update source; both 6.3.2 and 7.0-beta4 target the end-of-life 23.08 runtime. There is no Flathub listing."
+    },
+    {
+      "id": "aur-repack",
+      "format": "aur",
+      "label": "AUR package (community repack)",
+      "package": "whatpulse",
+      "update": {
+        "type": "aur"
+      },
+      "verification": {
+        "type": "tls-only"
+      },
+      "vendor_supported": false,
+      "notes": "Unofficial community repack of the AppImage; usually lags behind the vendor."
+    }
+  ],
+  "features": [
+    {
+      "id": "core",
+      "name": "Main application",
+      "core": true
+    },
+    {
+      "id": "keyboard",
+      "name": "Keyboard tracking",
+      "requires": [
+        "input-access"
+      ]
+    },
+    {
+      "id": "mouse",
+      "name": "Mouse tracking",
+      "requires": [
+        "input-access"
+      ]
+    },
+    {
+      "id": "network",
+      "name": "Network statistics",
+      "requires": [
+        "pcap-service"
+      ],
+      "notes": "Without the PCap Service WhatPulse still shows traffic locally but cannot pulse it."
+    },
+    {
+      "id": "web",
+      "name": "Browser activity",
+      "optional": true,
+      "requires": [
+        "web-insights"
+      ],
+      "notes": "Requires a WhatPulse Premium account."
+    }
+  ],
+  "components": [
+    {
+      "id": "input-access",
+      "name": "Input access",
+      "description": "Read access to keyboard and mouse devices through membership of the 'input' group.",
+      "type": "permission",
+      "relation": "hard",
+      "action": {
+        "kind": "group.add_user",
+        "group": "input"
+      },
+      "requires_relogin": true,
+      "verify": [
+        {
+          "probe": "group_membership",
+          "group": "input",
+          "effective": "session"
+        },
+        {
+          "probe": "readable",
+          "path": "/dev/input/event*"
+        }
+      ],
+      "privileges": [
+        "group:input"
+      ],
+      "security_note": "Members of the 'input' group can read every keystroke and mouse event of every program.",
+      "discouraged_vendor_instructions": [
+        "sudo sh setup-input-permissions-enhanced.sh — besides adding you to 'input', it makes every /dev/input/event* device world-readable (chmod 644) until the next reboot and installs an obsolete udev rule. Cygnus only performs the group change."
+      ]
+    },
+    {
+      "id": "pcap-service",
+      "name": "External PCap Service",
+      "description": "Root service that captures network packet headers and forwards them to WhatPulse on 127.0.0.1:3499.",
+      "type": "system-service",
+      "relation": "hard",
+      "platform_actions": {
+        "arch": {
+          "kind": "pacman.install_local",
+          "url": "https://github.com/whatpulse/linux-external-pcap-service/releases/download/v1.5.1/whatpulse-pcap-service-1.5.1-1-x86_64.pkg.tar.zst",
+          "sha256": "54fe5e87ac6a09d6c6cc7bbecf64514ed3b916ff31a2577521315e8b4a42160c"
+        }
+      },
+      "post": [
+        {
+          "kind": "systemd.enable_now",
+          "unit": "whatpulse-pcap-service.service"
+        }
+      ],
+      "verify": [
+        {
+          "probe": "pacman_installed",
+          "name": "whatpulse-pcap-service"
+        },
+        {
+          "probe": "systemd_unit",
+          "unit": "whatpulse-pcap-service.service",
+          "expect": [
+            "enabled",
+            "active"
+          ]
+        },
+        {
+          "probe": "journal_recent_match",
+          "unit": "whatpulse-pcap-service.service",
+          "within_minutes": 30,
+          "contains": [
+            "PF_RING initialized",
+            "PF_RING Stats"
+          ]
+        },
+        {
+          "probe": "tcp_peer",
+          "addr": "127.0.0.1",
+          "port": 3499
+        }
+      ],
+      "privileges": [
+        "root-service",
+        "CAP_NET_RAW",
+        "CAP_NET_ADMIN"
+      ],
+      "security_note": "Runs as root and streams packet headers from all interfaces to 127.0.0.1:3499 without authentication.",
+      "discouraged_vendor_instructions": [
+        "curl … auto-install.sh | sudo bash — Cygnus installs the vendor's signed-by-checksum Arch package instead."
+      ]
+    },
+    {
+      "id": "web-insights",
+      "name": "Web Insights browser extension",
+      "type": "browser-extension",
+      "relation": "optional",
+      "action": {
+        "kind": "browser.open_store"
+      },
+      "browsers": {
+        "chromium": {
+          "id": "fnfhoihlmikplapbgegdmpifhgmaigbf",
+          "store_url": "https://chromewebstore.google.com/detail/web-insights-for-whatpuls/fnfhoihlmikplapbgegdmpifhgmaigbf"
+        },
+        "firefox": {
+          "id": "webinsights@whatpulse.org",
+          "store_url": "https://addons.mozilla.org/firefox/addon/web-insights-for-whatpulse/"
+        }
+      },
+      "verify": [
+        {
+          "probe": "browser_extension_present",
+          "family": "chromium",
+          "id": "fnfhoihlmikplapbgegdmpifhgmaigbf"
+        },
+        {
+          "probe": "browser_extension_present",
+          "family": "firefox",
+          "id": "webinsights@whatpulse.org"
+        }
+      ],
+      "verify_mode": "any",
+      "notes": "Talks to WhatPulse over ws://127.0.0.1:3488; pairing is approved inside WhatPulse."
+    }
+  ],
+  "conflicts": [
+    {
+      "between": [
+        "appimage",
+        "flatpak-bundle"
+      ],
+      "reason": "Both copies listen on 127.0.0.1:3499 and keep separate statistics; run only one."
+    }
+  ],
+  "user_data": {
+    "paths": [
+      "~/.local/share/whatpulse",
+      "~/.var/app/org.whatpulse.WhatPulse"
+    ]
+  }
+}

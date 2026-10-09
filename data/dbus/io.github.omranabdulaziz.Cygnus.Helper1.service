@@ -1,0 +1,5 @@
+[D-BUS Service]
+Name=io.github.omranabdulaziz.Cygnus.Helper1
+Exec=/bin/false
+User=root
+SystemdService=cygnus-helper.service

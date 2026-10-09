@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cygnus"
+dynamic = ["version"]
+description = "Application installer and manager for CachyOS / KDE Plasma"
+readme = "README.md"
+requires-python = ">=3.14"
+license = "GPL-3.0-or-later"
+# Runtime dependencies come from the distribution (pacman), not PyPI. The full list is `depends` and `optdepends` in
+# packaging/arch/PKGBUILD (pyalpm, python-gobject, python-pydantic, python-requests, python-cryptography, python-systemd,
+# pyside6 and Kirigami, flatpak, ostree, squashfs-tools, libarchive, gnupg, fakeroot, xdg-utils, glib2 ...; zsync is optional).
+dependencies = []
+
+[project.scripts]
+cygnus = "cygnus.cli.main:main"
+
+[project.gui-scripts]
+cygnus-gui = "cygnus.gui.app:main"
+
+[tool.setuptools.dynamic]
+version = {attr = "cygnus.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["cygnus*"]
+
+[tool.setuptools.package-data]
+"cygnus.data" = ["manifests/*.json"]
+"cygnus.gui" = ["qml/*.qml", "icons/*.svg"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+filterwarnings = [
+    # Emitted by PyGObject's own overrides on import; not ours to fix.
+    "ignore:GLib.unix_signal_add_full is deprecated:DeprecationWarning",
+    "ignore::DeprecationWarning:gi.events",
+]
+markers = [
+    "needs_tool(name): test requires an external tool to be installed",
+    "host: test reads (never writes) real host state such as /proc or lsblk",
+]

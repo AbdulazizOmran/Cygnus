@@ -1,0 +1,12 @@
+[Unit]
+Description=Cygnus: check for updates and problems every few hours
+Documentation=https://github.com/AbdulazizOmran/Cygnus
+
+[Timer]
+OnStartupSec=15min
+OnCalendar=00/6:00
+RandomizedDelaySec=20min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

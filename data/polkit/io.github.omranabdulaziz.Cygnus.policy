@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!-- Cygnus privileged helper. Every action is checked by cygnus-helper with a message it generated
+     itself (polkit.message), so the dialog states exactly what will happen. -->
+<policyconfig>
+  <vendor>Cygnus</vendor>
+  <vendor_url>https://github.com/AbdulazizOmran/Cygnus</vendor_url>
+  <icon_name>system-software-install</icon_name>
+  <action id="io.github.omranabdulaziz.Cygnus.packages.install-repo">
+    <description>Install software from your package repositories</description>
+    <message>Authentication is required to install software from your package repositories</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+  </action>
+  <action id="io.github.omranabdulaziz.Cygnus.system.upgrade">
+    <description>Upgrade the system</description>
+    <message>Authentication is required to upgrade the system</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+  </action>
+  <action id="io.github.omranabdulaziz.Cygnus.packages.install-local">
+    <description>Install a downloaded or locally built package</description>
+    <message>Authentication is required to install a package that runs code as root</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+  </action>
+  <action id="io.github.omranabdulaziz.Cygnus.packages.remove">
+    <description>Remove installed software</description>
+    <message>Authentication is required to remove software</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+  </action>
+  <action id="io.github.omranabdulaziz.Cygnus.services.manage">
+    <description>Manage system services of installed software</description>
+    <message>Authentication is required to change a system service</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+  </action>
+  <action id="io.github.omranabdulaziz.Cygnus.permissions.manage">
+    <description>Change your group memberships</description>
+    <message>Authentication is required to change your permissions</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+  </action>
+  <action id="io.github.omranabdulaziz.Cygnus.recovery.manage">
+    <description>Recover from a failed operation</description>
+    <message>Authentication is required to repair the package system</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+  </action>
+</policyconfig>

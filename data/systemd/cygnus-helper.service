@@ -1,0 +1,18 @@
+[Unit]
+Description=Cygnus privileged helper (started on demand over D-Bus)
+Documentation=https://github.com/AbdulazizOmran/Cygnus
+
+[Service]
+Type=dbus
+BusName=io.github.omranabdulaziz.Cygnus.Helper1
+# Isolated mode: user site-packages, .pth files and PYTHON* variables are ignored.
+ExecStart=/usr/bin/python3 -I -m cygnus.helper.service
+StateDirectory=cygnus
+CacheDirectory=cygnus
+# The unprivileged package reader must be able to reach the staged file: /var/cache/cygnus is entered by others.
+CacheDirectoryMode=0755
+PrivateTmp=yes
+ProtectHome=read-only
+# NoNewPrivileges is deliberately not set: pacman hooks may legitimately need it.
+# A running pacman transaction must never be killed early.
+TimeoutStopSec=1h

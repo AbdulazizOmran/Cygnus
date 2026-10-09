@@ -1,0 +1,113 @@
+{
+  "manifest_version": 1,
+  "serial": 2026100601,
+  "expires": "2027-04-06T00:00:00Z",
+  "application": {
+    "id": "net.imput.helium",
+    "appstream_ids": [
+      "net.imput.helium"
+    ],
+    "package_names": [
+      "helium-browser-bin"
+    ],
+    "desktop_ids": [
+      "helium.desktop"
+    ],
+    "name": "Helium",
+    "vendor": {
+      "name": "imput",
+      "domain": "helium.computer"
+    },
+    "homepage": "https://helium.computer",
+    "platforms": [
+      {
+        "os": "linux",
+        "arch": [
+          "x86_64",
+          "aarch64"
+        ],
+        "sessions": [
+          "x11",
+          "wayland"
+        ]
+      }
+    ]
+  },
+  "sources": [
+    {
+      "id": "appimage",
+      "format": "appimage",
+      "label": "AppImage (signed)",
+      "update": {
+        "type": "gh-releases",
+        "url": "https://api.github.com/repos/imputnet/helium-linux/releases/latest"
+      },
+      "verification": {
+        "type": "appimage-openpgp",
+        "openpgp_fingerprint": "BE677C1989D35EAB2C5F26C9351601AD01D6378E"
+      },
+      "recommended_when": [
+        "default",
+        "relocatable"
+      ],
+      "notes": "Official, signed by the Helium signing key. Can live on any drive that allows running programs."
+    },
+    {
+      "id": "aur-bin",
+      "format": "aur",
+      "label": "System package (helium-browser-bin)",
+      "package": "helium-browser-bin",
+      "update": {
+        "type": "aur"
+      },
+      "verification": {
+        "type": "pkgbuild-openpgp",
+        "openpgp_fingerprint": "BE677C1989D35EAB2C5F26C9351601AD01D6378E"
+      },
+      "vendor_supported": false,
+      "recommended_when": [
+        "system-package"
+      ],
+      "notes": "Community package built from the vendor's signed tarball; installs to /opt on system storage."
+    }
+  ],
+  "features": [
+    {
+      "id": "core",
+      "name": "Main application",
+      "core": true,
+      "requires": [
+        "userns-sandbox"
+      ]
+    }
+  ],
+  "components": [
+    {
+      "id": "userns-sandbox",
+      "name": "Browser sandbox (user namespaces)",
+      "description": "Helium ships no setuid sandbox and relies on unprivileged user namespaces.",
+      "type": "kernel-feature",
+      "relation": "hard",
+      "verify": [
+        {
+          "probe": "sysctl",
+          "key": "user.max_user_namespaces",
+          "minimum": 1
+        },
+        {
+          "probe": "sysctl",
+          "key": "kernel.unprivileged_userns_clone",
+          "expect": "1",
+          "absent_ok": true
+        }
+      ],
+      "notes": "Mainline kernels control this with user.max_user_namespaces (0 disables it); some distribution kernels add kernel.unprivileged_userns_clone."
+    }
+  ],
+  "user_data": {
+    "paths": [
+      "~/.config/net.imput.helium",
+      "~/.cache/net.imput.helium"
+    ]
+  }
+}

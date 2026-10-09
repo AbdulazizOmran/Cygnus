@@ -1,0 +1,9 @@
+[Unit]
+Description=Cygnus: check for updates and problems
+Documentation=https://github.com/AbdulazizOmran/Cygnus
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/cygnus watch
+Nice=10
+IOSchedulingClass=idle

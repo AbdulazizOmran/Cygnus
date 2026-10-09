@@ -1,0 +1,1628 @@
+{
+  "$defs": {
+    "AppImageInstall": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "appimage.install",
+          "title": "Kind",
+          "type": "string"
+        },
+        "url": {
+          "pattern": "^https://",
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "url"
+      ],
+      "title": "AppImageInstall",
+      "type": "object"
+    },
+    "ApplicationInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "appstream_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 200,
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]*(\\.[A-Za-z0-9_-]+)+$",
+            "type": "string"
+          },
+          "title": "Appstream Ids",
+          "type": "array"
+        },
+        "desktop_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "maxItems": 50,
+          "title": "Desktop Ids",
+          "type": "array"
+        },
+        "flatpak_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 200,
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]*(\\.[A-Za-z0-9_-]+)+$",
+            "type": "string"
+          },
+          "title": "Flatpak Ids",
+          "type": "array"
+        },
+        "homepage": {
+          "anyOf": [
+            {
+              "pattern": "^https://",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Homepage"
+        },
+        "id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]*(\\.[A-Za-z0-9_-]+)+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "license": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "License"
+        },
+        "name": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "package_names": {
+          "default": [],
+          "items": {
+            "pattern": "^[a-z0-9@_+][a-z0-9@._+-]{0,99}$",
+            "type": "string"
+          },
+          "title": "Package Names",
+          "type": "array"
+        },
+        "platforms": {
+          "items": {
+            "$ref": "#/$defs/Platform"
+          },
+          "title": "Platforms",
+          "type": "array"
+        },
+        "supported_versions": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Supported Versions"
+        },
+        "vendor": {
+          "$ref": "#/$defs/Vendor"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "vendor",
+        "platforms"
+      ],
+      "title": "ApplicationInfo",
+      "type": "object"
+    },
+    "AurBuild": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "aur.build",
+          "title": "Kind",
+          "type": "string"
+        },
+        "pkgbase": {
+          "pattern": "^[a-z0-9@_+][a-z0-9@._+-]{0,99}$",
+          "title": "Pkgbase",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "pkgbase"
+      ],
+      "title": "AurBuild",
+      "type": "object"
+    },
+    "BrowserExtensionProbe": {
+      "additionalProperties": false,
+      "properties": {
+        "family": {
+          "enum": [
+            "chromium",
+            "firefox"
+          ],
+          "title": "Family",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 120,
+          "title": "Id",
+          "type": "string"
+        },
+        "probe": {
+          "const": "browser_extension_present",
+          "title": "Probe",
+          "type": "string"
+        }
+      },
+      "required": [
+        "probe",
+        "family",
+        "id"
+      ],
+      "title": "BrowserExtensionProbe",
+      "type": "object"
+    },
+    "BrowserOpenStore": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "browser.open_store",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "BrowserOpenStore",
+      "type": "object"
+    },
+    "BrowserTarget": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "store_url": {
+          "anyOf": [
+            {
+              "pattern": "^https://",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Store Url"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "BrowserTarget",
+      "type": "object"
+    },
+    "Component": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "appimage.install": "#/$defs/AppImageInstall",
+                  "aur.build": "#/$defs/AurBuild",
+                  "browser.open_store": "#/$defs/BrowserOpenStore",
+                  "flatpak.install": "#/$defs/FlatpakInstall",
+                  "flatpak.install_bundle": "#/$defs/FlatpakInstallBundle",
+                  "flatpak.override": "#/$defs/FlatpakOverride",
+                  "group.add_user": "#/$defs/GroupAddUser",
+                  "info.show": "#/$defs/InfoShow",
+                  "pacman.install_local": "#/$defs/PacmanInstallLocal",
+                  "pacman.install_repo": "#/$defs/PacmanInstallRepo",
+                  "systemd.enable_now": "#/$defs/SystemdEnableNow",
+                  "systemd.user.enable_now": "#/$defs/SystemdEnableNow"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/PacmanInstallRepo"
+                },
+                {
+                  "$ref": "#/$defs/PacmanInstallLocal"
+                },
+                {
+                  "$ref": "#/$defs/AurBuild"
+                },
+                {
+                  "$ref": "#/$defs/FlatpakInstall"
+                },
+                {
+                  "$ref": "#/$defs/FlatpakInstallBundle"
+                },
+                {
+                  "$ref": "#/$defs/FlatpakOverride"
+                },
+                {
+                  "$ref": "#/$defs/AppImageInstall"
+                },
+                {
+                  "$ref": "#/$defs/SystemdEnableNow"
+                },
+                {
+                  "$ref": "#/$defs/GroupAddUser"
+                },
+                {
+                  "$ref": "#/$defs/BrowserOpenStore"
+                },
+                {
+                  "$ref": "#/$defs/InfoShow"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Action"
+        },
+        "applies_to_sources": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Applies To Sources",
+          "type": "array"
+        },
+        "browsers": {
+          "additionalProperties": {
+            "$ref": "#/$defs/BrowserTarget"
+          },
+          "default": {},
+          "propertyNames": {
+            "enum": [
+              "chromium",
+              "firefox"
+            ]
+          },
+          "title": "Browsers",
+          "type": "object"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "discouraged_vendor_instructions": {
+          "default": [],
+          "items": {
+            "maxLength": 500,
+            "type": "string"
+          },
+          "maxItems": 20,
+          "title": "Discouraged Vendor Instructions",
+          "type": "array"
+        },
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "platform_actions": {
+          "additionalProperties": {
+            "discriminator": {
+              "mapping": {
+                "appimage.install": "#/$defs/AppImageInstall",
+                "aur.build": "#/$defs/AurBuild",
+                "browser.open_store": "#/$defs/BrowserOpenStore",
+                "flatpak.install": "#/$defs/FlatpakInstall",
+                "flatpak.install_bundle": "#/$defs/FlatpakInstallBundle",
+                "flatpak.override": "#/$defs/FlatpakOverride",
+                "group.add_user": "#/$defs/GroupAddUser",
+                "info.show": "#/$defs/InfoShow",
+                "pacman.install_local": "#/$defs/PacmanInstallLocal",
+                "pacman.install_repo": "#/$defs/PacmanInstallRepo",
+                "systemd.enable_now": "#/$defs/SystemdEnableNow",
+                "systemd.user.enable_now": "#/$defs/SystemdEnableNow"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/PacmanInstallRepo"
+              },
+              {
+                "$ref": "#/$defs/PacmanInstallLocal"
+              },
+              {
+                "$ref": "#/$defs/AurBuild"
+              },
+              {
+                "$ref": "#/$defs/FlatpakInstall"
+              },
+              {
+                "$ref": "#/$defs/FlatpakInstallBundle"
+              },
+              {
+                "$ref": "#/$defs/FlatpakOverride"
+              },
+              {
+                "$ref": "#/$defs/AppImageInstall"
+              },
+              {
+                "$ref": "#/$defs/SystemdEnableNow"
+              },
+              {
+                "$ref": "#/$defs/GroupAddUser"
+              },
+              {
+                "$ref": "#/$defs/BrowserOpenStore"
+              },
+              {
+                "$ref": "#/$defs/InfoShow"
+              }
+            ]
+          },
+          "default": {},
+          "propertyNames": {
+            "const": "arch"
+          },
+          "title": "Platform Actions",
+          "type": "object"
+        },
+        "post": {
+          "default": [],
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "appimage.install": "#/$defs/AppImageInstall",
+                "aur.build": "#/$defs/AurBuild",
+                "browser.open_store": "#/$defs/BrowserOpenStore",
+                "flatpak.install": "#/$defs/FlatpakInstall",
+                "flatpak.install_bundle": "#/$defs/FlatpakInstallBundle",
+                "flatpak.override": "#/$defs/FlatpakOverride",
+                "group.add_user": "#/$defs/GroupAddUser",
+                "info.show": "#/$defs/InfoShow",
+                "pacman.install_local": "#/$defs/PacmanInstallLocal",
+                "pacman.install_repo": "#/$defs/PacmanInstallRepo",
+                "systemd.enable_now": "#/$defs/SystemdEnableNow",
+                "systemd.user.enable_now": "#/$defs/SystemdEnableNow"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/PacmanInstallRepo"
+              },
+              {
+                "$ref": "#/$defs/PacmanInstallLocal"
+              },
+              {
+                "$ref": "#/$defs/AurBuild"
+              },
+              {
+                "$ref": "#/$defs/FlatpakInstall"
+              },
+              {
+                "$ref": "#/$defs/FlatpakInstallBundle"
+              },
+              {
+                "$ref": "#/$defs/FlatpakOverride"
+              },
+              {
+                "$ref": "#/$defs/AppImageInstall"
+              },
+              {
+                "$ref": "#/$defs/SystemdEnableNow"
+              },
+              {
+                "$ref": "#/$defs/GroupAddUser"
+              },
+              {
+                "$ref": "#/$defs/BrowserOpenStore"
+              },
+              {
+                "$ref": "#/$defs/InfoShow"
+              }
+            ]
+          },
+          "title": "Post",
+          "type": "array"
+        },
+        "privileges": {
+          "default": [],
+          "items": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "maxItems": 20,
+          "title": "Privileges",
+          "type": "array"
+        },
+        "relation": {
+          "enum": [
+            "hard",
+            "recommended",
+            "optional"
+          ],
+          "title": "Relation",
+          "type": "string"
+        },
+        "requires_relogin": {
+          "default": false,
+          "title": "Requires Relogin",
+          "type": "boolean"
+        },
+        "security_note": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Security Note"
+        },
+        "type": {
+          "enum": [
+            "permission",
+            "system-service",
+            "user-service",
+            "browser-extension",
+            "native-messaging-host",
+            "companion-app",
+            "runtime",
+            "codec",
+            "driver",
+            "plugin",
+            "cli-helper",
+            "kernel-feature"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "verify": {
+          "default": [],
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "browser_extension_present": "#/$defs/BrowserExtensionProbe",
+                "group_membership": "#/$defs/GroupMembershipProbe",
+                "journal_recent_match": "#/$defs/JournalMatchProbe",
+                "pacman_installed": "#/$defs/PackageInstalledProbe",
+                "process_running": "#/$defs/ProcessRunningProbe",
+                "readable": "#/$defs/ReadableProbe",
+                "sysctl": "#/$defs/SysctlProbe",
+                "systemd_unit": "#/$defs/SystemdUnitProbe",
+                "tcp_listener": "#/$defs/TcpListenerProbe",
+                "tcp_peer": "#/$defs/TcpPeerProbe"
+              },
+              "propertyName": "probe"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/GroupMembershipProbe"
+              },
+              {
+                "$ref": "#/$defs/ReadableProbe"
+              },
+              {
+                "$ref": "#/$defs/SystemdUnitProbe"
+              },
+              {
+                "$ref": "#/$defs/JournalMatchProbe"
+              },
+              {
+                "$ref": "#/$defs/TcpListenerProbe"
+              },
+              {
+                "$ref": "#/$defs/TcpPeerProbe"
+              },
+              {
+                "$ref": "#/$defs/PackageInstalledProbe"
+              },
+              {
+                "$ref": "#/$defs/BrowserExtensionProbe"
+              },
+              {
+                "$ref": "#/$defs/SysctlProbe"
+              },
+              {
+                "$ref": "#/$defs/ProcessRunningProbe"
+              }
+            ]
+          },
+          "title": "Verify",
+          "type": "array"
+        },
+        "verify_mode": {
+          "default": "all",
+          "enum": [
+            "all",
+            "any"
+          ],
+          "title": "Verify Mode",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "type",
+        "relation"
+      ],
+      "title": "Component",
+      "type": "object"
+    },
+    "Conflict": {
+      "additionalProperties": false,
+      "properties": {
+        "between": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Between",
+          "type": "array"
+        },
+        "reason": {
+          "maxLength": 2000,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "between",
+        "reason"
+      ],
+      "title": "Conflict",
+      "type": "object"
+    },
+    "Feature": {
+      "additionalProperties": false,
+      "properties": {
+        "core": {
+          "default": false,
+          "title": "Core",
+          "type": "boolean"
+        },
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "optional": {
+          "default": false,
+          "title": "Optional",
+          "type": "boolean"
+        },
+        "requires": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Requires",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "Feature",
+      "type": "object"
+    },
+    "FlatpakInstall": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "flatpak.install",
+          "title": "Kind",
+          "type": "string"
+        },
+        "ref": {
+          "pattern": "^(app|runtime)/[A-Za-z][A-Za-z0-9_.-]*/[A-Za-z0-9_]+/[A-Za-z0-9_.-]+$",
+          "title": "Ref",
+          "type": "string"
+        },
+        "remote": {
+          "pattern": "^[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}$",
+          "title": "Remote",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "ref",
+        "remote"
+      ],
+      "title": "FlatpakInstall",
+      "type": "object"
+    },
+    "FlatpakInstallBundle": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "flatpak.install_bundle",
+          "title": "Kind",
+          "type": "string"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha256"
+        },
+        "url": {
+          "pattern": "^https://",
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "url"
+      ],
+      "title": "FlatpakInstallBundle",
+      "type": "object"
+    },
+    "FlatpakOverride": {
+      "additionalProperties": false,
+      "properties": {
+        "app": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]*(\\.[A-Za-z0-9_-]+)+$",
+          "title": "App",
+          "type": "string"
+        },
+        "kind": {
+          "const": "flatpak.override",
+          "title": "Kind",
+          "type": "string"
+        },
+        "permissions": {
+          "items": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "maxItems": 10,
+          "minItems": 1,
+          "title": "Permissions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "app",
+        "permissions"
+      ],
+      "title": "FlatpakOverride",
+      "type": "object"
+    },
+    "GroupAddUser": {
+      "additionalProperties": false,
+      "properties": {
+        "group": {
+          "pattern": "^[a-z_][a-z0-9_-]{0,31}$",
+          "title": "Group",
+          "type": "string"
+        },
+        "kind": {
+          "const": "group.add_user",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "group"
+      ],
+      "title": "GroupAddUser",
+      "type": "object"
+    },
+    "GroupMembershipProbe": {
+      "additionalProperties": false,
+      "properties": {
+        "effective": {
+          "default": "session",
+          "enum": [
+            "configured",
+            "session"
+          ],
+          "title": "Effective",
+          "type": "string"
+        },
+        "group": {
+          "pattern": "^[a-z_][a-z0-9_-]{0,31}$",
+          "title": "Group",
+          "type": "string"
+        },
+        "probe": {
+          "const": "group_membership",
+          "title": "Probe",
+          "type": "string"
+        }
+      },
+      "required": [
+        "probe",
+        "group"
+      ],
+      "title": "GroupMembershipProbe",
+      "type": "object"
+    },
+    "InfoShow": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "info.show",
+          "title": "Kind",
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 2000,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "text"
+      ],
+      "title": "InfoShow",
+      "type": "object"
+    },
+    "JournalMatchProbe": {
+      "additionalProperties": false,
+      "description": "Passes if any recent log line of the unit contains one of `contains` (plain substrings:\nmanifests never supply regular expressions, which could hang the health check).",
+      "properties": {
+        "contains": {
+          "items": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 10,
+          "minItems": 1,
+          "title": "Contains",
+          "type": "array"
+        },
+        "probe": {
+          "const": "journal_recent_match",
+          "title": "Probe",
+          "type": "string"
+        },
+        "unit": {
+          "pattern": "^[A-Za-z0-9_@][A-Za-z0-9:_.@-]*\\.(service|socket|timer|path)$",
+          "title": "Unit",
+          "type": "string"
+        },
+        "within_minutes": {
+          "default": 30,
+          "maximum": 10080,
+          "minimum": 1,
+          "title": "Within Minutes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "probe",
+        "unit",
+        "contains"
+      ],
+      "title": "JournalMatchProbe",
+      "type": "object"
+    },
+    "PackageInstalledProbe": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "pattern": "^[a-z0-9@_+][a-z0-9@._+-]{0,99}$",
+          "title": "Name",
+          "type": "string"
+        },
+        "probe": {
+          "const": "pacman_installed",
+          "title": "Probe",
+          "type": "string"
+        }
+      },
+      "required": [
+        "probe",
+        "name"
+      ],
+      "title": "PackageInstalledProbe",
+      "type": "object"
+    },
+    "PacmanInstallLocal": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "pacman.install_local",
+          "title": "Kind",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "url": {
+          "pattern": "^https://",
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "url",
+        "sha256"
+      ],
+      "title": "PacmanInstallLocal",
+      "type": "object"
+    },
+    "PacmanInstallRepo": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "pacman.install_repo",
+          "title": "Kind",
+          "type": "string"
+        },
+        "names": {
+          "items": {
+            "pattern": "^[a-z0-9@_+][a-z0-9@._+-]{0,99}$",
+            "type": "string"
+          },
+          "title": "Names",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "names"
+      ],
+      "title": "PacmanInstallRepo",
+      "type": "object"
+    },
+    "Platform": {
+      "additionalProperties": false,
+      "properties": {
+        "arch": {
+          "items": {
+            "enum": [
+              "x86_64",
+              "aarch64",
+              "i686",
+              "any"
+            ],
+            "type": "string"
+          },
+          "title": "Arch",
+          "type": "array"
+        },
+        "os": {
+          "const": "linux",
+          "default": "linux",
+          "title": "Os",
+          "type": "string"
+        },
+        "sessions": {
+          "anyOf": [
+            {
+              "items": {
+                "enum": [
+                  "x11",
+                  "wayland"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sessions"
+        }
+      },
+      "required": [
+        "arch"
+      ],
+      "title": "Platform",
+      "type": "object"
+    },
+    "ProcessRunningProbe": {
+      "additionalProperties": false,
+      "properties": {
+        "exe_contains": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Exe Contains",
+          "type": "string"
+        },
+        "probe": {
+          "const": "process_running",
+          "title": "Probe",
+          "type": "string"
+        }
+      },
+      "required": [
+        "probe",
+        "exe_contains"
+      ],
+      "title": "ProcessRunningProbe",
+      "type": "object"
+    },
+    "ReadableProbe": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "maxLength": 200,
+          "pattern": "^/(dev|sys|proc)/[A-Za-z0-9_.*?\\[\\]/-]+$",
+          "title": "Path",
+          "type": "string"
+        },
+        "probe": {
+          "const": "readable",
+          "title": "Probe",
+          "type": "string"
+        }
+      },
+      "required": [
+        "probe",
+        "path"
+      ],
+      "title": "ReadableProbe",
+      "type": "object"
+    },
+    "Source": {
+      "additionalProperties": false,
+      "properties": {
+        "channel": {
+          "default": "stable",
+          "enum": [
+            "stable",
+            "beta"
+          ],
+          "title": "Channel",
+          "type": "string"
+        },
+        "format": {
+          "enum": [
+            "appimage",
+            "flatpak-bundle",
+            "flatpak-remote",
+            "pacman-repo",
+            "aur",
+            "pacman-local",
+            "deb",
+            "rpm",
+            "tarball"
+          ],
+          "title": "Format",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "known_issues": {
+          "default": [],
+          "items": {
+            "maxLength": 500,
+            "type": "string"
+          },
+          "maxItems": 50,
+          "title": "Known Issues",
+          "type": "array"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "package": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9@_+][a-z0-9@._+-]{0,99}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Package"
+        },
+        "recommended_when": {
+          "default": [],
+          "items": {
+            "enum": [
+              "relocatable",
+              "system-package",
+              "wayland-window-tracking",
+              "default"
+            ],
+            "type": "string"
+          },
+          "title": "Recommended When",
+          "type": "array"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ref"
+        },
+        "runtime": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Runtime"
+        },
+        "update": {
+          "$ref": "#/$defs/UpdateSpec"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "pattern": "^https://",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "vendor_supported": {
+          "default": true,
+          "title": "Vendor Supported",
+          "type": "boolean"
+        },
+        "verification": {
+          "$ref": "#/$defs/Verification"
+        }
+      },
+      "required": [
+        "id",
+        "format",
+        "update",
+        "verification"
+      ],
+      "title": "Source",
+      "type": "object"
+    },
+    "SysctlProbe": {
+      "additionalProperties": false,
+      "properties": {
+        "absent_ok": {
+          "default": false,
+          "title": "Absent Ok",
+          "type": "boolean"
+        },
+        "expect": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expect"
+        },
+        "key": {
+          "pattern": "^[a-z0-9_]+(\\.[a-z0-9_]+)+$",
+          "title": "Key",
+          "type": "string"
+        },
+        "minimum": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Minimum"
+        },
+        "probe": {
+          "const": "sysctl",
+          "title": "Probe",
+          "type": "string"
+        }
+      },
+      "required": [
+        "probe",
+        "key"
+      ],
+      "title": "SysctlProbe",
+      "type": "object"
+    },
+    "SystemdEnableNow": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "systemd.enable_now",
+            "systemd.user.enable_now"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "unit": {
+          "pattern": "^[A-Za-z0-9_@][A-Za-z0-9:_.@-]*\\.(service|socket|timer|path)$",
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "unit"
+      ],
+      "title": "SystemdEnableNow",
+      "type": "object"
+    },
+    "SystemdUnitProbe": {
+      "additionalProperties": false,
+      "properties": {
+        "expect": {
+          "default": [
+            "enabled",
+            "active"
+          ],
+          "items": {
+            "enum": [
+              "enabled",
+              "active"
+            ],
+            "type": "string"
+          },
+          "title": "Expect",
+          "type": "array"
+        },
+        "probe": {
+          "const": "systemd_unit",
+          "title": "Probe",
+          "type": "string"
+        },
+        "scope": {
+          "default": "system",
+          "enum": [
+            "system",
+            "user"
+          ],
+          "title": "Scope",
+          "type": "string"
+        },
+        "unit": {
+          "pattern": "^[A-Za-z0-9_@][A-Za-z0-9:_.@-]*\\.(service|socket|timer|path)$",
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "probe",
+        "unit"
+      ],
+      "title": "SystemdUnitProbe",
+      "type": "object"
+    },
+    "TcpListenerProbe": {
+      "additionalProperties": false,
+      "properties": {
+        "addr": {
+          "default": "127.0.0.1",
+          "enum": [
+            "127.0.0.1",
+            "::1",
+            "0.0.0.0",
+            "::"
+          ],
+          "title": "Addr",
+          "type": "string"
+        },
+        "owner_exe_contains": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Owner Exe Contains"
+        },
+        "port": {
+          "maximum": 65535,
+          "minimum": 1,
+          "title": "Port",
+          "type": "integer"
+        },
+        "probe": {
+          "const": "tcp_listener",
+          "title": "Probe",
+          "type": "string"
+        }
+      },
+      "required": [
+        "probe",
+        "port"
+      ],
+      "title": "TcpListenerProbe",
+      "type": "object"
+    },
+    "TcpPeerProbe": {
+      "additionalProperties": false,
+      "properties": {
+        "addr": {
+          "default": "127.0.0.1",
+          "enum": [
+            "127.0.0.1",
+            "::1"
+          ],
+          "title": "Addr",
+          "type": "string"
+        },
+        "port": {
+          "maximum": 65535,
+          "minimum": 1,
+          "title": "Port",
+          "type": "integer"
+        },
+        "probe": {
+          "const": "tcp_peer",
+          "title": "Probe",
+          "type": "string"
+        }
+      },
+      "required": [
+        "probe",
+        "port"
+      ],
+      "title": "TcpPeerProbe",
+      "type": "object"
+    },
+    "UpdateSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "self_updating": {
+          "default": false,
+          "title": "Self Updating",
+          "type": "boolean"
+        },
+        "type": {
+          "enum": [
+            "zsync",
+            "gh-releases",
+            "flatpak-remote",
+            "pacman",
+            "aur",
+            "manual",
+            "none"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "pattern": "^https://",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "UpdateSpec",
+      "type": "object"
+    },
+    "UserData": {
+      "additionalProperties": false,
+      "properties": {
+        "paths": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Paths",
+          "type": "array"
+        }
+      },
+      "title": "UserData",
+      "type": "object"
+    },
+    "Vendor": {
+      "additionalProperties": false,
+      "properties": {
+        "domain": {
+          "anyOf": [
+            {
+              "maxLength": 253,
+              "pattern": "^([a-z0-9]([a-z0-9-]*[a-z0-9])?\\.)+[a-z]{2,}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Domain"
+        },
+        "name": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Vendor",
+      "type": "object"
+    },
+    "Verification": {
+      "additionalProperties": false,
+      "properties": {
+        "openpgp_fingerprint": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9A-F]{40}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Openpgp Fingerprint"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha256"
+        },
+        "signature_url": {
+          "anyOf": [
+            {
+              "pattern": "^https://",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Signature Url"
+        },
+        "type": {
+          "enum": [
+            "tls-only",
+            "sha256",
+            "openpgp-detached",
+            "appimage-openpgp",
+            "pkgbuild-openpgp",
+            "pacman-signature"
+          ],
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "Verification",
+      "type": "object"
+    }
+  },
+  "$id": "https://github.com/AbdulazizOmran/Cygnus/schemas/cam-1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "application": {
+      "$ref": "#/$defs/ApplicationInfo"
+    },
+    "components": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Component"
+      },
+      "title": "Components",
+      "type": "array"
+    },
+    "conflicts": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Conflict"
+      },
+      "title": "Conflicts",
+      "type": "array"
+    },
+    "expires": {
+      "format": "date-time",
+      "title": "Expires",
+      "type": "string"
+    },
+    "features": {
+      "items": {
+        "$ref": "#/$defs/Feature"
+      },
+      "title": "Features",
+      "type": "array"
+    },
+    "manifest_version": {
+      "const": 1,
+      "title": "Manifest Version",
+      "type": "integer"
+    },
+    "serial": {
+      "minimum": 1,
+      "title": "Serial",
+      "type": "integer"
+    },
+    "sources": {
+      "items": {
+        "$ref": "#/$defs/Source"
+      },
+      "title": "Sources",
+      "type": "array"
+    },
+    "user_data": {
+      "$ref": "#/$defs/UserData",
+      "default": {
+        "paths": []
+      }
+    }
+  },
+  "required": [
+    "manifest_version",
+    "serial",
+    "expires",
+    "application",
+    "sources",
+    "features"
+  ],
+  "title": "Cygnus Application Manifest v1",
+  "type": "object"
+}

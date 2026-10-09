@@ -1,0 +1,65 @@
+# Maintainer: AbdulazizOmran <abdulazizomran10@proton.me>
+#
+# In-tree PKGBUILD: run `makepkg` from packaging/arch/ inside a Cygnus checkout. It builds the
+# working tree it sits in (no download); a release PKGBUILD will use a tagged source tarball instead.
+
+pkgname=cygnus
+pkgver=0.1.0
+pkgrel=29
+pkgdesc="Application installer and manager for CachyOS / KDE Plasma: choose the drive each app lives on"
+arch=('any')
+url="https://github.com/AbdulazizOmran/Cygnus"
+license=('GPL-3.0-or-later')
+depends=(
+  'python>=3.14' 'pyalpm' 'python-gobject' 'python-pydantic' 'python-requests' 'python-cryptography'
+  'python-systemd'
+  'pyside6' 'qt6-declarative' 'kirigami' 'kirigami-addons' 'qqc2-desktop-style'
+  'flatpak' 'ostree' 'squashfs-tools' 'libarchive' 'binutils' 'gnupg' 'util-linux' 'polkit' 'systemd'
+  'pacman' 'desktop-file-utils' 'libnotify'
+  'git' 'fakeroot' 'xdg-utils' 'glib2'
+)
+optdepends=(
+  'kservice: refresh the Plasma menu immediately after changes (kbuildsycoca6)'
+  'base-devel: the compilers and build tools that AUR packages need to build from source'
+  'fuse2: run type-2 AppImages that need libfuse2'
+  'fuse3: run AppImages built with the static runtime'
+  'zsync: delta downloads for AppImage updates'
+)
+makedepends=('python-build' 'python-installer' 'python-setuptools' 'python-wheel')
+checkdepends=('python-pytest')
+
+_tree="$startdir/../.."
+
+build() {
+  cd "$_tree"
+  rm -rf "$srcdir/dist"  # exactly one wheel: the one built now
+  python -m build --wheel --no-isolation --outdir "$srcdir/dist"
+}
+
+check() {
+  cd "$_tree"
+  # The suite only writes inside its temporary directories (XDG and Flatpak dirs are redirected);
+  # the GUI smoke test renders offscreen.
+  python -m pytest -q -p no:cacheprovider
+}
+
+package() {
+  cd "$_tree"
+  python -m installer --destdir="$pkgdir" "$srcdir"/dist/*.whl
+  local id=io.github.omranabdulaziz.Cygnus
+  install -Dm644 "data/applications/$id.desktop" "$pkgdir/usr/share/applications/$id.desktop"
+  install -Dm644 "data/metainfo/$id.metainfo.xml" "$pkgdir/usr/share/metainfo/$id.metainfo.xml"
+  install -Dm644 "cygnus/gui/icons/$id.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/$id.svg"
+  local size
+  for size in 16 22 24 32; do
+    install -Dm644 "cygnus/gui/icons/$id-small.svg" "$pkgdir/usr/share/icons/hicolor/${size}x${size}/apps/$id.svg"
+  done
+  install -Dm644 "data/polkit/$id.policy" "$pkgdir/usr/share/polkit-1/actions/$id.policy"
+  install -Dm644 "data/dbus/$id.Helper1.conf" "$pkgdir/usr/share/dbus-1/system.d/$id.Helper1.conf"
+  install -Dm644 "data/dbus/$id.Helper1.service" "$pkgdir/usr/share/dbus-1/system-services/$id.Helper1.service"
+  install -Dm644 data/systemd/cygnus-helper.service "$pkgdir/usr/lib/systemd/system/cygnus-helper.service"
+  install -Dm644 data/sysusers/cygnus.conf "$pkgdir/usr/lib/sysusers.d/cygnus.conf"
+  install -Dm644 data/systemd/user/cygnus-watch.service "$pkgdir/usr/lib/systemd/user/cygnus-watch.service"
+  install -Dm644 data/systemd/user/cygnus-watch.timer "$pkgdir/usr/lib/systemd/user/cygnus-watch.timer"
+  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+}

@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- Cygnus, the swan (the Northern Cross): Deneb, Sadr, Albireo, Gienah and Delta Cygni. -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#2a3f8f"/>
+      <stop offset="1" stop-color="#121a3d"/>
+    </linearGradient>
+    <radialGradient id="glow">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="0.35" stop-color="#bcd3ff" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#bcd3ff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect x="8" y="8" width="112" height="112" rx="24" fill="url(#sky)"/>
+  <g fill="#ffffff" opacity="0.35">
+    <circle cx="27" cy="28" r="1.2"/>
+    <circle cx="99" cy="27" r="1"/>
+    <circle cx="101" cy="98" r="1.2"/>
+    <circle cx="25" cy="92" r="1"/>
+    <circle cx="86" cy="45" r="0.9"/>
+  </g>
+  <g stroke="#9fbaff" stroke-width="3" stroke-linecap="round" opacity="0.85">
+    <line x1="64" y1="26" x2="64" y2="102"/>
+    <line x1="30" y1="50" x2="98" y2="66"/>
+  </g>
+  <circle cx="64" cy="26" r="13" fill="url(#glow)"/>
+  <circle cx="64" cy="58" r="10" fill="url(#glow)"/>
+  <circle cx="64" cy="26" r="6" fill="#ffffff"/>
+  <circle cx="64" cy="58" r="5" fill="#ffffff"/>
+  <circle cx="30" cy="50" r="4" fill="#ffffff"/>
+  <circle cx="98" cy="66" r="4" fill="#ffffff"/>
+  <circle cx="64" cy="102" r="4.5" fill="#ffd27a"/>
+</svg>

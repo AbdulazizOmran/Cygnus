@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Cygnus
+GenericName=Application Manager
+Comment=Install and manage applications, and choose which drive each one lives on
+Exec=cygnus-gui %U
+Icon=io.github.omranabdulaziz.Cygnus
+Terminal=false
+Categories=Qt;KDE;System;PackageManager;
+Keywords=install;uninstall;appimage;flatpak;package;software;update;drive;
+MimeType=application/vnd.appimage;application/x-iso9660-appimage;application/vnd.flatpak;application/vnd.flatpak.ref;x-scheme-handler/appstream;x-scheme-handler/flatpak+https;application/vnd.debian.binary-package;application/x-rpm;
+StartupNotify=true
