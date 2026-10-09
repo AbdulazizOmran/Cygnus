@@ -1,0 +1,14 @@
+{
+  "name": "cygnus-ai",
+  "private": true,
+  "type": "module",
+  "description": "The hosted assistant for Cygnus (a Cloudflare Worker)",
+  "scripts": {
+    "test": "node --test test/",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "4.137.0"
+  }
+}

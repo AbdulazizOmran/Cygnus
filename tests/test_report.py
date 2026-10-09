@@ -47,3 +47,12 @@ def test_the_command_prints_the_report(capsys):
 
     assert cli.main(["report"]) == 0
     assert capsys.readouterr().out.startswith("# Cygnus report")
+
+
+def test_the_report_says_whether_the_ai_assistant_is_on_and_never_shows_what_was_typed_for_it():
+    from cygnus.core.ai import config
+
+    assert "AI assistant: off" in report.build()
+    config.save(enabled=True, provider="compatible", model="my-private-model", base_url="http://localhost:11434/v1")
+    out = report.build()
+    assert "AI assistant: on (compatible)" in out and "my-private-model" not in out and "11434" not in out

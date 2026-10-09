@@ -276,6 +276,40 @@ pacman will install) and asks for your password, like every other installation. 
 What an application needs (Flatpak runtimes, build dependencies of an AUR package, libraries of a converted program) is
 installed by Cygnus as part of installing that application.
 
+## The AI assistant (optional)
+
+Off by default; Cygnus works fully without it. Some programs need more than their package says: a group, a service, a library or
+a browser extension that only their documentation mentions. When the assistant is on, an application's page has **What else does
+this need?**: Cygnus finds the program's website itself (from its own information, never guessed; you may add one page),
+downloads a few public pages from that vendor's own site or code project, and asks an AI assistant what else they say it needs.
+
+**What is sent:** the program's name, its id and its format, and the text of those public pages. Nothing about you, your files,
+your drives or your other programs, and never an install script. **To whom:** to the assistant you chose in **Settings → AI
+assistant**:
+
+- *Cygnus hosted assistant* (the default, nothing to set up): a small shared service, hosted on Cloudflare, that holds the key and
+  asks Google's Gemini on your behalf. It needs no account and stores nothing about you; like any website it sees your internet
+  address, and Google may keep the public text under the terms of its free service. It has a daily limit for everyone and a
+  short limit per person; when a limit is reached Cygnus says so.
+- *Google Gemini with your own key*: the text goes straight to Google with your key. The key is kept in KWallet, never in a file.
+- *An OpenAI-compatible server*: for example Ollama on your own computer (plain `http` is accepted only for this computer).
+
+**What you get back is checked, not trusted.** The assistant must give, for each item, a sentence quoted from one of the pages.
+Cygnus keeps an item only when that sentence really is in that page and the item fits a shape it can verify: a package whose
+exact name exists in your repositories (or in the AUR, shown as community-built and reviewed first), the `input` group, a
+systemd service name, a browser extension's store page, or a plain note. A package or a group is checked to exist; a service name
+is only checked to be a valid name (it belongs to a package you may still have to install first), and a store page to be on a
+known store. Anything else is dropped and listed under "Left out". Each suggestion shows the quote and where it came from, is
+marked as an unverified AI suggestion, and goes through the same confirmation as any other change (the password dialog names the
+exact change; a browser extension only opens its store page). The assistant can never run anything.
+
+The pages are read with care: only the vendor's own site (or the project's page on GitHub or GitLab), only public internet
+addresses, and your saved website logins (a `.netrc` file) are never sent with these requests.
+
+In the terminal: `cygnus ai status|on|off|test`, `cygnus ai use hosted|gemini|compatible [--model M] [--base-url U]`,
+`cygnus ai key set|clear gemini|compatible` (the key is typed or piped in, never given on the command line), and
+`cygnus needs APP [--url PAGE]`, which only lists suggestions.
+
 ## What Cygnus cannot do (known limits)
 
 - **Some .deb and .rpm files cannot be converted**, and Cygnus says why: programs that bring a kernel module, need a newer
@@ -291,5 +325,8 @@ installed by Cygnus as part of installing that application.
 - **Tested on one setup:** CachyOS, KDE Plasma, x86_64. Other desktops and distributions may work and have not been tried.
 - **One helper, one plan at a time.** If another user of the same computer is preparing a package plan, yours is asked to try
   again in a moment.
-- **Not built:** root-owned storage setup (mount units) and custom system Flatpak installations; AI-assisted discovery.
+- **Not built:** root-owned storage setup (mount units) and custom system Flatpak installations.
+- **The AI assistant can be wrong and can be unavailable.** It only suggests; what it names must exist and must be quoted from the
+  program's own documentation, and nothing is installed without your approval. The shared hosted assistant has a daily limit for
+  everyone; when it is used up, try again tomorrow or use your own key.
 - **No security audit by a person yet.** `docs/audit-guide.md` is written for whoever does it.

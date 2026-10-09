@@ -37,7 +37,8 @@ helper do anything the person did not approve, and cannot reach root without tha
 
 Then, because they handle hostile input but run as the person: `cygnus/core/backends/foreign.py` (package analysis),
 `translate.py` (script text reading), `convert.py` (building the converted package), `cygnus/gui/launch.py` (links and files
-from a browser), `cygnus/core/backends/vendor_feeds.py` + `cygnus/core/util/http.py` (downloads).
+from a browser), `cygnus/core/backends/vendor_feeds.py` + `cygnus/core/util/http.py` (downloads), and the optional assistant
+(`cygnus/core/ai/`, and the hosted service `server/ai_worker/src/logic.js`).
 
 ## 3. The invariants worth attacking
 
@@ -50,6 +51,10 @@ from a browser), `cygnus/core/backends/vendor_feeds.py` + `cygnus/core/util/http
 - Converted packages carry no install scripts, no setuid/setgid, nothing group- or world-writable on files, and every vendor
   file survives (two enforced checks). Try archives with odd names, links, owners with spaces, huge entries.
 - Vendor scripts are never run, not even sandboxed (a decision: see `security.md`).
+- The optional AI assistant never acts: its answer reaches the helper only as a token Cygnus itself stored after `cygnus/core/ai/needs.py`
+  (`validate`) accepted it, and `cygnus/gui/fixes.py` (`plan_suggestion`) re-checks the shape. Try an answer that names a group or
+  package outside the shapes, a quote that is not on the page, or a page that talks to the model; and `sources.py` for fetching an
+  address it should not (loopback, link-local, another host after a redirect).
 - A download goes to a folder of its own and is never written through a link.
 
 ## 4. Known soft spots (do not spend your time rediscovering these)
@@ -60,6 +65,14 @@ from a browser), `cygnus/core/backends/vendor_feeds.py` + `cygnus/core/util/http
 - Conversion reads install scripts as text with a tolerant scanner; a script it misreads can make it list or reproduce
   something the real script would not have done (reproduced steps are limited to icons, `/usr/bin` links, empty folders and
   plain permissions on the package's own files).
+- The assistant's page fetching resolves a host name twice (once for the check, once for the connection), so a name whose address
+  changes in between could make Cygnus open a connection (never send a request: TLS fails for the wrong host) to a local address.
+- The shared hosted assistant: one determined person can use up its daily allowance (300 model calls) for everyone, and a flood from
+  many addresses can use up Cloudflare's free request allowance. Both end in errors and the app's "try again later" message, never
+  in a bill and never in an action on anyone's computer.
+- The hosts allowed for a page are the vendor's own host and its subdomains; a short list of shared hosting sites
+  (`sources.SHARED_HOSTS`) is read as the exact host only, but a vendor whose own site is a subdomain of an unlisted shared host
+  would also allow its neighbours' pages to be read (text only, sent to the assistant).
 - Tested on one machine (CachyOS, KDE Plasma, x86_64).
 
 ## 5. Running it

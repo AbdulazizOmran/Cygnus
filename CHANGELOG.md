@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.1 — optional AI assistant
+
+- **New, off by default: "What else does this need?"** On an installed program's page, Cygnus reads that program's own public
+  documentation and asks an AI assistant what else it mentions (a group, a service, a library, a browser extension). It only
+  suggests: each item must quote a sentence that really is on the page and must exist (a package or the `input` group) or be a
+  valid service name or store page; every suggestion is labelled as an unverified AI suggestion, and nothing is installed without
+  the usual confirmation. Choose the shared assistant (hosted on Cloudflare, free during the beta, nothing to set up), Google Gemini
+  with your own key (kept in KWallet), or a server of your own such as Ollama. Terminal: `cygnus ai …`, `cygnus needs APP`. What is
+  sent is stated in Settings, the [user guide](docs/user-guide.md#the-ai-assistant-optional) and the privacy section of the README.
+- **New dependency:** `libsecret` (the desktop wallet library).
+- **Found by an independent review of the assistant and fixed:** an address written so that two parsers read it differently could
+  get round the check of where a redirect leads (this affected every download); `~/.netrc` logins are no longer sent with page
+  requests; a request that trickles in slowly is now cut off after a total time; text from a server or a page is cleaned of control
+  characters before it is shown; a key for your own server is kept for that server's address only; and more (see the tests
+  `tests/test_ai_review11.py`, `tests/test_http.py`).
+
 ## 0.1.0 — public beta
 
 First public release. Not independently reviewed; see [SECURITY.md](SECURITY.md) and the known limits in the

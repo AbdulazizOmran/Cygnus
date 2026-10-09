@@ -23,7 +23,7 @@ def _blocks(text: str, kinds: tuple[str, ...]):
 def test_every_label_heading_and_text_area_is_plain_text():
     missing = [f"{f.name}:{n}" for f in QML.glob("*.qml")
                for n, body in _blocks(f.read_text(), ("QQC2.Label", "Kirigami.Heading", "QQC2.TextArea"))
-               if not any("textFormat:" in l for l in body)]
+               if not any(re.search(r"textFormat:\s*(Text|TextEdit)\.PlainText\b", l) for l in body)]  # the value, not just the word
     assert missing == []
 
 

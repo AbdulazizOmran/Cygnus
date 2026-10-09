@@ -5,7 +5,7 @@
 # (tests/test_packaging.py checks that both install the same files).
 
 pkgname=cygnus
-pkgver=0.1.0
+pkgver=0.1.1
 pkgrel=1
 pkgdesc="Application installer and manager for CachyOS / KDE Plasma: choose the drive each app lives on"
 arch=('any')
@@ -17,7 +17,7 @@ depends=(
   'pyside6' 'qt6-declarative' 'kirigami' 'kirigami-addons' 'qqc2-desktop-style'
   'flatpak' 'ostree' 'squashfs-tools' 'libarchive' 'binutils' 'gnupg' 'util-linux' 'polkit' 'systemd'
   'pacman' 'desktop-file-utils' 'libnotify'
-  'git' 'fakeroot' 'xdg-utils' 'glib2'
+  'git' 'fakeroot' 'xdg-utils' 'glib2' 'libsecret'
 )
 optdepends=(
   'kservice: refresh the Plasma menu immediately after changes (kbuildsycoca6)'

@@ -360,6 +360,81 @@ def cmd_feed(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_ai(args: argparse.Namespace) -> int:
+    """The optional AI assistant's settings. The key is typed here, or piped in, and goes to the wallet: never to a file."""
+    import getpass
+
+    from cygnus.gui import assistant
+
+    if args.sub == "status":
+        st = assistant.status()
+        print(f"assistant: {'on' if st['enabled'] else 'off'}")
+        print(f"which: {st['provider']}" + (f" ({st['model']})" if st["model"] else ""))
+        if st["provider"] == "hosted":
+            print("hosted assistant: " + ("available" if st["hosted_available"] else "not available in this version"))
+        else:
+            print("key saved: " + ("yes" if st["has_key"] else "no") + ("" if st["wallet_ok"] else f"  (wallet: {st['wallet_why']})"))
+        return 0
+    if args.sub in ("on", "off"):
+        st = assistant.status()
+        assistant.configure(args.sub == "on", st["provider"], st["model"], st.get("base_url", ""))
+        print(f"the assistant is now {args.sub}" + ("; it reads a program's public pages only when you ask" if args.sub == "on" else ""))
+        return 0
+    if args.sub == "use":
+        st = assistant.status()
+        model = args.model if args.model is not None else ("" if args.provider == "hosted" else
+                                                          st["model"] if st["provider"] == args.provider else
+                                                          st["default_models"][args.provider])
+        assistant.configure(st["enabled"], args.provider, model, args.base_url or "")
+        print(f"using {args.provider}")
+        return 0
+    if args.sub == "key":
+        if args.action == "clear":
+            assistant.clear_key(args.provider)
+            print("the saved key was removed")
+            return 0
+        key = sys.stdin.readline().strip() if not sys.stdin.isatty() else getpass.getpass("Key (not shown): ").strip()
+        assistant.set_key(args.provider, key)
+        print("the key was saved in the wallet")
+        return 0
+    result = assistant.test(lambda line: print(line, file=sys.stderr))
+    print("it works" if result["ok"] else "it answered, but not as expected")
+    return 0 if result["ok"] else 1
+
+
+def cmd_needs(args: argparse.Namespace) -> int:
+    """What else does an installed program need? Read-only: it lists checked suggestions, it installs nothing."""
+    from cygnus.core.registry import db as regdb
+    from cygnus.gui import assistant
+
+    reg = open_registry(args.registry)
+    rows = [r for r in regdb.list_installations(reg) if r["name"].lower() == args.app.lower() or r["app_id"] == args.app]
+    if not rows:
+        print(f"{args.app} is not installed through Cygnus", file=sys.stderr)
+        return 1
+    if not assistant.status()["enabled"]:
+        print("the AI assistant is off: turn it on with `cygnus ai on` (nothing is sent until you do)", file=sys.stderr)
+        return 1
+    out = assistant.discover(rows[0]["id"], args.url or "", lambda line: print(line, file=sys.stderr), reg)
+    if args.json:
+        _emit(out)
+        return 0
+    print(f"{out['app']}: suggestions from {out['provider']}, checked against what its documentation says (the AI can be wrong)")
+    if not out["suggestions"]:
+        print("  nothing was suggested" + ("; give a documentation page with --url" if out["needs_address"] else ""))
+    for s in out["suggestions"]:
+        print(f"\n  {s['name']} ({s['relation']}, {s['kind']})" + (f"  [nothing to do: {s['satisfied']}]" if s["satisfied"] else ""))
+        print(f"    {s['why']}")
+        print(f"    the page says: \u201c{s['quote']}\u201d  ({s['citation_url']})")
+        for note in s["notes"]:
+            print(f"    note: {note}")
+    for why in out["left_out"]:
+        print(f"  left out: {why}")
+    if out["suggestions"]:
+        print("\nTo act on one, open the program in the Cygnus window and press \"What else does this need?\": every step is confirmed there.")
+    return 0
+
+
 def cmd_updates(args: argparse.Namespace) -> int:
     from cygnus.core import updates
 
@@ -1023,6 +1098,24 @@ def build_parser() -> argparse.ArgumentParser:
     s = fd.add_parser("remove", help="forget a source you added")
     s.add_argument("package")
     s.set_defaults(func=cmd_feed)
+    ai = sub.add_parser("ai", help="the optional AI assistant that suggests what a program may still need (off by default)").add_subparsers(
+        dest="sub", required=True)
+    for name, text in (("status", "what is set"), ("on", "turn it on"), ("off", "turn it off"), ("test", "send one harmless test question")):
+        ai.add_parser(name, help=text).set_defaults(func=cmd_ai)
+    s = ai.add_parser("use", help="choose which assistant to use")
+    s.add_argument("provider", choices=["hosted", "gemini", "compatible"])
+    s.add_argument("--model")
+    s.add_argument("--base-url", help="for `compatible`: https address, or http on this computer")
+    s.set_defaults(func=cmd_ai)
+    s = ai.add_parser("key", help="save or remove your key (kept in the wallet)")
+    s.add_argument("action", choices=["set", "clear"])
+    s.add_argument("provider", choices=["gemini", "compatible"])
+    s.set_defaults(func=cmd_ai)
+    s = sub.add_parser("needs", help="ask the AI assistant what else an installed program needs (it installs nothing)")
+    s.add_argument("app")
+    s.add_argument("--url", help="a documentation page (https) to read as well")
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_needs)
     s = sub.add_parser("updates", help="show update status (exit 1 if updates are available)")
     s.add_argument("--check", action="store_true", help="check online now (otherwise show the last check)")
     s.add_argument("--json", action="store_true")

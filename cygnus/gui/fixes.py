@@ -280,6 +280,43 @@ def plan_optional_parts(packages: list[str]) -> dict[str, Any]:
     return _remember(client, [client.plan_packages(install_repo=sorted(set(packages)))], "Install optional parts")
 
 
+_AI_NOTE = ("This was suggested by the AI assistant from the application's own documentation (quoted on the previous screen). "
+            "Cygnus checked that it exists, but the AI can be wrong: only go on if it makes sense for you.")
+
+
+def plan_suggestion(token: str) -> dict[str, Any]:
+    """The plan for acting on one checked AI suggestion. What is acted on is the suggestion Cygnus itself checked and remembered
+    (found by its token), never anything a window or the AI sends now; it goes through the usual helper plan and confirmation."""
+    from cygnus.core.ai import needs, sources
+    from cygnus.helper.actions import ALLOWED_GROUPS
+
+    s = needs.recall(token)
+    if s.satisfied:
+        raise CygnusError(f"there is nothing to do for this one: {s.satisfied}")
+    if s.kind == "info":
+        raise CygnusError("this one is a note, not something Cygnus can install")
+    if s.kind == "aur":
+        raise CygnusError("this is a community (AUR) package: open it on the Install page, where its build files are shown for review")
+    if s.kind == "extension":
+        if s.target != sources.clean_url(s.target) or sources._host(s.target) not in needs.STORES:
+            raise CygnusError("that is not a browser extension store page")
+        return {"kind": "browser", "title": s.name, "message": f"This opens the store page for {s.name} in your browser. Cygnus installs nothing "
+                                                              "itself: you add the extension from the store.",
+                "security_note": _AI_NOTE, "relogin": False, "not_doing": [], "urls": [s.target]}
+    client = HelperClient()
+    if s.kind == "package" and needs._PACKAGE.fullmatch(s.target):
+        out = _remember(client, [client.plan_packages(install_repo=[s.target])], f"Install {s.name}")
+    elif s.kind == "group" and s.target in ALLOWED_GROUPS:
+        out = _remember(client, [client.plan_group(s.target, "add")], f"Add you to the {s.target} group")
+        out["relogin"] = True
+    elif s.kind == "service" and needs.unit_ok(s.target):
+        out = _remember(client, [client.plan_unit(s.target, "enable_now")], f"Enable and start {s.target}")
+    else:
+        raise CygnusError("this suggestion cannot be acted on")
+    out["security_note"] = _AI_NOTE
+    return out
+
+
 _BUILT_NOTES = {
     "aur": "Built from community build files that you reviewed. pacman installs it with administrator rights, "
            "including any install script it has.",

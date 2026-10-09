@@ -1,0 +1,37 @@
+# The hosted assistant for Cygnus (see src/logic.js for what it does). Nothing here is a secret: the key is set with
+# `npx wrangler secret put GEMINI_API_KEY`, never in this file.
+name = "cygnus-ai"
+main = "src/index.js"
+compatibility_date = "2026-06-01"
+
+[vars]
+GEMINI_MODEL = "gemini-flash-lite-latest"
+DAILY_CAP = "300"          # model calls per day for everyone; identical questions come from the cache and cost none
+GLOBAL_PER_MIN = "8"
+PER_IP_MIN = "4"
+PER_IP_HOUR = "15"
+CACHE_TTL_S = "1209600"    # 14 days
+DISABLED = "0"             # "1" switches the assistant off (the Cloudflare dashboard can change this without a deploy)
+
+# A first guard in front of the Durable Object: any address that sends more than this many requests a minute (answers from the cache
+# included) is turned away before the Durable Object is called, so one address cannot use up the free request allowance for everyone.
+# Cloudflare counts per location and approximately, which is enough for this.
+[[ratelimits]]
+name = "PER_ADDRESS"
+namespace_id = "1001"
+  [ratelimits.simple]
+  limit = 30
+  period = 60
+
+[[durable_objects.bindings]]
+name = "LIMITER"
+class_name = "Limiter"
+
+# Cloudflare's free plan only allows SQLite-backed Durable Objects.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Limiter"]
+
+# Requests are not logged.
+[observability]
+enabled = false

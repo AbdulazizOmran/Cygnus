@@ -4,8 +4,8 @@
 # working tree it sits in (no download); a release PKGBUILD will use a tagged source tarball instead.
 
 pkgname=cygnus
-pkgver=0.1.0
-pkgrel=29
+pkgver=0.1.1
+pkgrel=1
 pkgdesc="Application installer and manager for CachyOS / KDE Plasma: choose the drive each app lives on"
 arch=('any')
 url="https://github.com/AbdulazizOmran/Cygnus"
@@ -16,7 +16,7 @@ depends=(
   'pyside6' 'qt6-declarative' 'kirigami' 'kirigami-addons' 'qqc2-desktop-style'
   'flatpak' 'ostree' 'squashfs-tools' 'libarchive' 'binutils' 'gnupg' 'util-linux' 'polkit' 'systemd'
   'pacman' 'desktop-file-utils' 'libnotify'
-  'git' 'fakeroot' 'xdg-utils' 'glib2'
+  'git' 'fakeroot' 'xdg-utils' 'glib2' 'libsecret'
 )
 optdepends=(
   'kservice: refresh the Plasma menu immediately after changes (kbuildsycoca6)'

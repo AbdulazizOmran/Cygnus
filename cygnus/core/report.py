@@ -144,6 +144,10 @@ def _setup(registry_path: str | None) -> list[str]:
         state = handlers.status()
         rows.append("default program for Flathub links and software files: "
                     + ("Cygnus" if state["enabled"] else ("not set" if state["available"] else f"unavailable ({state['why']})")))
+        from cygnus.core.ai import config as ai_config
+
+        ai = ai_config.load()  # which assistant, never a key, a model name or an address the person typed
+        rows.append("AI assistant: " + (f"on ({ai['provider']})" if ai["enabled"] else "off"))
     except Exception as exc:  # noqa: BLE001 - say what could not be read, never fail
         rows.append(f"could not read Cygnus's own data: {type(exc).__name__}: {exc}")
     return rows

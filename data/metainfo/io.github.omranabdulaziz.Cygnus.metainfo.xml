@@ -30,6 +30,11 @@
     <binary>cygnus-gui</binary>
   </provides>
   <releases>
+    <release version="0.1.1" date="2026-10-09" type="development">
+      <description>
+        <p>An optional AI assistant (off by default) that suggests what else a program needs, from its own documentation, and fixes found by an independent review of it.</p>
+      </description>
+    </release>
     <release version="0.1.0" date="2026-10-09" type="development">
       <description>
         <p>First public beta. It has not had an independent security review; see the project page for what it can and cannot do.</p>

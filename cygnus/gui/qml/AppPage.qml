@@ -72,6 +72,69 @@ Kirigami.ScrollablePage {
         });
     }
 
+    property var needsResult: null // what the assistant suggested for this program, already checked by Cygnus
+    property string needsError: "" // shown inside the suggestions window: an error on the page behind it could not be seen
+    property string needsAddress: "" // a documentation page the person added
+
+    // Asks the assistant only when the person has turned it on in Settings, and says so when not.
+    function askNeeds(extraUrl) {
+        if (busyText !== "")
+            return;
+        busyText = "Checking the assistant settings…";
+        needsError = "";
+        page.ask(backend.aiStatus(), function (s) {
+            if (!s.ok) {
+                busyText = "";
+                showError(s.error);
+                return;
+            }
+            if (!s.result.enabled) {
+                busyText = "";
+                showAttention("The AI assistant is off. You can turn it on in Settings; nothing is sent until you do.");
+                return;
+            }
+            busyText = "Reading the documentation…";
+            page.ask(backend.aiDiscover(installationId, extraUrl), function (r) {
+                busyText = "";
+                if (!r.ok) {
+                    showError(r.error);
+                    return;
+                }
+                needsResult = r.result;
+                needsDialog.open();
+            }, function (line) {
+                if (line !== "")
+                    page.busyText = line;
+            });
+        });
+    }
+
+    // One suggestion becomes the same kind of plan and confirmation as any other fix.
+    function actOnSuggestion(item) {
+        if (busyText !== "")
+            return;
+        if (item.kind === "aur") {
+            root.openPage("install", {
+                appSpec: "aur:" + item.target
+            });
+            return;
+        }
+        busyText = "Preparing…";
+        progressValue = -1;
+        progressLabel = "";
+        needsError = "";
+        page.ask(backend.planSuggestion(item.token), function (r) {
+            busyText = "";
+            if (!r.ok) {
+                needsError = String(r.error); // the window is still open and covers the page: say it there
+                return;
+            }
+            needsDialog.close();
+            fixPlan = r.result;
+            fixDialog.open();
+        });
+    }
+
     property var problems: []
     readonly property bool isPackage: installationFormat === "pacman" || installationFormat === "aur"
     property var storage: JSON.parse(backend ? backend.storageJson : "{\"locations\": [], \"candidates\": []}")
@@ -148,6 +211,13 @@ Kirigami.ScrollablePage {
                 backend.refreshStorage();
                 moveDialog.open();
             }
+        },
+        Kirigami.Action {
+            text: "What else does this need?"
+            enabled: page.busyText === ""
+            icon.name: "help-hint"
+            visible: page.installationId !== ""
+            onTriggered: page.askNeeds("")
         },
         Kirigami.Action {
             text: "Uninstall…"
@@ -324,6 +394,120 @@ Kirigami.ScrollablePage {
                                 })
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    Kirigami.Dialog {
+        id: needsDialog
+        title: root.flat(page.needsResult ? "What " + page.needsResult.app + " may still need" : "")
+        preferredWidth: Kirigami.Units.gridUnit * 36
+        standardButtons: Kirigami.Dialog.Close
+        onClosed: page.needsError = ""
+        ColumnLayout {
+            spacing: Kirigami.Units.largeSpacing
+            Kirigami.InlineMessage {
+                Layout.fillWidth: true
+                Layout.margins: Kirigami.Units.largeSpacing
+                visible: page.needsError !== ""
+                type: Kirigami.MessageType.Error
+                text: root.plain(page.needsError)
+            }
+            QQC2.Label {
+                Layout.fillWidth: true
+                Layout.margins: Kirigami.Units.largeSpacing
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                text: !page.needsResult ? "" : page.needsResult.suggestions.length === 0 ? (page.needsResult.needs_address ? "Cygnus does not know a documentation page for this program. Paste one below and ask again." : "Nothing was suggested. " + (page.needsResult.pages.length ? "Pages read: " + page.needsResult.pages.join(", ") : "No documentation page could be read.")) : "These come from an AI assistant reading the program's own documentation (" + page.needsResult.provider + "). For each one Cygnus checked that the quoted sentence really is on the page, and that a suggested package or group exists, but the AI can still be wrong: only go on with what makes sense for you. Nothing is installed without your approval."
+            }
+            Repeater {
+                model: page.needsResult ? page.needsResult.suggestions : []
+                delegate: Kirigami.AbstractCard {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    contentItem: ColumnLayout {
+                        spacing: Kirigami.Units.smallSpacing
+                        QQC2.Label {
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            font.bold: true
+                            textFormat: Text.PlainText
+                            text: modelData.name + (modelData.relation === "required" ? " (it says this is required)" : " (optional)")
+                        }
+                        QQC2.Label {
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            textFormat: Text.PlainText
+                            text: "AI suggestion, unverified. " + modelData.why
+                        }
+                        QQC2.Label {
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            font.italic: true
+                            textFormat: Text.PlainText
+                            text: "The page says: \u201c" + modelData.quote + "\u201d"
+                        }
+                        QQC2.Label {
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            textFormat: Text.PlainText
+                            color: Kirigami.Theme.disabledTextColor
+                            text: "Source: " + modelData.citation_url + (modelData.source ? "   Found in: " + modelData.source : "")
+                        }
+                        QQC2.Label {
+                            Layout.fillWidth: true
+                            visible: modelData.notes.length > 0
+                            wrapMode: Text.Wrap
+                            textFormat: Text.PlainText
+                            text: modelData.notes.join(" ")
+                        }
+                        QQC2.Label {
+                            Layout.fillWidth: true
+                            visible: modelData.satisfied !== ""
+                            wrapMode: Text.Wrap
+                            textFormat: Text.PlainText
+                            text: "Nothing to do: " + modelData.satisfied
+                        }
+                        RowLayout {
+                            visible: modelData.satisfied === "" && modelData.kind !== "info"
+                            QQC2.Button {
+                                text: modelData.kind === "aur" ? "Review it on the Install page" : modelData.kind === "extension" ? "Open the store page…" : modelData.kind === "group" ? "Add me to the group…" : modelData.kind === "service" ? "Start it…" : "Install…"
+                                enabled: page.busyText === ""
+                                onClicked: page.actOnSuggestion(modelData)
+                            }
+                            QQC2.Button {
+                                text: "Open the page it came from"
+                                onClicked: Qt.openUrlExternally(modelData.citation_url)
+                            }
+                        }
+                    }
+                }
+            }
+            QQC2.Label {
+                Layout.fillWidth: true
+                Layout.margins: Kirigami.Units.largeSpacing
+                visible: !!page.needsResult && page.needsResult.left_out.length > 0
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                color: Kirigami.Theme.disabledTextColor
+                text: !page.needsResult ? "" : "Left out: " + page.needsResult.left_out.join(" ")
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.margins: Kirigami.Units.largeSpacing
+                QQC2.TextField {
+                    id: needsAddressField
+                    Layout.fillWidth: true
+                    placeholderText: "Another documentation page (https), if you know one"
+                }
+                QQC2.Button {
+                    text: "Ask again"
+                    enabled: page.busyText === ""
+                    onClicked: {
+                        needsDialog.close();
+                        page.askNeeds(needsAddressField.text);
                     }
                 }
             }

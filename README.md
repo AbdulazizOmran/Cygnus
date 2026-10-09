@@ -62,6 +62,9 @@ it started.
   to finish or undo each one. A pacman lock left behind by a crashed package manager can be removed
   safely through the helper.
 * **Optional features you do not want** can be switched off, so they are no longer checked or suggested.
+* **An optional AI assistant** (off by default) can suggest what else a program needs, from its own documentation. It only
+  suggests: every item must quote the documentation and exist, and nothing is installed without your approval (see the privacy
+  section for what is sent).
 * **Components** such as group membership, system services and browser extensions are checked and
   installed from curated manifests (WhatPulse and Helium are included).
 
@@ -70,8 +73,8 @@ it started.
 On CachyOS or Arch Linux with KDE Plasma (x86_64):
 
 * **From the AUR** (once published): `yay -S cygnus` (or any AUR helper).
-* **Ready-made package:** download `cygnus-0.1.0-1-any.pkg.tar.zst` from [Gumroad](https://azizomran.gumroad.com/l/jtudib)
-  (free during the beta), then `sudo pacman -U cygnus-0.1.0-1-any.pkg.tar.zst`.
+* **Ready-made package:** download `cygnus-0.1.1-1-any.pkg.tar.zst` from [Gumroad](https://azizomran.gumroad.com/l/jtudib)
+  (free during the beta), then `sudo pacman -U cygnus-0.1.1-1-any.pkg.tar.zst`.
 * **From source:** `git clone https://github.com/AbdulazizOmran/Cygnus && cd Cygnus/packaging/arch && makepkg -si`
   (the build runs the test suite).
 
@@ -88,6 +91,13 @@ for updates of what you installed: your distribution's package mirrors (through 
 package lists of programs you converted (for example `dl.google.com`, `packages.microsoft.com`). Everything it stores is in
 `~/.local/share/cygnus`, `~/.config/cygnus`, `~/.cache/cygnus` and `~/.local/state/cygnus`, plus the helper's own
 record of administrator actions in `/var/lib/cygnus`.
+
+The **AI assistant is off** until you turn it on in Settings. When you then ask what a program needs, Cygnus downloads a few public
+pages from that program's own website and sends the program's name, id and format and the text of those pages to the assistant
+you chose: the shared hosted one (a small Cygnus service on Cloudflare, which asks Google's Gemini), Google Gemini with your own key (kept in
+KWallet, sent to Google as the key), or a server of your choice such as Ollama on your computer. Nothing about you or your files is
+sent, but whoever receives a request sees the address it came from. For a Flatpak, Cygnus also asks `flathub.org` for the program's
+website (sending its id). Your saved website logins are never used for these requests.
 
 ## Reporting a problem
 
@@ -109,7 +119,7 @@ ordinary pacman packages, Flatpaks and AppImages); Cygnus only forgets them. Its
     `python-requests`, `python-cryptography`, `python-systemd`.
   * Qt and KDE: `pyside6`, `qt6-declarative`, `kirigami`, `kirigami-addons`, `qqc2-desktop-style`.
   * Tools: `flatpak`, `ostree`, `squashfs-tools`, `libarchive`, `binutils`, `gnupg`, `util-linux`,
-    `polkit`, `systemd`, `pacman`, `desktop-file-utils`, `libnotify`, `git` (AUR build files),
+    `polkit`, `systemd`, `pacman`, `desktop-file-utils`, `libnotify`, `libsecret` (keeps an AI key in the desktop wallet), `git` (AUR build files),
     `fakeroot` (makepkg, the system-update check and the package file lists), `xdg-utils` (opening store
     pages, and the switch that makes Cygnus the default program for software files) and `glib2` (`gio`,
     which reads that default).
@@ -139,6 +149,7 @@ python3 -m cygnus updates --check            # applications and system packages
 python3 -m cygnus upgrade                    # update the whole system through the helper
 python3 -m cygnus watch --enable             # background checks with notifications
 python3 -m cygnus dismiss WhatPulse web-insights   # an optional feature you do not want
+python3 -m cygnus ai status                  # the optional AI assistant (off by default); `cygnus needs APP` lists suggestions
 python3 -m cygnus move App --to SSD
 python3 -m cygnus repair App
 python3 -m cygnus recover                 # interrupted operations (--pacman-lock: a stale pacman lock)

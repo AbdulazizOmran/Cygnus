@@ -317,6 +317,29 @@ analysed, and again when it is built).
 - **Optional parts of Cygnus itself** (Settings → Optional parts) are installed through the same helper plan as any repository
   package, and only the five packages Cygnus lists (`fuse3`, `fuse2`, `zsync`, `base-devel`, `kservice`) are accepted: any other
   name is refused before the helper is asked.
+- **The AI assistant (optional, off by default) cannot act.** It is a source of suggestions, never of commands. Cygnus
+  itself downloads the public pages (https only; the program's own vendor host and its subdomains, or exactly the forge project it
+  names; only public internet addresses, checked again on every redirect on the host that is really connected to, with an address
+  that two readers could understand differently refused; no `.netrc` login is ever sent; the whole request has a time limit that a slow
+  trickle cannot get round; because Cygnus does the downloading and not the service, a page cannot send anything to the person's own
+  network or to the hosting provider's internal services). The assistant receives the program's name, id and format and that text, and no private data (a test
+  checks the exact message). The pages are placed in the message as data between markers and the model is told to ignore any
+  instruction in them; because that cannot be relied on, nothing from the answer is trusted: each item must carry a quote that is
+  literally present in the named page, and must be an Arch package that exists under exactly that name (a package that merely
+  provides the name does not count; the AUR is shown with its review), the `input` group (the helper's own allow-list), a systemd unit
+  name the helper itself accepts, a browser-extension store page, or a plain note; anything else is dropped. Text from the
+  model is stripped of control and bidirectional characters and shown as plain text. A suggestion is acted on by its token: Cygnus
+  remembers what it checked for thirty minutes and plans exactly that through the helper, with the usual confirmation, so a window
+  cannot make the helper do anything the checks did not allow. Keys live in KWallet (never a file or a command line) and go only
+  in a request header to the provider chosen; a key for a server the person named is kept under that server's address, so changing the
+  address never sends the old key to the new one, and a key for a local server is never handed to a proxy. The hosted service (`server/ai_worker`, a Cloudflare Worker) holds Cygnus's key as a Cloudflare secret, accepts only that
+  structured request, builds the message itself, answers only in that shape, limits requests per person (by internet address,
+  an IPv6 address counting as its whole /64) and for everyone, turns away an address that sends too many requests at all (answers from
+  the cache included) before they reach the Durable Object, and remembers identical questions; its limits and cache live in one
+  Durable Object, so the counts are exact, and a refused request writes nothing. It keeps no log of requests. Cygnus re-checks its
+  answer like any other, so a compromised service can at worst make a wrong suggestion that is dropped, or shown unapproved with a
+  quote that is not on the page. The host (Cloudflare) sees the sender's internet address, as any website does, and Google may keep
+  the public text under the terms of its free Gemini service.
 - **Uninstall scripts and `/var`.** `rm`, `rmdir` and `unlink` in an uninstall script (prerm, postrm, preun, postun) are
   ignored, because those scripts are never run and what they clean up was never made; the same commands in an install
   script still block. A `/var` that holds only empty folders is left out; one with any file or link in it is refused.

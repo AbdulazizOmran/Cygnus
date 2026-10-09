@@ -223,6 +223,50 @@ class Backend(QObject):
 
         return self._submit(lambda: fixes.plan_repo_dependencies(json.loads(names_json)), long=True)
 
+    # -- the optional AI assistant (the key is kept in the wallet; it is never returned to the page) ---------------------------------
+    @Slot(result=str)
+    def aiStatus(self) -> str:
+        from cygnus.gui import assistant
+
+        return self._submit(assistant.status, long=True)  # the wallet may ask the person to unlock it: never hold a short-job thread
+
+    @Slot(bool, str, str, str, result=str)
+    def aiConfigure(self, enabled: bool, provider: str, model: str, base_url: str) -> str:
+        from cygnus.gui import assistant
+
+        return self._submit(lambda: assistant.configure(enabled, provider, model, base_url), long=True)
+
+    @Slot(str, str, result=str)
+    def aiSetKey(self, provider: str, key: str) -> str:
+        from cygnus.gui import assistant
+
+        return self._submit(lambda: assistant.set_key(provider, key), long=True)
+
+    @Slot(str, result=str)
+    def aiClearKey(self, provider: str) -> str:
+        from cygnus.gui import assistant
+
+        return self._submit(lambda: assistant.clear_key(provider), long=True)
+
+    @Slot(result=str)
+    def aiTest(self) -> str:
+        from cygnus.gui import assistant
+
+        return self._submit(lambda progress: assistant.test(progress), wants_progress=True)
+
+    @Slot(str, str, result=str)
+    def aiDiscover(self, installation_id: str, extra_url: str) -> str:
+        """What else does this installed application need? (reads its documentation, asks the AI, checks the answer)"""
+        from cygnus.gui import assistant
+
+        return self._submit(lambda progress: assistant.discover(installation_id, extra_url, progress), wants_progress=True)
+
+    @Slot(str, result=str)
+    def planSuggestion(self, token: str) -> str:
+        from cygnus.gui import fixes
+
+        return self._submit(lambda: fixes.plan_suggestion(token), long=True)
+
     @Slot(result=str)
     def optionalParts(self) -> str:
         """Cygnus's optional tools and whether each is installed."""
