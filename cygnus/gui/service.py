@@ -214,6 +214,8 @@ def analyse(path: str, location_label: str | None, registry_path: str | None = N
                                   "issues": issues})()
         plan = planner.plan_system_package(cand.name, analysis, target, system, manifest=manifest,
                                            source_label="Local package", health_probe=_probe_component)
+    elif cand.format is PackageFormat.ARCHIVE:
+        return _analyse_archive(cand, base, reg, target, system, path, before)
     elif cand.format in (PackageFormat.DEB, PackageFormat.RPM):
         # The checksum the person confirms must be of the very bytes that were analysed: taken before, checked after,
         # so a file replaced in the meantime is refused instead of being shown with the new file's checksum.
@@ -252,6 +254,171 @@ def analyse(path: str, location_label: str | None, registry_path: str | None = N
             "issues": [_issue(i) for i in plan.issues], "blocked": plan.blocked,
             "installable": not plan.blocked and cand.format in (PackageFormat.APPIMAGE, PackageFormat.LOCAL_PKG,
                                                                 PackageFormat.FLATPAK_BUNDLE)}
+
+
+_ARCHIVE_TITLES = {
+    "ARCHIVE_UNSAFE_PATH": "The archive would write outside its own folder", "ARCHIVE_HARDLINK": "The archive is not safe to unpack",
+    "ARCHIVE_SPECIAL_FILE": "The archive is not safe to unpack", "ARCHIVE_UNSAFE_LINK": "The archive is not safe to unpack",
+    "ARCHIVE_DUPLICATE": "The archive is not safe to unpack", "ARCHIVE_THROUGH_LINK": "The archive is not safe to unpack",
+    "ARCHIVE_RESERVED_NAME": "The archive is not safe to unpack", "ARCHIVE_TOO_BIG": "The archive is too big",
+    "ARCHIVE_TOO_MANY": "The archive is too big", "ARCHIVE_EMPTY": "There is nothing in this archive",
+    "ARCHIVE_NAME_TOO_LONG": "The archive has a name no file system can hold", "ARCHIVE_BAD_HEADER": "The archive is not safe to read",
+    "ARCHIVE_NO_PROGRAM": "There is nothing to run in this archive", "ARCHIVE_SOURCE_CODE": "This is source code, not a program",
+    "ARCHIVE_SYSTEM_LAYOUT": "This archive is meant to be unpacked over the system", "ARCHIVE_FREEBSD_PACKAGE": "This is a FreeBSD package",
+}
+
+
+def _archive_destination(cand, target, system, reg):
+    """(where the program will really be, the folder it will be in, why not the chosen drive, problems the drive has with its files)."""
+    from cygnus.core.backends import portable
+
+    drive_problems = portable.name_problems(cand.metadata.get("names") or [], fs_type=target.fs_type, caps=target.capabilities)
+    ok, reason = planner.location_supports(target, "portable-links" if cand.metadata.get("has_symlinks") else "portable")
+    if ok and drive_problems:
+        ok, reason = False, "its files cannot all be kept there: " + "; ".join(drive_problems[:2])
+    where = target if ok else system
+    rv = locations.resolve(where)
+    if not rv.online:
+        raise CygnusError(f"{where.label} is not available: {rv.reason}")
+    apps = locations.apps_dir(where, rv)
+    if apps is None:
+        raise CygnusError(f"{where.label} has no applications folder")
+    return where, apps, ("" if ok else reason), drive_problems
+
+
+def _analyse_archive(cand, base: dict[str, Any], reg, target, system, path: str, before) -> dict[str, Any]:
+    from cygnus.core.backends import portable
+    from cygnus.core.ops import archive_ops
+
+    digest = file_sha256(str(cand.source))
+    if _file_signature(path) != before:
+        raise CygnusError("the file changed while Cygnus was opening it, so what it found no longer applies; please open the file again")
+    meta = cand.metadata
+    issues: list[Issue] = []
+    for f in cand.findings:
+        if f.severity.value == "error":
+            issues.append(Issue(code=f.code, severity=IssueSeverity.BLOCKER, title=_ARCHIVE_TITLES.get(f.code, "This archive cannot be installed"),
+                                explanation=f.message[0].upper() + f.message[1:] + ".", resolutions=[]))
+    locs = reg.list_locations()
+    if not any(l.id == target.id for l in locs):
+        issues.append(Issue(code="STORAGE_NOT_SET_UP", severity=IssueSeverity.BLOCKER, title="Choose where applications are stored first",
+                            explanation="A program from an archive needs a folder to live in, and no storage location is set up for it yet. Open "
+                                        "Storage and add your drive (your home folder works), then come back here.",
+                            resolutions=[explain_only("add-storage", "Add a storage location",
+                                                      "On the Storage page, add the drive or folder where you want applications to live, then "
+                                                      "analyse the file again.")]))
+    drive_problems: list[str] = []
+    where = target
+    apps = None
+    if not any(i.severity is IssueSeverity.BLOCKER for i in issues):
+        where, apps, _why, drive_problems = _archive_destination(cand, target, system, reg)
+        dest = apps / archive_ops.folder_name(cand.name or "Application")
+        if dest.is_symlink() or dest.exists():
+            ours = any(r["format"] == "archive" and r["source"].get("path") == str(dest) for r in regdb.list_installations(reg))
+            marker = archive_ops.read_marker(dest) if dest.is_dir() and not dest.is_symlink() else None
+            leftover = bool(marker and marker.get("installation")) and not ours
+            if ours:
+                title = f"{cand.name or 'This program'} is already installed"
+                why = (f"Remove the installed copy first (Applications, then {cand.name}, then Uninstall), then install this archive. "
+                       "What the program saved in your home folder stays.")
+            elif leftover:
+                title = f"A folder left by an earlier installation of {cand.name or 'this program'} is still there"
+                why = (f"{dest} was made by Cygnus and its files were kept when the program was removed. Delete it (or rename it) and "
+                       "install again; Cygnus will not put a new copy over it.")
+            else:
+                title = f"A folder called {dest.name} is already there"
+                why = (f"{dest} is not something Cygnus made, so Cygnus will not put anything there or remove it. Rename or remove it, "
+                       "or install this program from another place.")
+            issues.append(Issue(code="ARCHIVE_ALREADY_THERE", severity=IssueSeverity.BLOCKER, title=title, explanation=why, resolutions=[]))
+        room = archive_ops.free_space_problem(apps, int(cand.installed_size or 0))
+        if room:
+            issues.append(Issue(code="ARCHIVE_NO_ROOM", severity=IssueSeverity.BLOCKER, title=f"There is not enough room on {where.label}",
+                                explanation=room[0].upper() + room[1:] + ".", resolutions=[]))
+    plan = planner.plan_archive(cand, target, system, drive_problems=drive_problems, extra_issues=issues)
+    main = meta.get("main")
+    from cygnus.core.detect import archive as archive_detect
+
+    runnable = sorted((p for p, i in (meta.get("executables") or {}).items() if i["kind"] in ("elf", "script")
+                       and not archive_detect.INSTALL_SCRIPT.match(p.rsplit("/", 1)[-1])), key=lambda p: (p.count("/"), len(p), p))
+    choices = list(dict.fromkeys([*(meta.get("main_candidates") or []), *runnable]))[:40]
+    plan.notes += [f.message[0].upper() + f.message[1:] + "." for f in cand.findings if f.severity.value != "error" and f.code != "ARCHIVE_SCRIPTS"]
+    plan.notes.append("Cygnus cannot tell who made this archive. The program runs with your user's rights, like anything you download: "
+                      "only install what you trust.")
+    plan.notes.append("Cygnus does not update it. To update, remove it and install the newer archive (many such programs update "
+                      "themselves). After installing, Cygnus checks that the libraries it needs are on this computer.")
+    if not meta.get("desktop_entries"):
+        plan.notes.append("The archive has no menu entry, so Cygnus makes a simple one.")
+    scripts = portable.scripts_report(meta.get("scripts") or {})
+    if scripts:
+        plan.notes.append("The archive contains install scripts (" + ", ".join(sorted(meta["scripts"])[:4]) + "). Cygnus never runs them: "
+                          "they are listed below with what they would have done.")
+    return {**base, "kind": "plan", "placements": [asdict(p) for p in plan.placements], "components": [], "runtime": "",
+            "usage": plan.usage_by_location(), "notes": plan.notes, "issues": [_issue(i) for i in plan.issues], "blocked": plan.blocked,
+            "installable": not plan.blocked and bool(choices), "sha256": digest, "scripts": scripts,
+            "archive": {"main": main, "choices": choices, "needs_choice": main is None, "root": meta.get("root") or "",
+                        "files": meta.get("file_count") or 0, "has_menu_entry": bool(meta.get("desktop_entries"))}}
+
+
+def install_archive(path: str, location_label: str, sha256: str, main: str, progress: Callable[[str], None],
+                    registry_path: str | None = None) -> dict[str, Any]:
+    from cygnus.core.ops import archive_ops
+
+    import re
+
+    if not re.fullmatch(r"[0-9a-f]{64}", sha256 or ""):
+        raise CygnusError("the checksum Cygnus showed for this archive is missing, so what you approved cannot be checked: analyse it again")
+    reg = _registry(registry_path)
+    cand = detect_file(path)
+    if cand.format is not PackageFormat.ARCHIVE:
+        raise CygnusError("this is not a program archive")
+    blockers = [f.message for f in cand.findings if f.severity.value == "error"]
+    if blockers:
+        raise CygnusError("this archive is not installed: " + blockers[0])
+    locs = reg.list_locations()
+    target = next((l for l in locs if l.label.lower() == (location_label or "").lower()), None)
+    if target is None:
+        raise CygnusError(f"no storage location named {location_label!r}; add one on the Storage page first")
+    where, apps, _why, _problems = _archive_destination(cand, target, _system_location(reg), reg)
+    key = archive_ops.app_key_for(cand)
+    steps = archive_ops.plan_install(cand, app_key=key, location=where, apps_dir=apps, main=main or cand.metadata.get("main") or "",
+                                     sha256=sha256)
+    report = archive_ops.executor(reg).run("install", steps, app_id=key, progress=progress_mod.steps(progress, numbered=True))
+    return {"ok": report.state == "succeeded", "state": report.state, "error": report.error or "",
+            "installation_id": steps[0].params["installation_id"] if report.state == "succeeded" else ""}  # the one just recorded
+
+
+def _archive_row(installation_id: str, registry_path: str | None = None):
+    reg = _registry(registry_path)
+    row = next((r for r in regdb.list_installations(reg) if r["id"] == installation_id), None)
+    if row is None or row["format"] != "archive":
+        raise CygnusError("this is not a program installed from an archive")
+    return reg, row
+
+
+def archive_libraries(installation_id: str, progress: Callable[[str], None] = lambda _: None, registry_path: str | None = None) -> dict[str, Any]:
+    """The libraries an installed program from an archive needs that this computer lacks, and the repository packages that
+    provide them (found with the same lookup as for a converted .deb; nothing is installed here)."""
+    from cygnus.core.backends import filedb, pacman as pm, portable
+    from cygnus.core.ops import archive_ops
+
+    _reg, row = _archive_row(installation_id, registry_path)
+    folder = Path(row["source"].get("path") or "")
+    if folder.is_symlink() or not folder.is_dir():
+        raise CygnusError(f"the program's folder ({folder}) is not there: is its drive connected?")
+    marker = archive_ops.read_marker(folder)
+    if not marker or marker.get("installation") != installation_id:
+        raise CygnusError("that folder is not the one Cygnus made for this program")
+    progress("Looking at the program's files…")
+    cfg = pm.read_config()
+    return portable.library_check(folder, satisfy=lambda d: pm.run_worker(cfg, {"op": "satisfy", "deps": d})["satisfiers"],
+                                  locate=lambda sonames: filedb.locate(sonames, progress=progress, cfg=cfg))
+
+
+def archive_info(installation_id: str, registry_path: str | None = None) -> dict[str, Any]:
+    from cygnus.core.ops import archive_ops
+
+    reg, _row = _archive_row(installation_id, registry_path)
+    return archive_ops.info(reg, installation_id)
 
 
 def _runtime_bytes(issues) -> int | None:
@@ -738,7 +905,7 @@ def update_overview() -> list[dict[str, Any]]:
 
 
 def check_updates(progress: Callable[[str], None]) -> list[dict[str, Any]]:
-    from cygnus.core import updates
+    from cygnus.core import self_update, updates
 
     reg = _registry()
     updates.check_all(reg, progress)
@@ -746,7 +913,18 @@ def check_updates(progress: Callable[[str], None]) -> list[dict[str, Any]]:
         updates.check_system_updates(progress)
     except CygnusError as exc:
         progress(f"System updates could not be checked: {exc}")
+    progress("Looking for a newer Cygnus…")
+    own = self_update.check()
+    if not own["ok"]:
+        progress(f"A newer Cygnus could not be looked for: {own['error']}")
     return [u.as_dict() for u in updates.last_known(reg)]
+
+
+def cygnus_update() -> dict[str, Any] | None:
+    """The last answer to "is there a newer Cygnus?" (no network), judged against the version installed now."""
+    from cygnus.core import self_update
+
+    return self_update.last_known()
 
 
 def system_update_overview() -> dict[str, Any] | None:
@@ -1207,7 +1385,13 @@ def watch_gather(progress: Callable[[str], None] = lambda _: None,
             health.append(check_app(row["app_id"], registry_path))
         except CygnusError:
             pass
-    return {"app_updates": app_updates, "system": system, "health": health,
+    from cygnus.core import self_update
+
+    progress("Looking for a newer Cygnus…")
+    own = self_update.check()
+    if not own.get("ok"):  # GitHub unreachable this time: what was learned before still stands, so a notice is not dropped and made again
+        own = self_update.last_known() or own
+    return {"app_updates": app_updates, "system": system, "health": health, "cygnus": own,
             "interrupted": interrupted_operations(registry_path)}
 
 

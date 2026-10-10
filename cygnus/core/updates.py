@@ -125,7 +125,13 @@ def _check_converted(row: dict[str, Any], *, fetch=None, **_kw) -> UpdateStatus:
     return _status(row, UP_TO_DATE, "Matches the newest version the vendor publishes.", provider="vendor-feed", facts=facts)
 
 
-CHECKERS: dict[str, Callable[..., UpdateStatus]] = {"appimage": _check_appimage, "flatpak": _check_flatpak}
+def _check_archive(row: dict[str, Any], **_kw) -> UpdateStatus:
+    """A program unpacked from an archive has no place Cygnus could ask: it is told so, not told it is "updated with your system"."""
+    return _status(row, MANUAL, "Cygnus cannot check this program for updates (it came in a plain archive). Many such programs update "
+                   "themselves. To update it by hand, remove it and install the newer archive.", provider="manual")
+
+
+CHECKERS: dict[str, Callable[..., UpdateStatus]] = {"appimage": _check_appimage, "flatpak": _check_flatpak, "archive": _check_archive}
 
 
 def _checker(row: dict[str, Any]) -> Callable[..., UpdateStatus] | None:

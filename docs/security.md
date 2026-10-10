@@ -213,6 +213,25 @@ installations. On this machine's NTFS drive neither would be allowed anyway.
 - extract single named files with `unsquashfs -cat -no-wildcards`;
 - turn any unexpected parser exception into a clean "cannot read this file".
 
+**Archives that are programs** (`.tar.gz`, `.tar.xz`, `.tar.zst`, `.tar.bz2`, `.tar`; `cygnus/core/detect/archive.py`,
+`cygnus/core/ops/archive_ops.py`). The archive is read once, as a stream, with Python's tarfile (names, types, modes, sizes and link
+targets as stored), never unpacked to look at it. Caps: 200,000 entries, 8 GiB of file data, the decompressed stream, at most 16 menu
+entries (64 KiB each), 32 icons (256 KiB each), 8 install scripts (64 KiB each). Refused, with a reason: an absolute path or a `..`; a
+hard link, device, pipe or socket; a link with an absolute target or one that leads above the unpacked folder; the same path twice
+(a folder twice is fine); an entry whose parent is a link written earlier; the marker's own name; source code; a system folder
+tree; a FreeBSD package; nothing to run. Installing re-reads the file: its SHA-256 must still be the one analysed (carried from
+the analysis), every entry is checked again with the same rules, every file is created new with `O_EXCL|O_NOFOLLOW`, modes are
+reduced to 0755 (any execute bit) or 0644 and folders to 0755 (no setuid, setgid, sticky or group/world write), each link is checked
+again by where it really leads on the unpacked tree, and the whole tree is unpacked into a hidden folder beside the final one
+and renamed into place only when complete and equal to what the archive listed. The target drive's abilities
+(permissions kept, rename, links if needed, file names it can hold) are checked first, and the system drive is used when the
+chosen one cannot; too little free space stops the install instead (never a silent move). Nothing from the archive is run, ever; its install scripts are shown with what they mention. The folder holds a
+marker file with the installation's id; **removal** only ever deletes a real folder (not a link) whose marker has that id, after the
+person asked and was told how many files changed or were added since (a program that updates itself changes its own folder), and
+never `/` or the home folder; the step is last and has no undo. A program from an archive runs as the person, unsandboxed, like any
+download; its origin is not verified (no signature is checked), which the plan says. Libraries it needs are checked afterwards
+with the same `readelf` analysis as for conversion.
+
 **Subprocesses.** Always argv lists with no shell. The environment is sanitised (`LC_ALL=C`, safe
 `PATH`), and both time and output size are bounded. The one exception is `xdg-open`, which hands a
 store page to your browser: it needs your desktop session's variables, so it runs with them, and it
@@ -340,6 +359,10 @@ analysed, and again when it is built).
   answer like any other, so a compromised service can at worst make a wrong suggestion that is dropped, or shown unapproved with a
   quote that is not on the page. The host (Cloudflare) sees the sender's internet address, as any website does, and Google may keep
   the public text under the terms of its free Gemini service.
+- **The notice that a newer Cygnus exists** (`cygnus/core/self_update.py`) asks GitHub's list of releases (`api.github.com` only: a
+  redirect elsewhere is refused), accepts only plain version tags and this project's own release-page addresses from the answer,
+  compares with the installed version, and keeps the last good answer. It downloads and installs nothing: Cygnus does not update
+  itself, because its package contains the administrator helper and its releases are not signed.
 - **Uninstall scripts and `/var`.** `rm`, `rmdir` and `unlink` in an uninstall script (prerm, postrm, preun, postun) are
   ignored, because those scripts are never run and what they clean up was never made; the same commands in an install
   script still block. A `/var` that holds only empty folders is left out; one with any file or link in it is refused.

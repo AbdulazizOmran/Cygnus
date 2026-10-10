@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.1.2 — programs from archives, and a notice for new versions
+
+- **Programs in archives (`.tar.gz`, `.tar.xz`, `.tar.zst`, `.tar.bz2`, `.tar`).** A file like Discord's `.tar.gz` used to be refused
+  with "archive has no .PKGINFO: not an Arch package". Cygnus now recognises a program archive by its contents, shows what is in it
+  (the program to start, the drive it goes on, what its install scripts would have done: they are never run), unpacks it into the
+  applications folder of the drive you choose, adds a menu entry and launcher, checks afterwards that the libraries it needs are
+  installed, and removes only the folder it made. Unsafe archives (paths that leave the folder, hard links, devices, links that lead
+  out, duplicates, source code, system trees) are refused with the reason. A drive that cannot hold the files means the system
+  drive is used and the plan says why; too little room stops the install instead. Compressions read: zstd, xz, gzip, bzip2 or
+  none (lz4, lzo, lrz and `compress` are named as unreadable). Terminal: `cygnus install FILE --to DRIVE`. Not yet:
+  update, move and repair of such programs. An Arch package is recognised by its contents too, in any compression, and as `.pkg`;
+  macOS and FreeBSD `.pkg` files are named as such.
+- **A notice when a newer Cygnus exists.** The Updates page, `cygnus updates --check` and the background check ask GitHub's list of
+  releases and tell you once per version (a pre-release counts while Cygnus is in beta), with the release page's address. Nothing
+  is downloaded or installed. GitHub sees your address and `Cygnus/<version>`, like any web request. `cygnus updates` now also
+  exits with 1 when a newer Cygnus exists.
+- **Fixed:** the test suite downloaded a file from GitHub during the package build; tests now fail at once if they try to reach the
+  internet.
+
 ## 0.1.1 — optional AI assistant
 
 - **New, off by default: "What else does this need?"** On an installed program's page, Cygnus reads that program's own public

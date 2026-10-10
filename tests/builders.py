@@ -361,3 +361,90 @@ def add_ostree_remote(installation_dir: Path, name: str, repo: Path, key: GpgTes
     trust = [f"--gpg-import={key.public}"] if key else ["--no-gpg-verify"]
     subprocess.run(["ostree", "remote", "add", f"--repo={target}", *trust, name, f"file://{repo}"],
                    check=True, capture_output=True)
+
+
+# -- portable archives (.tar.gz and friends) ---------------------------------------------------------------------------------------
+def _png(size: int = 64) -> bytes:
+    """A valid, tiny PNG of size x size (all one colour)."""
+    import struct
+    import zlib
+
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
+
+    rows = b"".join(b"\x00" + b"\x20\x40\x80" * size for _ in range(size))
+    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", size, size, 8, 2, 0, 0, 0)) \
+        + chunk(b"IDAT", zlib.compress(rows)) + chunk(b"IEND", b"")
+
+
+ELF_STUB = b"\x7fELF\x02\x01\x01\x00" + b"\x00" * 120  # enough to be recognised as a program file; never run
+
+
+def build_tarball(dest: Path, entries, *, compression: str = "gz") -> Path:
+    """A tar archive of any shape, hostile ones included. `entries` is a list of (name, kind, payload, mode):
+    kind is file (payload = bytes), dir, symlink / hardlink (payload = the target), chr, blk or fifo. Names are written
+    exactly as given (absolute, with "..", repeated). `compression`: gz, xz, bz2, zst or "" for a plain tar."""
+    import io
+    import tarfile
+
+    raw = io.BytesIO()
+    with tarfile.open(fileobj=raw, mode="w", format=tarfile.GNU_FORMAT) as tar:
+        for name, kind, payload, mode in entries:
+            info = tarfile.TarInfo(name)
+            info.mtime = 1_700_000_000
+            info.uname = info.gname = "root"
+            info.mode = mode
+            data = None
+            if kind == "file":
+                data = payload if isinstance(payload, bytes) else payload.encode()
+                info.size = len(data)
+            elif kind == "dir":
+                info.type = tarfile.DIRTYPE
+            elif kind == "symlink":
+                info.type, info.linkname = tarfile.SYMTYPE, payload
+            elif kind == "hardlink":
+                info.type, info.linkname = tarfile.LNKTYPE, payload
+            elif kind == "chr":
+                info.type, info.devmajor, info.devminor = tarfile.CHRTYPE, 1, 3
+            elif kind == "blk":
+                info.type, info.devmajor, info.devminor = tarfile.BLKTYPE, 8, 0
+            elif kind == "fifo":
+                info.type = tarfile.FIFOTYPE
+            else:
+                raise ValueError(kind)
+            tar.addfile(info, io.BytesIO(data) if data is not None else None)
+    body = raw.getvalue()
+    if compression == "gz":
+        import gzip
+        body = gzip.compress(body)
+    elif compression == "xz":
+        import lzma
+        body = lzma.compress(body)
+    elif compression == "bz2":
+        import bz2
+        body = bz2.compress(body)
+    elif compression == "zst":
+        from compression import zstd
+        body = zstd.compress(body)
+    elif compression:
+        raise ValueError(compression)
+    dest.write_bytes(body)
+    return dest
+
+
+DISCORD_DESKTOP = ("[Desktop Entry]\nName=Discord\nStartupWMClass=discord\nComment=Chat for gamers\nGenericName=Internet Messenger\n"
+                   "Exec=/usr/bin/discord --url -- %u\nIcon=discord\nType=Application\nCategories=Network;InstantMessaging;\n"
+                   "MimeType=x-scheme-handler/discord;\nPath=/usr/bin\n")
+DISCORD_LAUNCHER = "#!/bin/sh\nexec \"`dirname -- \"$0\"`/updater_bootstrap\" \"$@\"\n"
+DISCORD_POSTINST = ("#!/bin/sh\nsystemctl reload apparmor\nupdate-desktop-database -q /usr/share/applications\n"
+                    "pkill Discord\nfor DIR in /home/* ; do\n  rm -rf \"$DIR/.config/discord/Cache\"\ndone\n")
+
+
+def portable_app_entries(root: str = "Discord", *, extra=()) -> list[tuple]:
+    """What the real Discord archive holds: a launcher script, a small program, a menu entry that names /usr/bin, an icon and an
+    install script (listed, never run)."""
+    r = f"{root}/" if root else ""
+    return [(root, "dir", None, 0o755)] * bool(root) + [
+        (f"{r}updater_bootstrap", "file", ELF_STUB, 0o755), (f"{r}discord", "file", DISCORD_LAUNCHER, 0o755),
+        (f"{r}discord.desktop", "file", DISCORD_DESKTOP, 0o644), (f"{r}postinst.sh", "file", DISCORD_POSTINST, 0o755),
+        (f"{r}discord.png", "file", _png(64), 0o644), *extra]

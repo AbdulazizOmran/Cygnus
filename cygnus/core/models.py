@@ -18,6 +18,7 @@ class PackageFormat(StrEnum):
     APPIMAGE = "appimage"
     DEB = "deb"
     RPM = "rpm"
+    ARCHIVE = "archive"  # a portable program in a tar archive: unpacked and run where it is, no installer
 
 
 class Severity(StrEnum):

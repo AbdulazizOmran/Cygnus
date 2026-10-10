@@ -72,6 +72,69 @@ Kirigami.ScrollablePage {
         });
     }
 
+    property var archiveInfo: null // for a program unpacked from an archive: how big its folder is and what changed in it since
+    property var libraryResult: null // what a program from an archive still needs from your repositories
+
+    // Asks what removing a program's folder would remove before the question is put.
+    function openUninstall() {
+        if (installationFormat !== "archive") {
+            deleteFile.checked = false;
+            uninstallDialog.open();
+            return;
+        }
+        if (busyText !== "")
+            return;
+        busyText = "Looking at the program's folder…";
+        page.ask(backend.archiveInfo(installationId), function (r) {
+            busyText = "";
+            if (!r.ok) {
+                showError(r.error); // removing without being able to say what is in the folder is not offered
+                return;
+            }
+            archiveInfo = r.result;
+            deleteFile.checked = false; // never carried over from another program
+            uninstallDialog.open();
+        });
+    }
+
+    function checkLibraries() {
+        if (busyText !== "")
+            return;
+        busyText = "Checking the libraries the program needs…";
+        progressValue = -1;
+        progressLabel = "";
+        page.ask(backend.archiveLibraries(installationId), function (r) {
+            busyText = "";
+            if (!r.ok) {
+                showError(r.error);
+                return;
+            }
+            libraryResult = r.result;
+            if (r.result.packages.length || r.result.unresolved.length || r.result.glibc)
+                libraryDialog.open();
+            else
+                root.notify("Every library " + page.appName + " needs is installed.");
+        }, function (line) {
+            if (line !== "")
+                page.busyText = line;
+        });
+    }
+
+    function installLibraries() {
+        if (busyText !== "" || !libraryResult || !libraryResult.packages.length)
+            return;
+        busyText = "Preparing…";
+        page.ask(backend.planRepoDependencies(JSON.stringify(libraryResult.packages)), function (r) {
+            busyText = "";
+            if (!r.ok) {
+                showError(r.error);
+                return;
+            }
+            fixPlan = r.result;
+            fixDialog.open();
+        });
+    }
+
     property var needsResult: null // what the assistant suggested for this program, already checked by Cygnus
     property string needsError: "" // shown inside the suggestions window: an error on the page behind it could not be seen
     property string needsAddress: "" // a documentation page the person added
@@ -213,6 +276,13 @@ Kirigami.ScrollablePage {
             }
         },
         Kirigami.Action {
+            text: "Check libraries…"
+            enabled: page.busyText === ""
+            icon.name: "system-search"
+            visible: page.installationFormat === "archive"
+            onTriggered: page.checkLibraries()
+        },
+        Kirigami.Action {
             text: "What else does this need?"
             enabled: page.busyText === ""
             icon.name: "help-hint"
@@ -224,7 +294,7 @@ Kirigami.ScrollablePage {
             enabled: page.busyText === ""
             icon.name: "edit-delete"
             visible: page.installationId !== ""
-            onTriggered: uninstallDialog.open()
+            onTriggered: page.openUninstall()
         }
     ]
 
@@ -515,6 +585,24 @@ Kirigami.ScrollablePage {
     }
 
     Kirigami.PromptDialog {
+        id: libraryDialog
+        title: root.flat("What " + page.appName + " is missing")
+        subtitle: !page.libraryResult ? "" : root.flat((page.libraryResult.glibc ? "It was built for a newer C library (" + page.libraryResult.glibc.needs + ") than this computer has (" + page.libraryResult.glibc.have + "), so it may not start. " : "") + (page.libraryResult.packages.length ? "Libraries it needs are not installed here. Your repositories have them in: " + page.libraryResult.packages.join(", ") + ". " : "") + (page.libraryResult.unresolved.length ? "No repository provides: " + page.libraryResult.unresolved.slice(0, 6).join(", ") + (page.libraryResult.unresolved.length > 6 ? " and more" : "") + ". It may not start. " : "") + (page.libraryResult.optional.length ? "Some parts also want: " + page.libraryResult.optional.map(o => o.package).join(", ") + " (optional)." : ""))
+        standardButtons: Kirigami.Dialog.Close
+        customFooterActions: [
+            Kirigami.Action {
+                text: "Install the missing libraries…"
+                icon.name: "download"
+                visible: !!page.libraryResult && page.libraryResult.packages.length > 0
+                onTriggered: {
+                    libraryDialog.close();
+                    page.installLibraries();
+                }
+            }
+        ]
+    }
+
+    Kirigami.PromptDialog {
         id: fixDialog
         title: page.fixPlan ? root.flat(page.fixPlan.title) : ""
         subtitle: page.fixPlan ? root.flat(page.fixPlan.message + (page.fixPlan.security_note ? "\n\n" + page.fixPlan.security_note : "") + (page.fixPlan.relogin ? "\n\nYou will need to log out and back in afterwards." : "")) : ""
@@ -598,7 +686,7 @@ Kirigami.ScrollablePage {
     Kirigami.PromptDialog {
         id: uninstallDialog
         title: root.flat("Remove " + page.appName + "?")
-        subtitle: page.isPackage ? "pacman removes the package. Cygnus shows exactly what will be removed before asking for your password." : page.installationFormat === "flatpak" ? "Flatpak removes the application, and any runtime Cygnus installed for it that nothing else uses. Your settings and data in ~/.var/app are kept." : "The menu entry, icon and launcher Cygnus created will be removed. Your settings and data are kept."
+        subtitle: page.isPackage ? "pacman removes the package. Cygnus shows exactly what will be removed before asking for your password." : page.installationFormat === "flatpak" ? "Flatpak removes the application, and any runtime Cygnus installed for it that nothing else uses. Your settings and data in ~/.var/app are kept." : page.installationFormat === "archive" ? "The menu entry, icon and launcher Cygnus created will be removed. What the program saved in your home folder (its settings and data) is kept. " + (!!page.archiveInfo && page.archiveInfo.present && page.archiveInfo.ours ? "The program's own folder is kept too unless you tick the box below." : "The program's own folder is left alone: it is gone, or it is not one Cygnus made.") : "The menu entry, icon and launcher Cygnus created will be removed. Your settings and data are kept."
         standardButtons: Kirigami.Dialog.Cancel
         customFooterActions: [
             Kirigami.Action {
@@ -626,7 +714,7 @@ Kirigami.ScrollablePage {
                     page.busyText = "Removing…";
                     page.progressValue = -1;
                     page.progressLabel = "";
-                    page.ask(backend.uninstall(page.installationId, deleteFile.checked), function (r) {
+                    page.ask(backend.uninstall(page.installationId, deleteFile.visible && deleteFile.checked), function (r) {
                         page.busyText = "";
                         if (r.ok && r.result.ok)
                             root.showPage(appsPage);
@@ -642,8 +730,8 @@ Kirigami.ScrollablePage {
         ]
         QQC2.CheckBox {
             id: deleteFile
-            visible: page.installationFormat === "appimage"
-            text: "Also delete the application file"
+            visible: page.installationFormat === "appimage" || (page.installationFormat === "archive" && !!page.archiveInfo && page.archiveInfo.present && page.archiveInfo.ours)
+            text: page.installationFormat === "archive" && page.archiveInfo ? "Also delete the program's folder (" + page.archiveInfo.files + " files" + (page.archiveInfo.changed || page.archiveInfo.added ? "; " + (page.archiveInfo.changed || 0) + " changed and " + (page.archiveInfo.added || 0) + " added since it was unpacked, so it may hold things the program saved itself" : "") + ")" : "Also delete the application file"
         }
     }
 

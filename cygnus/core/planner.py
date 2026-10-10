@@ -102,6 +102,10 @@ def location_supports(loc: StorageLocation, what: str) -> tuple[bool, str]:
     if what == "appimage":
         return bool(caps.get("chmod_persists")), "" if caps.get("chmod_persists") else \
             f"{loc.label} does not keep file permissions"
+    if what in ("portable", "portable-links"):  # a program unpacked from an archive: it runs from there, with its own links if it has any
+        needed = ("chmod_persists", "atomic_rename") + (("symlinks",) if what == "portable-links" else ())
+        missing = [k.replace("_", " ") for k in needed if not caps.get(k)]
+        return (not missing), ("" if not missing else f"{loc.label} lacks: {', '.join(missing)}")
     if what == "flatpak":
         needed = ("symlinks", "hardlinks", "atomic_rename", "chmod_persists")
         missing = [k for k in needed if not caps.get(k)]
@@ -186,6 +190,31 @@ def plan_appimage(cand: Candidate, target: StorageLocation, system: StorageLocat
                                  resolutions=[]))
     else:
         plan.notes.append("Unsigned download: its integrity relies on the download source (HTTPS).")
+    plan.issues += extra_issues or []
+    return plan
+
+
+def plan_archive(cand: Candidate, target: StorageLocation, system: StorageLocation, *, drive_problems: list[str] = (),
+                 extra_issues: list[Issue] | None = None) -> InstallPlan:
+    """A program from a plain archive: unpacked into the applications folder of `target` (or of the system drive when the
+    chosen one cannot hold it), integrated with the menu. Nothing in the archive is run."""
+    name = cand.name or "the program"
+    plan = InstallPlan(app_name=name, source_label="Archive", format=PackageFormat.ARCHIVE.value, target=target.label, trust="unverified")
+    ok, reason = location_supports(target, "portable-links" if cand.metadata.get("has_symlinks") else "portable")
+    if ok and drive_problems:
+        ok, reason = False, "its files cannot all be kept there: " + "; ".join(drive_problems[:2])
+    where = target if ok else system
+    plan.placements.append(Placement(role="payload", name="Program files", location=where.label, bytes=cand.installed_size,
+                                     reason="" if ok else f"{reason}; using {system.label} instead"))
+    plan.placements.append(Placement(role="integration", name="Desktop integration", location=system.label, bytes=INTEGRATION_BYTES,
+                                     reason="menu entry, icon and launcher"))
+    plan.placements.append(Placement(role="configuration", name="Settings and data", location=system.label, bytes=None,
+                                     reason="kept in your home folder, by the program itself"))
+    if not ok:
+        plan.issues.append(Issue(code="STORAGE_INCAPABLE", severity=IssueSeverity.NOTICE,
+                                 title=f"{name} will be stored on {system.label}", explanation=reason))
+    plan.actions.append(Action(kind="archive.unpack", params={"source": cand.source, "location": where.id}))
+    plan.actions.append(Action(kind="desktop.integrate", params={"desktop_id": cand.identity.get("desktop_id")}))
     plan.issues += extra_issues or []
     return plan
 

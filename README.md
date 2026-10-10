@@ -50,6 +50,7 @@ it started.
 | Flatpak bundle | ✓ as above; runtime resolved by Cygnus | ✓ if it names a remote | ✓ | ✓ | ✓ | ✓ |
 | Local Arch package | ✓ via the privileged helper | with the system | ✓ via the helper | — | — | ✓ |
 | AUR | ✓ review → build as you → install via the helper (dependency chains too) | rebuild after reviewing changes | ✓ via the helper | — | — | ✓ |
+| Archive (`.tar.gz`, `.tar.xz`, `.tar.zst` …) | ✓ unpack onto a drive of your choice, with a menu entry and launcher (its scripts are shown, never run; libraries checked afterwards) | notice only (Cygnus tells you to reinstall) | ✓ | — | — | libraries, checked after installing and on demand |
 | DEB / RPM | ✓ convert into a pacman package when safe (shows what the vendor's install scripts would have done; nothing is run); otherwise a native alternative or a refusal | ✓ for 13 known vendors (Chrome, Edge, Brave, Signal, …) and any you add: download, review, replace | ✓ via the helper | — | — | — |
 
 * **Flathub's Install button and software files** can open Cygnus instead of another store (an opt-in switch in
@@ -87,7 +88,9 @@ switch on the update checks in Settings.
 
 Cygnus has no telemetry, no account and no crash reporting. It talks to the network only to do what you asked or to check
 for updates of what you installed: your distribution's package mirrors (through pacman), `flathub.org` and
-`dl.flathub.org`, `aur.archlinux.org`, `api.github.com` / `github.com` (AppImage update information), and the vendor
+`dl.flathub.org`, `aur.archlinux.org`, `api.github.com` / `github.com` (AppImage update information, and a check whether a newer Cygnus exists: GitHub sees your address
+and `Cygnus/<version>`, nothing else),
+and the vendor
 package lists of programs you converted (for example `dl.google.com`, `packages.microsoft.com`). Everything it stores is in
 `~/.local/share/cygnus`, `~/.config/cygnus`, `~/.cache/cygnus` and `~/.local/state/cygnus`, plus the helper's own
 record of administrator actions in `/var/lib/cygnus`.
@@ -139,6 +142,7 @@ python3 -m cygnus doctor                  # check the environment
 python3 -m cygnus storage scan            # filesystems that could hold applications
 python3 -m cygnus storage add /mnt/data --label HDD --apps-dir apps/CachyOS
 python3 -m cygnus install ~/Downloads/App.AppImage --to HDD
+python3 -m cygnus install ~/Downloads/Discord.tar.gz --to HDD   # a program in an archive (--program PATH if it cannot tell which)
 python3 -m cygnus install flathub:org.kde.kcalc --to HDD   # Flatpak app by id
 python3 -m cygnus aur review pfetch               # read the build files (nothing runs)
 python3 -m cygnus aur install pfetch              # build as you, install via the helper

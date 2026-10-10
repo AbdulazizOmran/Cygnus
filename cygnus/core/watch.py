@@ -50,9 +50,12 @@ def save_state(state: dict[str, Any]) -> None:
 
 
 def collect(*, app_updates: list[dict[str, Any]], health: list[dict[str, Any]],
-            interrupted: list[dict[str, Any]]) -> list[Notice]:
+            interrupted: list[dict[str, Any]], cygnus: dict[str, Any] | None = None) -> list[Notice]:
     """Notices for the current situation (pure; deduplication happens in `select`)."""
     notices = []
+    if cygnus and cygnus.get("ok") and cygnus.get("newer"):  # once per version: the key names it, and goes when it no longer applies
+        notices.append(Notice(key=f"cygnus:{cygnus['latest']}", title="A new version of Cygnus is available",
+                              body=f"Cygnus {cygnus['latest']} is out (you have {cygnus['current']}). Open Cygnus, then Updates, to see how to get it."))
     for u in app_updates:
         if u["status"] == "update-available":
             facts = u.get("facts") or {}
@@ -136,7 +139,7 @@ def settle(show: list[Notice], shown: list[Notice], state: dict[str, Any], befor
 def run(*, gather: Callable[[], dict[str, Any]], notify: Callable[[Notice], None] | None = None) -> list[Notice]:
     data = gather()
     notices = collect(app_updates=data.get("app_updates", []), health=data.get("health", []),
-                      interrupted=data.get("interrupted", []))
+                      interrupted=data.get("interrupted", []), cygnus=data.get("cygnus"))
     before = load_state()
     show, state = select(notices, data.get("system"), before)
     shown = []

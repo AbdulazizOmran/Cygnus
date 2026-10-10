@@ -5,7 +5,7 @@ from __future__ import annotations
 import tarfile
 from pathlib import Path
 
-from cygnus.core.errors import DetectionError
+from cygnus.core.errors import DetectionError, UnsafeInputError
 from cygnus.core.models import Candidate, PackageFormat, Severity
 from cygnus.core.util.limits import CappedReader, decompressor
 
@@ -22,6 +22,10 @@ _COMPRESSION_MAGIC = [
     (b"\x1f\x8b", "gz"),
     (b"BZh", "bz2"),
 ]
+
+
+class NotAnArchPackage(DetectionError):
+    """A tar archive, but not an Arch package (it has no .PKGINFO): it may be a portable program, or a damaged package."""
 
 
 def compression_of(head: bytes) -> str | None:
@@ -64,7 +68,9 @@ def read_leading_members(path: Path, compression: str) -> tuple[str | None, list
     try:
         with open(path, "rb") as raw:
             capped = CappedReader(decompressor(raw, compression), _MAX_LEADING_BYTES)
-            with tarfile.open(fileobj=capped, mode="r|") as tar:
+            from cygnus.core.detect.archive import open_stream
+
+            with open_stream(capped) as tar:
                 for i, member in enumerate(tar):
                     name = member.name.removeprefix("./")
                     if not name.startswith("."):
@@ -77,7 +83,9 @@ def read_leading_members(path: Path, compression: str) -> tuple[str | None, list
                         pkginfo = f.read(_MAX_PKGINFO).decode("utf-8", "replace") if f else None
                     if i >= _MAX_LEADING_MEMBERS:
                         break
-    except DetectionError:
+    except UnsafeInputError as exc:  # a real package has .PKGINFO in its first few kilobytes: this is not one (it may be a program)
+        raise NotAnArchPackage("no .PKGINFO in the part of the archive where a package has it") from exc
+    except DetectionError:  # (after the one above: an UnsafeInputError is a DetectionError too)
         raise
     except MemoryError as exc:
         raise DetectionError("package archive is malformed (excessive memory use)") from exc
@@ -89,7 +97,7 @@ def read_leading_members(path: Path, compression: str) -> tuple[str | None, list
 def inspect(path: Path, compression: str) -> Candidate:
     pkginfo_text, dotfiles = read_leading_members(path, compression)
     if pkginfo_text is None:
-        raise DetectionError("archive has no .PKGINFO: not an Arch package")
+        raise NotAnArchPackage("archive has no .PKGINFO: not an Arch package")
     info = parse_pkginfo(pkginfo_text)
     cand = Candidate(format=PackageFormat.LOCAL_PKG, source=str(path))
     cand.name = info.get("pkgname")  # type: ignore[assignment]

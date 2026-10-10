@@ -30,6 +30,11 @@
     <binary>cygnus-gui</binary>
   </provides>
   <releases>
+    <release version="0.1.2" date="2026-10-10" type="development">
+      <description>
+        <p>Programs that come as a plain archive (such as Discord's .tar.gz) can be installed onto the drive you choose, and Cygnus tells you when a newer version of itself exists.</p>
+      </description>
+    </release>
     <release version="0.1.1" date="2026-10-09" type="development">
       <description>
         <p>An optional AI assistant (off by default) that suggests what else a program needs, from its own documentation, and fixes found by an independent review of it.</p>

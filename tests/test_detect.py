@@ -38,17 +38,22 @@ def test_pkg_install_script_and_signature(tmp_path):
     assert cand.metadata["detached_signature"] is True
 
 
-def test_plain_compressed_tar_without_pkginfo_is_rejected(tmp_path):
+def test_a_compressed_tar_without_pkginfo_is_a_program_archive_unless_it_is_named_like_an_arch_package(tmp_path):
     import io
     import tarfile
 
-    path = tmp_path / "notapkg.tar.zst"
-    with tarfile.open(path, "w:zst") as tar:
-        info = tarfile.TarInfo("README")
-        info.size = 3
-        tar.addfile(info, io.BytesIO(b"hi\n"))
-    with pytest.raises(DetectionError, match="PKGINFO"):
-        detect_file(path)
+    def make(name):
+        path = tmp_path / name
+        with tarfile.open(path, "w:zst") as tar:
+            info = tarfile.TarInfo("README")
+            info.size = 3
+            tar.addfile(info, io.BytesIO(b"hi\n"))
+        return path
+
+    cand = detect_file(make("notapkg.tar.zst"))  # not rejected as a package: read as an archive, which then has nothing to run
+    assert cand.format.value == "archive" and "ARCHIVE_NO_PROGRAM" in {f.code for f in cand.findings}
+    with pytest.raises(DetectionError, match="PKGINFO"):  # by its name it claims to be an Arch package: a damaged one
+        detect_file(make("notapkg-1.0-1-x86_64.pkg.tar.zst"))
 
 
 # -- Debian ---------------------------------------------------------------------------------------

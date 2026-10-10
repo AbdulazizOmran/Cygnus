@@ -1,3 +1,4 @@
+from pathlib import Path
 import os
 
 import pytest
@@ -402,11 +403,16 @@ def test_what_a_component_can_do_is_shown_before_approval(monkeypatch):
             from cygnus.core.privilege import Plan
             return Plan("u", {}, "Enable the service")
 
+    from cygnus.core.util import http
+
+    downloaded = []
+    monkeypatch.setattr(http, "download", lambda url, dest, **kw: downloaded.append(url) or Path(dest) / "fake.pkg.tar.zst")  # never the network
     monkeypatch.setattr(fixes, "HelperClient", Client)
     monkeypatch.setattr(fixes, "run_probe", lambda spec: ProbeOutcome(probe=spec["probe"], status=ProbeStatus.FAIL,
                                                                        evidence="missing"))
     plan = fixes.plan("WhatPulse", "pcap-service")
     assert plan["kind"] == "helper" and "CAP_NET_RAW" in plan["security_note"]
+    assert len(downloaded) == 1 and downloaded[0].startswith("https://")  # the package would be fetched; here it is not
 
 
 def test_a_requirement_that_could_not_be_checked_is_not_hidden_behind_a_missing_extra(appimage):

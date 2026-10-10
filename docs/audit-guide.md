@@ -35,7 +35,8 @@ helper do anything the person did not approve, and cannot reach root without tha
    `setuid`, the proof that root is gone, the filter) and the filter's list (it is a denylist: judge whether it is enough).
 5. `cygnus/helper/ledger.py` and `cygnus/core/privilege.py`: what is recorded, who can read it, how a client waits for a result.
 
-Then, because they handle hostile input but run as the person: `cygnus/core/backends/foreign.py` (package analysis),
+Then, because they handle hostile input but run as the person: `cygnus/core/detect/archive.py` and `cygnus/core/ops/archive_ops.py`
+(programs from tar archives: the reader's refusals, the unpacker, the marker rule for removal), `cygnus/core/backends/foreign.py` (package analysis),
 `translate.py` (script text reading), `convert.py` (building the converted package), `cygnus/gui/launch.py` (links and files
 from a browser), `cygnus/core/backends/vendor_feeds.py` + `cygnus/core/util/http.py` (downloads), and the optional assistant
 (`cygnus/core/ai/`, and the hosted service `server/ai_worker/src/logic.js`).
@@ -56,6 +57,10 @@ from a browser), `cygnus/core/backends/vendor_feeds.py` + `cygnus/core/util/http
   package outside the shapes, a quote that is not on the page, or a page that talks to the model; and `sources.py` for fetching an
   address it should not (loopback, link-local, another host after a redirect).
 - A download goes to a folder of its own and is never written through a link.
+- An archive that is a program is unpacked only if its SHA-256 is the analysed one, every entry passes the rules again, nothing is
+  written outside the hidden staging folder, no file gets setuid/setgid or write for others, and removal only touches a real folder
+  holding this installation's marker. Try archives with odd names, links that lead out through other links, a folder replaced by a
+  link between analysis and removal, a marker that is a link or a folder, entries that collide when case is ignored.
 
 ## 4. Known soft spots (do not spend your time rediscovering these)
 
@@ -73,6 +78,10 @@ from a browser), `cygnus/core/backends/vendor_feeds.py` + `cygnus/core/util/http
 - The hosts allowed for a page are the vendor's own host and its subdomains; a short list of shared hosting sites
   (`sources.SHARED_HOSTS`) is read as the exact host only, but a vendor whose own site is a subdomain of an unlisted shared host
   would also allow its neighbours' pages to be read (text only, sent to the assistant).
+- A program from an archive runs unsandboxed with the person's rights, and Cygnus cannot verify who made the archive; the plan
+  says so. Its install scripts are listed from their text (the commands they run, read like a shell would, or line by line when
+  a script cannot be followed): that can miss a command a script builds as it runs, and can over-report (text inside a
+  here-document is skipped unless a shell reads it; other odd constructs are not understood).
 - Tested on one machine (CachyOS, KDE Plasma, x86_64).
 
 ## 5. Running it

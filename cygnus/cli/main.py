@@ -436,7 +436,7 @@ def cmd_needs(args: argparse.Namespace) -> int:
 
 
 def cmd_updates(args: argparse.Namespace) -> int:
-    from cygnus.core import updates
+    from cygnus.core import self_update, updates
 
     reg = open_registry(args.registry)
     if args.check:
@@ -446,12 +446,21 @@ def cmd_updates(args: argparse.Namespace) -> int:
             updates.check_system_updates(lambda line: print(line, file=sys.stderr))
         except CygnusError as exc:
             print(f"system updates could not be checked: {exc}", file=sys.stderr)
+        own = self_update.check()
+        if not own["ok"]:
+            print(f"a newer Cygnus could not be looked for: {own['error']}", file=sys.stderr)
     rows = updates.last_known(reg)
     system = updates.last_system_updates()
-    available = any(u.status == updates.AVAILABLE for u in rows)
+    cygnus = self_update.last_known()
+    available = any(u.status == updates.AVAILABLE for u in rows) or bool(cygnus and cygnus["newer"])
     if args.json:
-        _emit({"applications": [u.as_dict() for u in rows], "system": system})
+        _emit({"applications": [u.as_dict() for u in rows], "system": system, "cygnus": cygnus})
         return 1 if available else 0
+    if cygnus and cygnus["newer"]:
+        print(f"Cygnus {cygnus['latest']} is available (you have {cygnus['current']}): {cygnus['url']}")
+        print("  Cygnus does not update itself: get the new version the way you got this one (a package file you downloaded: sudo pacman -U FILE; or through your AUR helper if you installed it from the AUR).")
+    elif cygnus:
+        print(f"Cygnus {cygnus['current']}: up to date — checked {cygnus['checked_at']}")
     if system:
         if system.get("error"):
             print(f"System packages: could not check ({system['error']})")
@@ -707,9 +716,11 @@ def cmd_install(args: argparse.Namespace) -> int:
         return _install_flatpak_bundle(args)
     if cand.format in (PackageFormat.DEB, PackageFormat.RPM):
         return _install_foreign(args)
+    if cand.format is PackageFormat.ARCHIVE:
+        return _install_archive(args)
     if cand.format is not PackageFormat.APPIMAGE:
-        raise CygnusError("`cygnus install` handles AppImages, Flatpak bundles and Flatpak app ids "
-                          "(e.g. flathub:org.example.App); open other files in the Cygnus app")
+        raise CygnusError("`cygnus install` handles AppImages, programs in archives (.tar.gz, .tar.xz ...), .deb and .rpm files, "
+                          "Flatpak bundles and Flatpak app ids (e.g. flathub:org.example.App); open other files in the Cygnus app")
     if not args.to:
         raise CygnusError("choose where to store the AppImage with --to (see `cygnus storage list`)")
     reg = open_registry(args.registry)
@@ -724,6 +735,52 @@ def cmd_install(args: argparse.Namespace) -> int:
     steps = appimage_ops.plan_install(cand, app_key=key, location=loc, apps_dir=locations.apps_dir(loc, rv),
                                       manifest=manifest)
     return _run_steps("install", steps, reg, args.yes, f"Install {cand.name} on {loc.label}:")
+
+
+def _install_archive(args: argparse.Namespace) -> int:
+    """A program in a plain archive: shown (what is in it, where it goes, what its install scripts would have done), then unpacked."""
+    from cygnus.gui import service
+
+    plan = service.analyse(args.file, args.to, args.registry, progress=_say)
+    ok = _print_plan(plan)
+    for note in plan.get("notes", []):
+        print(f"  note: {note}")
+    scripts = plan.get("scripts")
+    if scripts:
+        for m in scripts["mentions"][:8]:
+            print(f"  the install scripts mention {m['command']}: {m['what']} (never run)")
+    if not ok:
+        return 1
+    info = plan["archive"]
+    main = args.program or info["main"]
+    if not main:
+        print("Cygnus cannot tell which program to start. Choose one with --program:")
+        for choice in info["choices"][:15]:
+            print(f"    {choice}")
+        return 1
+    if main not in info["choices"]:
+        raise CygnusError(f"{main!r} is not one of the programs in the archive (choose from: {', '.join(info['choices'][:8])})")
+    if not _confirm(f"Unpack {plan['name']} onto {plan['target']} and start {main} from there?", args.yes):
+        print("cancelled")
+        return 1
+    result = service.install_archive(args.file, args.to or plan["target"], plan["sha256"], main, _say, args.registry)
+    if not result["ok"]:
+        print(f"not installed: {result['error']}")
+        return 1
+    print("done")
+    try:
+        libs = service.archive_libraries(result["installation_id"], _say, args.registry)
+    except CygnusError as exc:
+        print(f"the libraries could not be checked: {exc}")
+        return 0
+    if libs["glibc"]:
+        print(f"  warning: built for a newer C library ({libs['glibc']['needs']}) than this computer has ({libs['glibc']['have']})")
+    if libs["packages"]:
+        print("  it needs libraries that are not installed; your repositories have them in: " + ", ".join(libs["packages"]))
+        print("  install them with:  sudo pacman -S --needed --asdeps " + " ".join(libs["packages"]))
+    if libs["unresolved"]:
+        print("  no repository provides: " + ", ".join(libs["unresolved"][:8]))
+    return 0
 
 
 def _print_plan(plan: dict) -> bool:
@@ -867,6 +924,9 @@ def cmd_move(args: argparse.Namespace) -> int:
         result = service.move_flatpak(inst["id"], args.to, _say, args.registry)
         print("done" if result["ok"] else f"{result['state']}: {result['error']}")
         return 0 if result["ok"] else 1
+    if inst["format"] == "archive":
+        raise CygnusError("moving a program that was unpacked from an archive is not supported yet: remove it and install the archive "
+                          "onto the other drive")
     if inst["format"] != "appimage":
         raise CygnusError("system packages always live on the system drive")
     loc = next((l for l in reg.list_locations() if args.to in (l.id, l.label)), None)
@@ -901,6 +961,8 @@ def cmd_repair(args: argparse.Namespace) -> int:
         result = service.repair_app(inst["id"], _say)
         print("done" if result["ok"] else f"{result['state']}: {result['error']}")
         return 0 if result["ok"] else 1
+    if inst["format"] == "archive":
+        raise CygnusError("repairing a program that was unpacked from an archive is not supported yet: remove it and install the archive again")
     if inst["format"] != "appimage":
         raise CygnusError("system packages are repaired with pacman (they are verified when installed)")
     problems = appimage_ops.diagnose(reg, inst["id"])
@@ -1116,7 +1178,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--url", help="a documentation page (https) to read as well")
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_needs)
-    s = sub.add_parser("updates", help="show update status (exit 1 if updates are available)")
+    s = sub.add_parser("updates", help="show update status (exit 1 if updates are available, a newer Cygnus included)")
     s.add_argument("--check", action="store_true", help="check online now (otherwise show the last check)")
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_updates)
@@ -1159,6 +1221,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="storage location label, e.g. HDD (needed for AppImages; Flatpaks default to the "
                         "default location; system packages always go to the system drive)")
     s.add_argument("-y", "--yes", action="store_true")
+    s.add_argument("--program", metavar="PATH", default=None,
+                   help="programs in archives: the program to start, as a path inside the archive's folder (only needed when Cygnus cannot tell)")
     s.add_argument("--with-optional", action="store_true",
                    help=".deb/.rpm: also install the repository packages that only some parts of the program use")
     s.add_argument("--accept-scripts", action="store_true",

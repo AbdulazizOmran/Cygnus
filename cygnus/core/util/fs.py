@@ -60,3 +60,24 @@ def fsync_dir(path: Path) -> None:
         pass
     finally:
         os.close(fd)
+
+
+def rename_noreplace(src, dst) -> None:
+    """Rename `src` to `dst`, failing with FileExistsError when `dst` exists even if it appeared an instant ago (the kernel is asked
+    to refuse: renaming a folder onto an empty folder would otherwise quietly replace it). Where the file system cannot refuse by
+    itself, it is looked at right before."""
+    import ctypes
+
+    libc = ctypes.CDLL(None, use_errno=True)
+    renameat2 = getattr(libc, "renameat2", None)
+    if renameat2 is not None:
+        if renameat2(-100, os.fsencode(src), -100, os.fsencode(dst), 1) == 0:  # AT_FDCWD, RENAME_NOREPLACE
+            return
+        err = ctypes.get_errno()
+        if err == errno.EEXIST:
+            raise FileExistsError(err, os.strerror(err), str(dst))
+        if err not in (errno.EINVAL, errno.ENOSYS, errno.EOPNOTSUPP):
+            raise OSError(err, os.strerror(err), str(dst))
+    if os.path.lexists(dst):
+        raise FileExistsError(errno.EEXIST, os.strerror(errno.EEXIST), str(dst))
+    os.rename(src, dst)

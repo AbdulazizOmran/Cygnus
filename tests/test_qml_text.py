@@ -77,3 +77,37 @@ def test_dialog_titles_built_from_names_are_flattened():
             expr = m.group(1)
             if "+" in expr and "page." in expr:  # a title assembled from page data
                 assert expr.startswith("root.flat("), f"{name}: {expr}"
+
+
+def _function(text: str, signature: str) -> str:
+    """The body of a QML function (from its signature to the closing brace at the same indentation)."""
+    start = text.index(signature)
+    indent = re.match(r" *", signature).group(0)
+    end = text.index("\n" + indent + "}", start)
+    return text[start:end]
+
+
+def test_the_uninstall_question_never_opens_without_knowing_what_is_in_the_folder_and_never_carries_a_tick_over():
+    """Round 12: the tick for "also delete the folder" starts clear for every program, an archive program's folder is looked at before
+    the question is put (and a failure to look stops it), and only a box that is shown and ticked deletes anything."""
+    text = (QML / "AppPage.qml").read_text()
+    body = _function(text, "    function openUninstall()")
+    plain, archive = body.split("if (busyText !== \"\")", 1)
+    assert "deleteFile.checked = false" in plain and plain.index("deleteFile.checked = false") < plain.index("uninstallDialog.open()")
+    assert "backend.archiveInfo(installationId)" in archive
+    failed = archive[archive.index("if (!r.ok)"):archive.index("archiveInfo = r.result")]
+    assert "showError(r.error)" in failed and "return;" in failed and "uninstallDialog.open()" not in failed
+    assert archive.index("deleteFile.checked = false") < archive.index("uninstallDialog.open()")
+    assert "backend.uninstall(page.installationId, deleteFile.visible && deleteFile.checked)" in text  # a hidden, left-over tick deletes nothing
+    assert text.count("backend.uninstall(") == 1
+
+
+def test_a_late_answer_about_libraries_is_dropped_when_another_program_has_been_opened_since():
+    text = (QML / "InstallPage.qml").read_text()
+    body = _function(text, "    function checkLibraries(installationId)")
+    before_ask = body[:body.index("page.ask(")]
+    assert "const seq = analysisSeq" in before_ask and "const name = plan ? plan.name : \"\"" in before_ask
+    done, progress = body[body.index("function (l)"):body.index("}, function (line)")], body[body.index("}, function (line)"):]
+    assert "if (seq !== analysisSeq)" in done and done.index("if (seq !== analysisSeq)") < done.index("librariesNote =")
+    assert "seq === analysisSeq" in progress
+    assert "name: name" in done  # the name shown is the program asked about, not whichever is open now

@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import os
+import re
 import stat
 from pathlib import Path
 
-from cygnus.core.detect import appimage, deb, flatpak, pkg, rpm
+from cygnus.core.detect import appimage, archive, deb, flatpak, pkg, rpm
 from cygnus.core.errors import DetectionError
 from cygnus.core.models import Candidate, PackageFormat
 
@@ -63,9 +64,27 @@ def detect_file(path: str | Path) -> Candidate:
         raise DetectionError(f"{path.name}: malformed or unsupported file ({type(exc).__name__}: {exc})") from exc
 
 
+_ARCH_NAME = re.compile(r"(?i)\.pkg(?:\.tar(?:\.(?:zst|xz|gz|bz2|lz4|lzo|lrz|z))?)?$")
+
+
+_UNREADABLE_PKG = re.compile(r"(?i)\.pkg\.tar\.(?:lz4|lzo|lrz|z)$")
+
+
+def _named_like_arch_package(name: str) -> bool:
+    return _ARCH_NAME.search(name) is not None
+
+
 def _inspect(path: Path, head: bytes, st: os.stat_result) -> Candidate:
+    if head.startswith(b"xar!"):
+        raise DetectionError(f"{path.name} is a macOS installer package, which only works on macOS")
     fmt = sniff_format(head, path.name)
     if fmt is None:
+        if _UNREADABLE_PKG.search(path.name):
+            raise DetectionError(f"{path.name} is compressed in a way Cygnus cannot read (lz4, lzo, lrz or Z): unpack and compress it "
+                                 "again as .zst or .xz, or install the package with pacman -U")
+        if _named_like_arch_package(path.name):
+            raise DetectionError(f"{path.name} is not an Arch package (it is not an archive Cygnus can read); a .pkg file "
+                                 "can also be a macOS or FreeBSD installer, which cannot be used here")
         raise DetectionError(f"{path.name}: unrecognised file type")
     if fmt is PackageFormat.APPIMAGE:
         cand = appimage.inspect(path)
@@ -77,7 +96,15 @@ def _inspect(path: Path, head: bytes, st: os.stat_result) -> Candidate:
         cand = rpm.inspect(path)
     elif fmt is PackageFormat.LOCAL_PKG:
         compression = pkg.compression_of(head)
-        cand = pkg.inspect(path, compression or "")
+        try:
+            cand = pkg.inspect(path, compression or "")
+        except pkg.NotAnArchPackage:
+            cand = archive.inspect(path, compression or "")  # any other tar archive: a portable program, or something to refuse
+            if _named_like_arch_package(path.name):  # by its name a package: say what it really is when that can be told
+                if any(f.code == "ARCHIVE_FREEBSD_PACKAGE" for f in cand.findings):
+                    raise DetectionError(f"{path.name} is a FreeBSD package, which only works on FreeBSD") from None
+                raise DetectionError(f"{path.name} is named like an Arch package but has no .PKGINFO: it is damaged, "
+                                     "or it is something else with the wrong name") from None
     else:
         if st.st_size > 256 * 1024:
             raise DetectionError("key file is implausibly large")

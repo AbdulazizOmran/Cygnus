@@ -112,7 +112,7 @@ class Ops:
         existing = self.registry.conn.execute("SELECT 1 FROM installation WHERE id=?",
                                               (params["installation_id"],)).fetchone()
         if not existing:
-            regdb.add_installation(self.registry, app_id=params["app_id"], fmt="appimage",
+            regdb.add_installation(self.registry, app_id=params["app_id"], fmt=params.get("format", "appimage"),
                                    source=params["source"], version=params.get("version"),
                                    location_id=params.get("location_id"), origin=params["origin"],
                                    update_provider=params.get("update_provider"),
@@ -319,6 +319,8 @@ def plan_uninstall(registry: Registry, installation_id: str, *, remove_payload: 
     for art in arts:
         if art["kind"] == "launcher_shim" and any(art["locator"] in text for text in edited.values()):
             continue
+        if art["kind"] == "tree":
+            continue  # a program unpacked from an archive: archive_ops removes its folder, with its own checks
         if art["kind"] == "file":
             if remove_payload:
                 payload = Step(kind="appimage.remove", params={"path": art["locator"],

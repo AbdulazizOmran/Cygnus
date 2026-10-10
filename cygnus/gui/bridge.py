@@ -137,6 +137,22 @@ class Backend(QObject):
 
         return self._submit(run, wants_progress=True, internal=lambda p: self.refreshApps())
 
+    @Slot(str, str, str, str, result=str)
+    def installArchive(self, url: str, location: str, sha256: str, main: str) -> str:
+        """Unpack a program from an archive onto the chosen drive (what was analysed: its checksum must still match)."""
+        path = _path(url)
+        return self._submit(lambda progress: service.install_archive(path, location, sha256, main, progress),
+                            wants_progress=True, internal=lambda p: self.refreshApps())
+
+    @Slot(str, result=str)
+    def archiveInfo(self, installation_id: str) -> str:
+        return self._submit(lambda: service.archive_info(installation_id))
+
+    @Slot(str, result=str)
+    def archiveLibraries(self, installation_id: str) -> str:
+        """Which libraries a program installed from an archive lacks, and which packages provide them (installs nothing)."""
+        return self._submit(lambda progress: service.archive_libraries(installation_id, progress), wants_progress=True)
+
     @Slot(str, str, result=str)
     def installFlatpakBundle(self, url: str, location: str) -> str:
         path = _path(url)
@@ -312,6 +328,10 @@ class Backend(QObject):
         from cygnus.gui import fixes
 
         return self._submit(fixes.plan_system_upgrade, long=True)
+
+    @Slot(result=str)
+    def cygnusUpdate(self) -> str:
+        return self._submit(service.cygnus_update)
 
     @Slot(result=str)
     def checkUpdates(self) -> str:

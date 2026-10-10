@@ -37,11 +37,16 @@ Kirigami.ScrollablePage {
 
     property var updates: []
     property var system: null // last check of your repositories (see cygnus.core.updates)
+    property var cygnus: null // the last answer to "is there a newer Cygnus?" (core/self_update.py); it only says so, nothing is downloaded
     property var upgradePlan: null
     property bool checking: false
     property string progressText: ""
 
     function load() {
+        page.ask(backend.cygnusUpdate(), function (r) {
+            if (r.ok)
+                page.cygnus = r.result;
+        });
         page.ask(backend.updateOverview(), function (r) {
             if (r.ok)
                 page.updates = r.result;
@@ -96,6 +101,10 @@ Kirigami.ScrollablePage {
         progressText = "";
         page.ask(backend.checkUpdates(), function (r) {
             checking = false;
+            page.ask(backend.cygnusUpdate(), function (c) {
+                if (c.ok)
+                    page.cygnus = c.result;
+            });
             if (r.ok)
                 page.updates = r.result;
             else {
@@ -222,6 +231,26 @@ Kirigami.ScrollablePage {
             type: Kirigami.MessageType.Error
             showCloseButton: true
             visible: false
+        }
+        Kirigami.InlineMessage {
+            id: cygnusMessage
+            Layout.fillWidth: true
+            visible: !!(page.cygnus && page.cygnus.ok && page.cygnus.newer)
+            type: Kirigami.MessageType.Positive
+            text: !page.cygnus ? "" : "Cygnus " + root.plain(page.cygnus.latest) + " is available (you have " + root.plain(page.cygnus.current) + "). Cygnus does not update itself: get the new version the way you got this one (a package file you downloaded: sudo pacman -U FILE; or through your AUR helper if you installed it from the AUR). The button opens its release page."
+            actions: [
+                Kirigami.Action {
+                    text: "Open the release page"
+                    icon.name: "internet-services"
+                    onTriggered: Qt.openUrlExternally(page.cygnus.url)
+                }
+            ]
+        }
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            visible: !!(page.cygnus && page.cygnus.last_error)
+            type: Kirigami.MessageType.Warning
+            text: !page.cygnus || !page.cygnus.last_error ? "" : "Cygnus could not look for a newer version of itself: " + root.plain(page.cygnus.last_error)
         }
         Kirigami.InlineMessage {
             Layout.fillWidth: true

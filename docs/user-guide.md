@@ -43,8 +43,40 @@ Dolphin and choose **Open with → Cygnus**. Before anything happens, Cygnus sho
 |---|---|
 | AppImage | Verifies a pinned vendor signature where one is known. Copies the file to the chosen drive, then adds a menu entry and launcher. |
 | Flatpak bundle (`.flatpak`) | Installs into the system installation (system drive), or into your personal installation stored on the chosen drive. Installs the runtime it needs from a repository you already use. |
-| Arch package (`.pkg.tar.zst`) | Asks for administrator approval, then installs with pacman. The approval dialog shows exactly what will be installed. To describe the package before you approve anything, Cygnus has it read by a locked-down helper account (`cygnus-reader`, created when you install Cygnus) with no network and no rights, so a damaged or hostile file cannot harm the system just by being looked at. |
+| Arch package (`.pkg.tar.zst`, `.pkg.tar.xz`, `.pkg.tar.gz` ...) | Asks for administrator approval, then installs with pacman. The approval dialog shows exactly what will be installed. To describe the package before you approve anything, Cygnus has it read by a locked-down helper account (`cygnus-reader`, created when you install Cygnus) with no network and no rights, so a damaged or hostile file cannot harm the system just by being looked at. |
+| Archive (`.tar.gz`, `.tgz`, `.tar.xz`, `.tar.zst`, `.tar.bz2`, `.tar`) | A program that comes as a folder to unpack and run, such as Discord's or Telegram's download. Unpacks it into the chosen drive's applications folder, adds a menu entry and launcher, and never runs the scripts inside it. See "Programs in archives" below. |
 | `.deb` / `.rpm` | Explains the safest option: an Arch package you already have, the vendor's or your repositories' Arch package, a conversion, or why the file cannot be installed safely. |
+
+**Programs in archives.** Many programs are offered as a plain archive (a `.tar.gz` or `.tar.xz`) with no installer: you unpack the
+folder and run the program in it. Cygnus recognises such a file by what is inside it, not by its name (a file called `Discord.tar`
+that is really a gzip is fine), and does the unpacking for you:
+
+- It reads the archive once, without unpacking it, and shows what is in it: which program will start, how big it is, which drive it
+  goes on, and what its install scripts (such as Discord's `postinst.sh`) would have done. **Those scripts are never run.**
+- The program to start is the one the archive's own menu entry names (it usually says `/usr/bin/discord`: Cygnus uses the file of
+  that name inside the archive). When that cannot be told, you choose it from a list before installing.
+- It goes into the **applications folder of the drive you choose** (so it can live on your HDD), as a folder named after the
+  program. The menu entry, icon and launcher are added exactly as for an AppImage; the launcher says so when the drive is not
+  connected.
+- A drive that cannot hold it (it does not keep file permissions, cannot make links the archive needs, or refuses some of its
+  file names) is said so in the plan, and your system drive is used instead. **Too little room is different:** the plan says how
+  much is needed and how much is free, and nothing is installed until you free some or choose another drive (Cygnus never
+  quietly fills the system drive).
+- Nothing it unpacks is given extra rights: the special "run as the owner" marks (setuid, setgid) are removed, and nothing is
+  writable by other users. The program runs with your own rights, like anything you download, so install only what you trust.
+- **It is refused, with the reason,** when the archive is source code to build (use the AUR or the project's instructions), is
+  laid out like a system folder tree to unpack over `/`, is a FreeBSD package, has nothing to run, is bigger than 8 GiB when
+  unpacked, or contains anything unsafe: a path that leaves its folder, a hard link, a device file, a link that leads outside, the
+  same file twice, or a file written through a link.
+- When it has been installed, Cygnus checks that the libraries the program needs are on this computer, and offers to install
+  the missing ones from your repositories (**Check libraries…** on the program's page does this again at any time).
+- **Not supported yet:** updating (Cygnus cannot tell where a new version is; many such programs update themselves), moving to
+  another drive, and repair. To update by hand, remove the program and install the newer archive. `.zip` and `.7z` archives are
+  not supported, and neither are tar archives compressed with lz4, lzo, lrz or `compress` (Cygnus says so; unpack those yourself
+  or recompress them as `.tar.xz` or `.tar.gz`). What is read: zstd, xz, gzip, bzip2, or no compression.
+
+An Arch package is recognised the same way, whatever its compression, and also when it is called just `.pkg`. A `.pkg` that is
+a macOS installer, or a FreeBSD package, is named as such: they only work on those systems.
 
 **Flatpak apps by id.** Type an app id in the Install page, for example `org.kde.kcalc` (from
 Flathub) or `myremote:org.example.App`. Add `//BRANCH` when an app has several branches. On the
@@ -196,7 +228,11 @@ and as a Flatpak, if the two copies interfere.
 **Updates** shows each application's state from the last check. **Check now** asks each source
 directly:
 - AppImages: the vendor's update information (zsync or GitHub releases);
-- Flatpaks: their repository.
+- Flatpaks: their repository;
+- Cygnus itself: GitHub's list of releases. If a newer Cygnus exists you are told once per version (and the Updates page says so),
+  with the address of its release page. While Cygnus is in beta, a pre-release counts as a new version too. Cygnus does not
+  update itself: get it the way you got this one. Each check tells GitHub your internet address and that the program asking is
+  `Cygnus/<version>`, like any web request; nothing else is sent.
 
 **Update** downloads the new build next to the old one and checks it before anything is replaced:
 - it must match the checksum the vendor published;
@@ -241,6 +277,10 @@ It never installs anything by itself.
 **Uninstall…** removes what Cygnus created: menu entry, icon, launcher and, for Flatpaks, any runtime
 Cygnus installed that nothing else uses. Your settings and data are kept.
 - **AppImages:** the application file is deleted only if you tick the box.
+- **Programs from archives:** the program's folder is removed only when you tick the box, only if it is the folder Cygnus made
+  (it carries a marker file with this installation's number; a link, or a folder without the marker, is never touched), and you
+  are told first how many files are in it and how many changed or were added since it was unpacked (a program that updates
+  itself changes its own folder). What the program saved in your home folder stays.
 - **Autostart entries you made yourself** are left alone unless you ask (`--remove-autostart` in the
   terminal).
 
@@ -264,7 +304,9 @@ Every GUI action is also a command; `cygnus --help` lists them. Commands that in
 move or update software show the steps and ask first; `--yes` skips that question. Settings-style
 commands (`storage add/remove/set-default`, `dismiss`, `watch --enable/--disable`) take effect at
 once and can be undone the same way. `--json` gives machine-readable output where
-supported.
+supported. A program in an archive: `cygnus install ~/Downloads/Discord.tar.gz --to HDD` (add `--program PATH` to name the
+program to start when Cygnus cannot tell, `--yes` to skip the question). `cygnus updates` exits with 1 when something can be
+updated, and that includes a newer Cygnus.
 
 ## Optional parts
 
@@ -316,6 +358,9 @@ In the terminal: `cygnus ai status|on|off|test`, `cygnus ai use hosted|gemini|co
   system C library than yours, use another distribution's library folders, install files into `/var`, or add a udev rule that
   runs a program as administrator (Steam does). Many of those have a native version (the repositories, the AUR, Flathub), which
   Cygnus offers first.
+- **Programs from archives are not updated, moved or repaired by Cygnus yet.** Remove the program and install the newer archive,
+  or the same archive onto another drive. They also carry no vendor signature Cygnus can check: where the archive came from is up
+  to you.
 - **Install scripts are never run.** What a script creates only when it runs (generated files, caches) cannot be reproduced; a
   script Cygnus cannot read is shown to you, and you decide. This is deliberate: nothing in a vendor's package is executed
   during conversion.

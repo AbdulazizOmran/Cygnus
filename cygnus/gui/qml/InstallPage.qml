@@ -51,6 +51,9 @@ Kirigami.ScrollablePage {
     property var optionalChosen: ({}) // optional libraries the person ticked: {package: true}
     property bool scriptsShown: false
     property bool effectsShown: false
+    property string archiveMain: "" // the program to start, for a program unpacked from an archive: the one the person picked or the one Cygnus found
+    property var libraries: null // what the program from an archive still needs from your repositories (checked after installing)
+    property string librariesNote: ""
 
     function showError(text) {
         errorMessage.type = Kirigami.MessageType.Error;
@@ -101,6 +104,9 @@ Kirigami.ScrollablePage {
         optionalChosen = ({});
         scriptsShown = false;
         effectsShown = false;
+        archiveMain = "";
+        libraries = null;
+        librariesNote = "";
         acceptScripts.checked = false;
         progressValue = -1;
         progressLabel = "";
@@ -125,6 +131,7 @@ Kirigami.ScrollablePage {
                 return;
             }
             errorMessage.visible = false;
+            archiveMain = !aur && r.result.archive && r.result.archive.main ? r.result.archive.main : "";
             plan = Object.assign(aur ? Object.assign({
                 kind: "aur",
                 format: "aur",
@@ -264,6 +271,56 @@ Kirigami.ScrollablePage {
         }
     }
 
+    // After a program from an archive is installed: do the libraries it needs exist on this computer? The answer is shown with a
+    // button that installs what is missing from your repositories, through the usual confirmation.
+    function checkLibraries(installationId) {
+        libraries = null;
+        const seq = analysisSeq; // an answer that arrives after another file was opened belongs to the earlier program: it is dropped
+        const name = plan ? plan.name : "";
+        librariesNote = "Checking that the libraries " + root.flat(name || "the program") + " needs are installed…";
+        page.ask(backend.archiveLibraries(installationId), function (l) {
+            if (seq !== analysisSeq)
+                return;
+            librariesNote = "";
+            if (!l.ok) {
+                librariesNote = "The libraries could not be checked: " + root.flat(l.error);
+                return;
+            }
+            libraries = Object.assign({}, l.result, {
+                installationId: installationId,
+                name: name
+            });
+        }, function (line) {
+            if (seq === analysisSeq && line !== "")
+                librariesNote = root.flat(line);
+        });
+    }
+
+    function installLibraries() {
+        if (!libraries || installing || !libraries.packages.length)
+            return;
+        const id = libraries.installationId;
+        installing = true;
+        page.ask(backend.planRepoDependencies(JSON.stringify(libraries.packages)), function (p) {
+            installing = false;
+            if (!p.ok) {
+                page.showError(p.error);
+                return;
+            }
+            afterCommit = function () {
+                page.checkLibraries(id); // whatever the answer was, look again
+            };
+            confirmPlan = p.result;
+            confirmDialog.open();
+        });
+    }
+
+    function finishArchive(r) {
+        finish(r);
+        if (r.ok && r.result.ok && r.result.installation_id)
+            page.checkLibraries(r.result.installation_id);
+    }
+
     function install() {
         if (!plan || analysing)
             return;
@@ -279,6 +336,8 @@ Kirigami.ScrollablePage {
             installAur(); // stays busy: planning the dependencies takes a moment, and the page must not change under it
         } else if (plan.format === "appimage") {
             page.ask(backend.installFile(s.fileUrl, plan.target || s.location), finish, onLine);
+        } else if (plan.format === "archive") {
+            page.ask(backend.installArchive(s.fileUrl, plan.target || s.location, plan.sha256 || "", page.archiveMain), page.finishArchive, onLine);
         } else if (plan.format === "flatpak") {
             page.ask(backend.installFlatpakRef(s.appSpec, plan.target || s.location), finish, onLine);
         } else if (plan.format === "flatpak-bundle") {
@@ -360,7 +419,7 @@ Kirigami.ScrollablePage {
     FileDialog {
         id: fileDialog
         title: "Choose an application to install"
-        nameFilters: ["Applications (*.AppImage *.appimage *.flatpak *.flatpakref *.pkg.tar.zst *.pkg.tar.xz *.deb *.rpm)", "All files (*)"]
+        nameFilters: ["Applications (*.AppImage *.appimage *.flatpak *.flatpakref *.pkg.tar.* *.pkg *.deb *.rpm *.tar.gz *.tgz *.tar.xz *.txz *.tar.zst *.tar.bz2 *.tar)", "All files (*)"]
         onAccepted: {
             if (page.installing)
                 return;
@@ -418,10 +477,32 @@ Kirigami.ScrollablePage {
             ]
         }
         Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            visible: page.librariesNote !== ""
+            type: Kirigami.MessageType.Information
+            text: root.plain(page.librariesNote)
+        }
+        Kirigami.InlineMessage {
+            id: librariesMessage
+            Layout.fillWidth: true
+            visible: !!(page.libraries && (page.libraries.packages.length || page.libraries.unresolved.length || page.libraries.glibc))
+            type: page.libraries && (page.libraries.unresolved.length || page.libraries.glibc) ? Kirigami.MessageType.Warning : Kirigami.MessageType.Information
+            text: !page.libraries ? "" : root.plain(page.libraries.name) + ": " + (page.libraries.glibc ? "This program was built for a newer C library (" + root.plain(page.libraries.glibc.needs) + ") than this computer has (" + root.plain(page.libraries.glibc.have) + "), so it may not start. " : "") + (page.libraries.packages.length ? "It needs libraries that are not installed here. Your repositories have them in: " + root.plain(page.libraries.packages.join(", ")) + ". " : "") + (page.libraries.unresolved.length ? "No repository provides: " + root.plain(page.libraries.unresolved.slice(0, 6).join(", ")) + (page.libraries.unresolved.length > 6 ? " and more" : "") + ". The program may not start." : "")
+            actions: [
+                Kirigami.Action {
+                    text: "Install the missing libraries…"
+                    icon.name: "download"
+                    visible: !!(page.libraries && page.libraries.packages.length)
+                    enabled: !page.installing
+                    onTriggered: page.installLibraries()
+                }
+            ]
+        }
+        Kirigami.InlineMessage {
             id: doneMessage
             Layout.fillWidth: true
             type: Kirigami.MessageType.Positive
-            text: root.plain(page.plan ? page.plan.name : "The application") + " is installed." + (page.plan && (page.plan.format === "appimage" || page.plan.format === "flatpak" || page.plan.format === "flatpak-bundle") ? " You can find it in your application menu." : "")
+            text: root.plain(page.plan ? page.plan.name : "The application") + " is installed." + (page.plan && (page.plan.format === "appimage" || page.plan.format === "flatpak" || page.plan.format === "flatpak-bundle" || page.plan.format === "archive") ? " You can find it in your application menu." : "")
             showCloseButton: true
             visible: false
         }
@@ -681,18 +762,36 @@ Kirigami.ScrollablePage {
                         }
                     }
                 }
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: !!(page.plan && page.plan.format === "archive" && page.plan.archive && (page.plan.archive.choices.length > 1 || page.plan.archive.needs_choice))
+                    QQC2.Label {
+                        textFormat: Text.PlainText
+                        text: page.plan && page.plan.archive && page.plan.archive.needs_choice ? "Cygnus cannot tell which program to start. Choose it:" : "Program to start:"
+                        font.bold: true
+                    }
+                    QQC2.ComboBox {
+                        id: mainChoice
+                        Layout.fillWidth: true
+                        model: page.plan && page.plan.archive ? page.plan.archive.choices : []
+                        currentIndex: page.plan && page.plan.archive ? page.plan.archive.choices.indexOf(page.archiveMain) : -1
+                        displayText: currentIndex >= 0 ? currentText : "Choose…"
+                        onActivated: page.archiveMain = currentText
+                    }
+                }
                 ColumnLayout {
                     Layout.fillWidth: true
-                    visible: !!(page.plan && page.plan.installable_after_review && page.plan.scripts)
+                    visible: !!(page.plan && page.plan.scripts && (page.plan.installable_after_review || page.plan.format === "archive"))
                     spacing: Kirigami.Units.smallSpacing
                     Kirigami.InlineMessage {
                         Layout.fillWidth: true
                         visible: true
                         type: Kirigami.MessageType.Warning
-                        text: "Cygnus could not fully read this package's install scripts. Converting never runs them, so nothing they would do (adding a software repository, creating groups, changing settings) happens. If the program needs one of those things it may not work properly, and a program that updates itself through the vendor's repository will not do that: update it by converting the newer file."
+                        text: page.plan && page.plan.format === "archive" ? "This archive contains install scripts. Cygnus never runs them, so nothing they would do (stopping the program, changing system settings, deleting caches) happens. They are listed so you can see what the program's maker expected." : "Cygnus could not fully read this package's install scripts. Converting never runs them, so nothing they would do (adding a software repository, creating groups, changing settings) happens. If the program needs one of those things it may not work properly, and a program that updates itself through the vendor's repository will not do that: update it by converting the newer file."
                     }
                     QQC2.Label {
                         textFormat: Text.PlainText
+                        visible: !!(page.plan && page.plan.scripts && page.plan.scripts.unreadable.length)
                         wrapMode: Text.Wrap
                         Layout.fillWidth: true
                         opacity: 0.7
@@ -782,6 +881,7 @@ Kirigami.ScrollablePage {
                     }
                     RowLayout {
                         Layout.fillWidth: true
+                        visible: !!(page.plan && page.plan.installable_after_review)
                         QQC2.CheckBox {
                             id: acceptScripts
                             Layout.fillWidth: true
@@ -807,7 +907,7 @@ Kirigami.ScrollablePage {
                     QQC2.Button {
                         text: page.plan && page.plan.kind === "foreign" ? "Convert and install" : page.plan && page.plan.kind === "aur" ? "Build and install" : "Install"
                         icon.name: "download"
-                        enabled: !!(page.plan && (page.plan.installable || (page.plan.installable_after_review && acceptScripts.checked))) && !page.installing && (page.plan.kind !== "aur" || reviewed.checked)
+                        enabled: !!(page.plan && (page.plan.installable || (page.plan.installable_after_review && acceptScripts.checked))) && !page.installing && (page.plan.kind !== "aur" || reviewed.checked) && (page.plan.format !== "archive" || page.archiveMain !== "")
                         onClicked: page.install()
                     }
                 }

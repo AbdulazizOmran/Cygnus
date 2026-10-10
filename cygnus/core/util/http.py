@@ -136,7 +136,7 @@ def get(url: str, *, limit: int = DEFAULT_LIMIT, timeout: float = 20.0, headers:
 def get_json(url: str, **kw: Any) -> Any:
     try:
         return json.loads(get(url, **kw))
-    except ValueError as exc:
+    except (ValueError, RecursionError) as exc:  # not JSON, or nested so deeply that reading it would overflow the stack
         raise HttpError(f"invalid JSON from {url}") from exc
 
 
