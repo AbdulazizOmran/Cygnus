@@ -63,6 +63,22 @@ XML = f"""
       <arg type="s" name="summary_json" direction="out"/>
       <arg type="s" name="message" direction="out"/>
     </method>
+    <method name="PlanScript">
+      <arg type="s" name="name" direction="in"/>
+      <arg type="ay" name="script" direction="in"/>
+      <arg type="s" name="sha256" direction="in"/>
+      <arg type="s" name="folder" direction="in"/>
+      <arg type="s" name="plan_id" direction="out"/>
+      <arg type="s" name="summary_json" direction="out"/>
+      <arg type="s" name="message" direction="out"/>
+    </method>
+    <method name="PlanCacheClean">
+      <arg type="y" name="keep" direction="in"/>
+      <arg type="b" name="uninstalled" direction="in"/>
+      <arg type="s" name="plan_id" direction="out"/>
+      <arg type="s" name="summary_json" direction="out"/>
+      <arg type="s" name="message" direction="out"/>
+    </method>
     <method name="Commit">
       <arg type="s" name="plan_id" direction="in"/>
       <arg type="s" name="op_id" direction="out"/>
@@ -101,6 +117,21 @@ def real_runner(argv: list[str], sink) -> int:
     return p.wait()
 
 
+def script_runner(argv: list[str], sink) -> int:
+    """The runner for a script plan: like the others, with a time limit of its own (the unit stops itself at the plan's limit; this only
+    guards against the command that starts it hanging) and with its output read as bytes through `actions.forward_output`, so that a
+    script that prints a great deal, or one endless line, cannot grow this process's memory."""
+    p = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, env=proc.clean_env())
+    assert p.stdout is not None
+    timer = threading.Timer(actions.SCRIPT_RUN_SECONDS + 120, p.kill)
+    timer.start()
+    try:
+        actions.forward_output(p.stdout.read1, sink)
+        return p.wait()
+    finally:
+        timer.cancel()
+
+
 def fake_runner(argv: list[str], sink) -> int:
     sink("[fake] " + " ".join(argv))
     return 0
@@ -130,6 +161,7 @@ class Helper:
         self.last_activity = time.monotonic()
         self.ledger = Ledger(Path(state_dir()) / "ledger.db")
         self.run = fake_runner if os.environ.get("CYGNUS_HELPER_FAKE_EXEC") == "1" else real_runner
+        self.script_run = fake_runner if os.environ.get("CYGNUS_HELPER_FAKE_EXEC") == "1" else script_runner
         node = Gio.DBusNodeInfo.new_for_xml(XML)
         conn.register_object_with_closures2(OBJECT_PATH, node.interfaces[0], self._on_call, None, None)
         GLib.timeout_add_seconds(15, self._idle_check)
@@ -182,6 +214,20 @@ class Helper:
                 except BaseException:
                     self.planning.release()
                     raise
+            elif method == "PlanCacheClean":
+                keep, uninstalled = params.unpack()
+                planner = self._caller_uid(sender)
+                self._planning_turn(planner)
+                if not self.planning.acquire(blocking=False):  # the same slot (and fairness) as a package plan: reading the cache is not instant
+                    self.waiting_for_plan[planner] = time.monotonic()
+                    raise actions.PlanRefused("another package plan is being prepared; try again in a moment")
+                self.last_plan_started = time.monotonic()
+                try:
+                    threading.Thread(target=self._plan_cache_async, daemon=True,
+                                     args=(sender, keep, uninstalled, invocation, planner)).start()
+                except BaseException:
+                    self.planning.release()
+                    raise
             elif method == "PlanUnit":
                 unit, action = params.unpack()
                 plan = actions.plan_unit(unit, action, caller_uid=self._caller_uid(sender), caller_sender=sender,
@@ -192,6 +238,11 @@ class Helper:
                 group, op = params.unpack()
                 plan = actions.plan_group(group, op, caller_uid=self._caller_uid(sender), caller_sender=sender,
                                           ledger=self.ledger)
+                self._store(plan)
+                invocation.return_value(GLib.Variant("(sss)", (plan.id, json.dumps(plan.summary), plan.message)))
+            elif method == "PlanScript":
+                name, data, sha, folder = params.unpack()
+                plan = actions.plan_script(name, bytes(data), sha, folder, caller_uid=self._caller_uid(sender), caller_sender=sender)
                 self._store(plan)
                 invocation.return_value(GLib.Variant("(sss)", (plan.id, json.dumps(plan.summary), plan.message)))
             elif method == "PlanClearStaleLock":
@@ -278,6 +329,27 @@ class Helper:
             self.last_planner, self.last_plan_done = planner, time.monotonic()
             if cooldown_uid is not None:
                 self.sysupgrade_planned_at[cooldown_uid] = time.monotonic()  # counted from when it finished
+            self.planning.release()
+
+    def _plan_cache_async(self, sender, keep, uninstalled, invocation, planner) -> None:
+        def reply(fn):
+            GLib.idle_add(lambda: (fn(), False)[1])
+
+        try:
+            plan = actions.plan_cache_clean(keep, uninstalled, caller_uid=planner, caller_sender=sender)
+            self._store(plan)
+        except actions.PlanRefused as exc:
+            msg = str(exc)
+            reply(lambda: invocation.return_dbus_error(f"{INTERFACE}.Error.Refused", msg))
+        except Exception as exc:  # noqa: BLE001 - never crash the bus service
+            audit("internal error", method="PlanCacheClean", error=repr(exc))
+            msg = f"internal error: {exc}"
+            reply(lambda: invocation.return_dbus_error(f"{INTERFACE}.Error.Failed", msg))
+        else:
+            reply(lambda: invocation.return_value(GLib.Variant("(sss)", (plan.id, json.dumps(plan.summary), plan.message))))
+        finally:
+            self.last_activity = time.monotonic()
+            self.last_planner, self.last_plan_done = planner, time.monotonic()
             self.planning.release()
 
     def _drop_expired(self) -> None:
@@ -404,7 +476,7 @@ class Helper:
             audit("operation started", op=op_id, plan=plan.id, summary=plan.message, uid=str(plan.caller_uid))
             inhibit_fd = self._inhibit()
             ok, detail = actions.execute(
-                plan, run=self.run, ledger=self.ledger, op_id=op_id,
+                plan, run=self.script_run if plan.kind == "script" else self.run, ledger=self.ledger, op_id=op_id,
                 progress=lambda line: self._emit("Progress", GLib.Variant("(ss)", (op_id, line)), sender))
             audit("operation finished", op=op_id, ok=str(ok))
             self._emit("Finished", GLib.Variant("(sbs)", (op_id, ok, detail)), sender)

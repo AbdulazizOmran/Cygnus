@@ -15,7 +15,7 @@ def executor_for(registry):
 
 
 def plan_uninstall(registry, installation_id: str, *, remove_payload: bool = False,
-                   remove_adopted: list[str] = ()) -> list:
+                   remove_adopted: list[str] = (), run_scripts: list | None = None) -> list:
     from cygnus.core.errors import CygnusError
     from cygnus.core.ops import appimage_ops, archive_ops, flatpak_ops
 
@@ -25,7 +25,9 @@ def plan_uninstall(registry, installation_id: str, *, remove_payload: bool = Fal
     if row[0] == "flatpak":
         return flatpak_ops.plan_uninstall(registry, installation_id)
     if row[0] == "archive":
-        return archive_ops.plan_uninstall(registry, installation_id, remove_payload=remove_payload)
+        return archive_ops.plan_uninstall(registry, installation_id, remove_payload=remove_payload, run_scripts=run_scripts)
+    if run_scripts:
+        raise CygnusError("only programs installed from an archive have install scripts of their own to run")
     if row[0] == "appimage":
         return appimage_ops.plan_uninstall(registry, installation_id, remove_payload=remove_payload,
                                            remove_adopted=remove_adopted)

@@ -39,6 +39,7 @@ Kirigami.ScrollablePage {
     property var system: null // last check of your repositories (see cygnus.core.updates)
     property var cygnus: null // the last answer to "is there a newer Cygnus?" (core/self_update.py); it only says so, nothing is downloaded
     property var upgradePlan: null
+    property bool newsRead: false // the box under the Arch news: it starts clear for every plan and is never ticked for you
     property bool checking: false
     property string progressText: ""
 
@@ -70,12 +71,18 @@ Kirigami.ScrollablePage {
                 return;
             }
             upgradePlan = r.result;
+            newsRead = false;
             upgradeDialog.open();
         });
     }
 
+    // An Arch news item that says it needs a manual step must be read before the system is updated.
+    function newsNeedsAck() {
+        return !!(upgradePlan && upgradePlan.news && upgradePlan.news.ok && upgradePlan.news.needs_ack);
+    }
+
     function runUpgrade() {
-        if (checking) // a second click while the dialog closes must not use the same plan again
+        if (checking || (newsNeedsAck() && !newsRead)) // a second click while the dialog closes must not use the same plan again
             return;
         checking = true;
         progressValue = -1;
@@ -388,9 +395,10 @@ Kirigami.ScrollablePage {
         preferredWidth: Kirigami.Units.gridUnit * 34
         customFooterActions: [
             Kirigami.Action {
+                objectName: "updateAction"
                 text: "Update"
                 icon.name: "system-software-update"
-                enabled: !!(page.upgradePlan && (page.upgradePlan.upgrades.length || page.upgradePlan.installs.length || page.upgradePlan.removals.length))
+                enabled: !!(page.upgradePlan && (page.upgradePlan.upgrades.length || page.upgradePlan.installs.length || page.upgradePlan.removals.length)) && (!page.newsNeedsAck() || page.newsRead)
                 onTriggered: {
                     upgradeDialog.close();
                     page.runUpgrade();
@@ -398,6 +406,70 @@ Kirigami.ScrollablePage {
             }
         ]
         ColumnLayout {
+            QQC2.Label {
+                textFormat: Text.PlainText
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                opacity: 0.8
+                visible: !!(page.upgradePlan && page.upgradePlan.snapshot)
+                text: page.upgradePlan && page.upgradePlan.snapshot ? "Snapshot: " + page.upgradePlan.snapshot.text : ""
+            }
+            QQC2.Label {
+                textFormat: Text.PlainText
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                visible: !!(page.upgradePlan && page.upgradePlan.news && !page.upgradePlan.news.ok)
+                text: page.upgradePlan && page.upgradePlan.news && !page.upgradePlan.news.ok ? "Arch news could not be checked (" + page.upgradePlan.news.error + "). You can still update; if you can, read archlinux.org/news first." : ""
+            }
+            QQC2.Label {
+                textFormat: Text.PlainText
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                font.bold: true
+                visible: !!(page.upgradePlan && page.upgradePlan.news && page.upgradePlan.news.ok && page.upgradePlan.news.items.length)
+                text: !page.upgradePlan || !page.upgradePlan.news || !page.upgradePlan.news.ok ? "" : "Arch news since your last update (" + page.upgradePlan.news.total + ")"
+            }
+            Repeater {
+                model: page.upgradePlan && page.upgradePlan.news && page.upgradePlan.news.ok ? page.upgradePlan.news.items : []
+                delegate: ColumnLayout {
+                    Layout.fillWidth: true
+                    QQC2.Label {
+                        textFormat: Text.PlainText
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        font.bold: true
+                        color: modelData.manual ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.textColor
+                        text: (modelData.manual ? "Needs a manual step: " : "") + modelData.title
+                    }
+                    QQC2.TextArea {
+                        textFormat: TextEdit.PlainText
+                        Layout.fillWidth: true
+                        readOnly: true
+                        wrapMode: TextEdit.Wrap
+                        text: modelData.summary
+                    }
+                    QQC2.Button {
+                        visible: modelData.link !== ""
+                        text: "Read it on archlinux.org"
+                        icon.name: "internet-services"
+                        onClicked: Qt.openUrlExternally(modelData.link)
+                    }
+                }
+            }
+            QQC2.Label {
+                textFormat: Text.PlainText
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                opacity: 0.8
+                visible: !!(page.upgradePlan && page.upgradePlan.news && page.upgradePlan.news.ok && page.upgradePlan.news.total > page.upgradePlan.news.items.length)
+                text: !page.upgradePlan || !page.upgradePlan.news || !page.upgradePlan.news.ok ? "" : "… and " + (page.upgradePlan.news.total - page.upgradePlan.news.items.length) + " more since your last update, none of them needing a manual step: archlinux.org/news"
+            }
+            QQC2.CheckBox {
+                visible: page.newsNeedsAck()
+                text: "I have read the news that needs a manual step, and I know what to do"
+                checked: page.newsRead
+                onToggled: page.newsRead = checked
+            }
             QQC2.Label {
                 textFormat: Text.PlainText
                 Layout.fillWidth: true

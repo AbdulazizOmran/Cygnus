@@ -466,6 +466,13 @@ FormCard.FormCardPage {
             text: "Application ID"
             description: "io.github.omranabdulaziz.Cygnus"
         }
+        FormCard.FormDelegateSeparator {}
+        FormCard.FormButtonDelegate {
+            text: "Support Cygnus"
+            description: "Cygnus is free software, made by one person. If it saves you time, you can support its development on Gumroad. This opens the page in your web browser; Cygnus itself sends nothing."
+            icon.name: "emblem-favorite"
+            onClicked: Qt.openUrlExternally("https://azizomran.gumroad.com/l/jtudib")
+        }
     }
 
     Component.onCompleted: {

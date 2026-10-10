@@ -29,7 +29,7 @@ it started.
 
 ![Installing OBS Studio from Flathub](docs/screenshots/install-flathub.png)
 
-**Converting a vendor's .deb:** what would be left out, what Cygnus adds, and what the vendor's install scripts mention (they are never run; you can read them and see what they would have done).
+**Converting a vendor's .deb:** what would be left out, what Cygnus adds, and what the vendor's install scripts mention (they are not run unless you choose to: you can read them, see what they would have done, and tick a box to run them).
 
 ![Converting Google Chrome's .deb](docs/screenshots/install-deb.png)
 
@@ -48,17 +48,22 @@ it started.
 | AppImage | ✓ copy to a drive, or adopt in place (pinned signatures verified) | ✓ zsync / GitHub, verified | ✓ | ✓ | ✓ | ✓ |
 | Flatpak app (by id, e.g. `flathub:org.kde.kcalc`) | ✓ system, or the user installation stored on another drive | ✓ from its remote | ✓ (+ runtimes it brought) | ✓ between installations | ✓ | ✓ |
 | Flatpak bundle | ✓ as above; runtime resolved by Cygnus | ✓ if it names a remote | ✓ | ✓ | ✓ | ✓ |
+| Repository package, by name | ✓ search, details and install through the privileged helper (refused while updates are waiting) | with the system | ✓ via the helper (never a protected package, never one another package needs) | — | — | needs and what needs it, shown |
 | Local Arch package | ✓ via the privileged helper | with the system | ✓ via the helper | — | — | ✓ |
 | AUR | ✓ review → build as you → install via the helper (dependency chains too) | rebuild after reviewing changes | ✓ via the helper | — | — | ✓ |
-| Archive (`.tar.gz`, `.tar.xz`, `.tar.zst` …) | ✓ unpack onto a drive of your choice, with a menu entry and launcher (its scripts are shown, never run; libraries checked afterwards) | notice only (Cygnus tells you to reinstall) | ✓ | — | — | libraries, checked after installing and on demand |
-| DEB / RPM | ✓ convert into a pacman package when safe (shows what the vendor's install scripts would have done; nothing is run); otherwise a native alternative or a refusal | ✓ for 13 known vendors (Chrome, Edge, Brave, Signal, …) and any you add: download, review, replace | ✓ via the helper | — | — | — |
+| Archive (`.tar.gz`, `.tar.xz`, `.tar.zst` …) | ✓ unpack onto a drive of your choice, with a menu entry and launcher (its scripts are shown, and run only if you tick them; libraries checked afterwards) | notice only (Cygnus tells you to reinstall) | ✓ | — | — | libraries, checked after installing and on demand |
+| DEB / RPM | ✓ convert into a pacman package when safe (shows what the vendor's install scripts would have done; they are run only if you tick a box); otherwise a native alternative or a refusal | ✓ for 13 known vendors (Chrome, Edge, Brave, Signal, …) and any you add: download, review, replace | ✓ via the helper | — | — | — |
 
 * **Flathub's Install button and software files** can open Cygnus instead of another store (an opt-in switch in
   Settings; it asks first and never installs by itself).
 * **System updates** are checked without administrator rights and applied as one full upgrade
-  through the helper (never a partial upgrade); a new kernel is pointed out.
+  through the helper (never a partial upgrade); a new kernel is pointed out. Before an update starts, the **Arch news** since your
+  last upgrade is shown, and an item that says it needs a manual step must be acknowledged first.
 * **Background checks** (optional systemd user timer) notify you once about updates, applications
   that stopped working, and operations that did not finish.
+* **Packages**: search your repositories, install and remove by name, see what an installed package needs and what needs it, go back to an
+  older version from pacman's cache, remove what is no longer needed and clean the package cache (an administrator action that deletes files from
+  pacman's cache; built narrowly, and asking for your password every time).
 * **Interrupted operations** (Cygnus closed, power loss) are listed on the next start, with a choice
   to finish or undo each one. A pacman lock left behind by a crashed package manager can be removed
   safely through the helper.
@@ -84,16 +89,25 @@ folder where applications should live (your home folder works); Cygnus tests wha
 The administrator helper starts by itself when needed and exits when idle; nothing runs in the background unless you
 switch on the update checks in Settings.
 
+## Support Cygnus
+
+Cygnus is free software, made by one person. If it saves you time you can support its development on
+[Gumroad](https://azizomran.gumroad.com/l/jtudib) (the same page has the ready-made package). The app has the same link under **Settings, About, Support Cygnus**.
+Other ways to help cost nothing: star the repository, tell someone who uses Arch or CachyOS, and report what you find
+(see "Reporting a problem" below).
+
 ## Privacy
 
 Cygnus has no telemetry, no account and no crash reporting. It talks to the network only to do what you asked or to check
 for updates of what you installed: your distribution's package mirrors (through pacman), `flathub.org` and
-`dl.flathub.org`, `aur.archlinux.org`, `api.github.com` / `github.com` (AppImage update information, and a check whether a newer Cygnus exists: GitHub sees your address
+`dl.flathub.org`, `aur.archlinux.org`, `archlinux.org` (the news feed, read when you start a system update), `api.github.com` / `github.com` (AppImage update information, and a check whether a newer Cygnus exists: GitHub sees your address
 and `Cygnus/<version>`, nothing else),
 and the vendor
 package lists of programs you converted (for example `dl.google.com`, `packages.microsoft.com`). Everything it stores is in
 `~/.local/share/cygnus`, `~/.config/cygnus`, `~/.cache/cygnus` and `~/.local/state/cygnus`, plus the helper's own
 record of administrator actions in `/var/lib/cygnus`.
+
+The **Support Cygnus** button only opens a web page in your browser when you press it; Cygnus itself sends nothing.
 
 The **AI assistant is off** until you turn it on in Settings. When you then ask what a program needs, Cygnus downloads a few public
 pages from that program's own website and sends the program's name, id and format and the text of those pages to the assistant

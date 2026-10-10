@@ -9,6 +9,7 @@ repaired but reported as a reason the archive is refused, so what the person app
 from __future__ import annotations
 
 import base64
+import hashlib
 import re
 import tarfile
 from pathlib import Path, PurePosixPath
@@ -17,6 +18,7 @@ from typing import Any
 from cygnus.core.desktop import entry as desktop_entry
 from cygnus.core.errors import DetectionError, UnsafeInputError
 from cygnus.core.models import Candidate, PackageFormat, Severity
+from cygnus.core.util import scriptrun
 from cygnus.core.util.limits import CappedReader, decompressor
 
 RESERVED = ".cygnus-installation"  # the marker file Cygnus puts in a program's folder: an archive may not carry one
@@ -29,10 +31,12 @@ MAX_LINK_WORK = 3_000_000  # steps in all spent following links to see where the
 MAX_DESKTOP_FILES, MAX_DESKTOP_BYTES = 16, 64 * 1024
 MAX_ICONS, MAX_ICON_BYTES, MAX_ICON_POOL = 32, 256 * 1024, 8 * 1024**2
 MAX_SCRIPTS, MAX_SCRIPT_BYTES = 8, 64 * 1024
+MAX_SCRIPT_CANDIDATES = 32  # install-named files near the top that are read before the ones directly in the program's folder are picked
 MAX_PROGRAM_HEADS = 4000
 _HEAD = 512
 
-# Scripts whose names say they belong to an installation: listed for the person and never run.
+# Scripts whose names say they belong to an installation, directly in the program's folder: listed for the person, and run only if the
+# person chooses to run them.
 INSTALL_SCRIPT = re.compile(r"(?i)^\.?(?:(?:pre|post)(?:inst|rm)|(?:un)?install|setup|update)(?:\.(?:sh|bash))?$")
 # Files at the top of a source tree: an archive that has these and no program in it is something to build, not to run.
 SOURCE_MARKERS = frozenset({"configure", "configure.ac", "makefile", "cmakelists.txt", "meson.build", "cargo.toml", "go.mod", "setup.py"})
@@ -237,6 +241,7 @@ def scan(path: Path, compression: str) -> dict[str, Any]:
     desktops: dict[str, bytes] = {}
     icons: dict[str, bytes] = {}
     scripts: dict[str, bytes] = {}
+    oversize: dict[str, int] = {}
     icon_pool = 0
     total = 0
     count = 0
@@ -298,7 +303,10 @@ def scan(path: Path, compression: str) -> dict[str, Any]:
                     want_desktop = lowered.endswith(".desktop") and size <= MAX_DESKTOP_BYTES and len(desktops) < MAX_DESKTOP_FILES
                     want_icon = (lowered.endswith((".png", ".svg")) and 0 < size <= MAX_ICON_BYTES and len(icons) < MAX_ICONS
                                  and icon_pool + size <= MAX_ICON_POOL)
-                    want_script = INSTALL_SCRIPT.match(base) is not None and size <= MAX_SCRIPT_BYTES and len(scripts) < MAX_SCRIPTS
+                    near_top = INSTALL_SCRIPT.match(base) is not None and name.count("/") <= 1  # (the folder everything is in may or may not be there)
+                    want_script = near_top and size <= MAX_SCRIPT_BYTES and len(scripts) < MAX_SCRIPT_CANDIDATES
+                    if near_top and size > MAX_SCRIPT_BYTES and len(oversize) < MAX_SCRIPTS:
+                        oversize[name] = size  # not read, but not forgotten: the person is told it is there
                     if not (want_head or want_desktop or want_icon or want_script):
                         continue
                     handle = tar.extractfile(member)
@@ -330,7 +338,7 @@ def scan(path: Path, compression: str) -> dict[str, Any]:
     except Exception as exc:  # noqa: BLE001 - tarfile and the decompressors raise many types on damaged or hostile input
         raise DetectionError(f"the archive cannot be read ({type(exc).__name__}: {exc})") from exc
     return {"problems": problems, "stopped": False, "entries": count, "kinds": kinds, "tree": tree, "links": link_targets, "modes": modes,
-            "sizes": sizes, "heads": heads, "desktops": desktops, "icons": icons, "scripts": scripts, "special": special,
+            "sizes": sizes, "heads": heads, "desktops": desktops, "icons": icons, "scripts": scripts, "oversize_scripts": oversize, "special": special,
             "total": total}
 
 
@@ -499,12 +507,35 @@ def inspect(path: Path, compression: str) -> Candidate:
             continue
         entries.append({"path": rel(p), "fields": fields, "actions": {a: dict(de.groups.get(f"Desktop Action {a}", []))
                                                                       for a in de.actions[:20]}})
-    scripts = {rel(p): d.decode("utf-8", "replace") for p, d in facts["scripts"].items() if len(d) <= MAX_SCRIPT_BYTES}
+    # Install scripts are the ones directly in the program's folder (a file called `update` deeper down is a part of the program). The first
+    # MAX_SCRIPTS are offered; every other one that matched is listed with the reason it is not, so none is ever dropped without a word.
+    script_sha256: dict[str, str] = {}
+    script_problems: dict[str, str] = {}
+    scripts: dict[str, str] = {}
+    near = sorted(((rel(p), d) for p, d in facts["scripts"].items() if len(d) <= MAX_SCRIPT_BYTES and "/" not in rel(p)))
+    for position, (name, data) in enumerate(near):
+        if shown(name) != name:
+            script_problems[shown(name)] = "its name has characters that cannot be shown"
+        elif position >= MAX_SCRIPTS:
+            script_problems[name] = f"there are more than {MAX_SCRIPTS} install scripts, and this one is not offered"
+        else:
+            scripts[name] = data.decode("utf-8", "replace")
+            # The checksum of the script's exact bytes: what the person is shown is bound to it, so only those bytes can ever be run. A
+            # script that could not be shown exactly as it would run (not valid text, a program Cygnus does not run scripts with...) gets
+            # none: it is listed with the reason, and never offered.
+            problem = scriptrun.runnable_problem(data)
+            if problem:
+                script_problems[name] = problem
+            else:
+                script_sha256[name] = hashlib.sha256(data).hexdigest()
+    for p in facts.get("oversize_scripts", {}):
+        if "/" not in rel(p):
+            script_problems[shown(rel(p))] = f"it is larger than {MAX_SCRIPT_BYTES // 1024} KiB, so it cannot be shown to you whole"
     top = {p.split("/")[0] for p in inside}
     elf_count = sum(1 for i in programs.values() if i["kind"] == "elf")
     meta.update({"root": root, "total_bytes": facts["total"], "names": sorted(inside), "has_symlinks": bool(links),
                  "file_count": sum(1 for k in inside.values() if k == "f"), "link_count": len(links),
-                 "executables": programs, "desktop_entries": entries, "scripts": scripts,
+                 "executables": programs, "desktop_entries": entries, "scripts": scripts, "script_sha256": script_sha256, "script_problems": script_problems,
                  "special_modes": sorted(rel(p) for p in facts["special"]), "name_guess": _name_guess(path.name, root)})
     cand.installed_size = facts["total"]
     main_entry = entries[0] if entries else None
@@ -540,7 +571,7 @@ def inspect(path: Path, compression: str) -> Candidate:
         cand.add("ARCHIVE_NO_PROGRAM", Severity.ERROR, "there is no program in this archive (nothing in it can be run)")
     if scripts:
         cand.add("ARCHIVE_SCRIPTS", Severity.INFO,
-                 "it contains install scripts (" + ", ".join(shown(n) for n in sorted(scripts)[:4]) + "): Cygnus never runs them")
+                 "it contains install scripts (" + ", ".join(shown(n) for n in sorted(scripts)[:4]) + "): Cygnus runs them only if you choose to")
     if meta["special_modes"]:
         cand.add("ARCHIVE_SPECIAL_MODES", Severity.INFO,
                  "these files are marked to run with extra privileges (" + ", ".join(shown(n) for n in meta["special_modes"][:3])

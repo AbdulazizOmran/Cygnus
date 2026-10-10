@@ -810,7 +810,7 @@ Discovery uses the signals below. A manifest takes priority over all of them.
 |---|---|
 | System service | `usr/lib/systemd/system/*.service` in package or payload; manifest |
 | User service | `usr/lib/systemd/user/*`; autostart entries; Background portal |
-| udev rules / device permissions | `usr/lib/udev/rules.d/*`; vendor scripts (parsed, never run); `/dev` access patterns |
+| udev rules / device permissions | `usr/lib/udev/rules.d/*`; vendor scripts (parsed; run only if the person chooses to run them, see security.md); `/dev` access patterns |
 | Groups / users | `sysusers.d`; scriptlet `useradd`/`gpasswd`; docs (AI-drafted, unverified) |
 | Polkit rules / actions | `usr/share/polkit-1/*` |
 | D-Bus services | `usr/share/dbus-1/{system,services}/*` |

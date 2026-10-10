@@ -121,6 +121,18 @@ def test_local_package_is_staged_by_fd_and_described(bus, tmp_path):
     assert bus.polkit_calls()[0]["action"].endswith("packages.install-local")
 
 
+def test_the_ownership_flag_travels_over_the_bus_and_a_new_package_is_still_recorded(bus, tmp_path):
+    import sqlite3
+
+    pkg = builders.build_pkg(tmp_path, name="cygnus-test-pkg-claim")
+    sha = hashlib.sha256(pkg.read_bytes()).hexdigest()
+    plan = bus.client.plan_packages(local_files=[(str(pkg), sha)], claim_ownership=False)
+    ok, _ = bus.client.commit(plan, on_progress=lambda line: None)
+    assert ok
+    rows = sqlite3.connect(bus.state / "ledger.db", timeout=30).execute("SELECT name FROM package").fetchall()
+    assert ("cygnus-test-pkg-claim",) in rows  # not installed before, so it is Cygnus's whatever the flag says (see test_helper_ownership.py)
+
+
 def test_wrong_checksum_refused(bus, tmp_path):
     pkg = builders.build_pkg(tmp_path)
     with pytest.raises(HelperError, match="checksum"):

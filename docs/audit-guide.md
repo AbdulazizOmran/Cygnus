@@ -12,7 +12,7 @@ Three kinds of process, in order of power:
 
 | Process | Runs as | Can do |
 |---|---|---|
-| `cygnus-helper` (`cygnus/helper/service.py`, `actions.py`) | root, started over the system bus when needed, exits when idle | run `pacman`, `systemctl enable`, `gpasswd`; every operation first needs the user's polkit approval |
+| `cygnus-helper` (`cygnus/helper/service.py`, `actions.py`) | root, started over the system bus when needed, exits when idle | run `pacman`, `systemctl enable`, `gpasswd`, and (since 0.1.2, opt-in) one install script as administrator through `systemd-run`; every operation first needs the user's polkit approval |
 | the package reader (`cygnus/helper/inspect_worker.py`, `seccomp.py`) | `cygnus-reader` (locked account, uid from `data/sysusers/cygnus.conf`), no network, no new processes, seccomp filter | open an untrusted package file and report what is in it; it never installs |
 | the GUI and the CLI (`cygnus/gui`, `cygnus/cli`, `cygnus/core`) | the person | everything else: analysis, conversion (`makepkg` as the person), downloads, the registry |
 
@@ -23,7 +23,7 @@ helper do anything the person did not approve, and cannot reach root without tha
 
 1. `data/polkit/*.policy`, `data/dbus/*.conf`, `data/systemd/cygnus-helper.service`: who may talk to the helper and with what
    authentication.
-2. `cygnus/helper/service.py` (D-Bus methods: `PlanPackages`, `PlanUnit`, `PlanGroup`, `PlanClearStaleLock`, `Commit`,
+2. `cygnus/helper/service.py` (D-Bus methods: `PlanPackages`, `PlanUnit`, `PlanGroup`, `PlanScript`, `PlanCacheClean`, `PlanClearStaleLock`, `Commit`,
    `GetLedger`, `GetOperation`): caller identity (`_caller_uid`), plan ownership (`plan.caller_sender`/`caller_uid`), single-use
    plans that expire, staging limits, the planning slot and its fairness rule, the start-up clean-up that must only run once the
    bus name is owned.
@@ -31,6 +31,10 @@ helper do anything the person did not approve, and cannot reach root without tha
    groups), the fixed pacman argv (no `--overwrite`, `--nodeps`, `--noscriptlet`, `--ask`), protected packages and
    `HoldPkg`, the staged package copy (opened by descriptor, hashed from it, root-owned, 0644 in a 0711 folder), and
    `_checked_facts` (what the helper believes about a package the reader described).
+3b. `plan_cache_clean` / `clean_cache` in `cygnus/helper/actions.py` with `cygnus/core/cacheclean.py` and `pkgcache.open_folder`: the helper
+   action that DELETES files from pacman's package cache (no command line). Attack: the folder checks (links, ownership, odd paths), the file-name rule, what
+   stays, the plan-versus-commit overlap, `unlinkat` through the folder descriptor, the lock. See `docs/security.md` ("Cleaning
+   pacman's package cache").
 4. `cygnus/helper/inspect_worker.py` and `seccomp.py`: the lockdown order (namespaces, `no_new_privs`, `setgroups`/`setgid`/
    `setuid`, the proof that root is gone, the filter) and the filter's list (it is a denylist: judge whether it is enough).
 5. `cygnus/helper/ledger.py` and `cygnus/core/privilege.py`: what is recorded, who can read it, how a client waits for a result.
@@ -38,7 +42,7 @@ helper do anything the person did not approve, and cannot reach root without tha
 Then, because they handle hostile input but run as the person: `cygnus/core/detect/archive.py` and `cygnus/core/ops/archive_ops.py`
 (programs from tar archives: the reader's refusals, the unpacker, the marker rule for removal), `cygnus/core/backends/foreign.py` (package analysis),
 `translate.py` (script text reading), `convert.py` (building the converted package), `cygnus/gui/launch.py` (links and files
-from a browser), `cygnus/core/backends/vendor_feeds.py` + `cygnus/core/util/http.py` (downloads), and the optional assistant
+from a browser), `cygnus/core/news.py` (Arch news before an upgrade: strict feed reader), `cygnus/core/pkgcache.py` (older versions from pacman's cache: the file is found again at the moment of use; the helper plan is the ordinary package-file one), `cygnus/core/packages.py` + the `search`/`installed`/`details`/`vercmp` operations of `cygnus/core/backends/alpm_worker.py` (the Packages page: read-only, plain-text search, capped lists, database text made printable; its install and remove go through the helper plans above and add no helper surface), `cygnus/core/backends/vendor_feeds.py` + `cygnus/core/util/http.py` (downloads), and the optional assistant
 (`cygnus/core/ai/`, and the hosted service `server/ai_worker/src/logic.js`).
 
 ## 3. The invariants worth attacking
@@ -49,9 +53,27 @@ from a browser), `cygnus/core/backends/vendor_feeds.py` + `cygnus/core/util/http
 - A plan is created by the helper, belongs to one caller, can be committed once, and expires in ten minutes. Try replay,
   cross-user commit, a commit racing an expiry sweep (fixed in round 6; check the fix).
 - The commands the helper runs are built from validated fields only. Try names with option syntax, newlines, unicode.
-- Converted packages carry no install scripts, no setuid/setgid, nothing group- or world-writable on files, and every vendor
+- Converted packages carry no install scripts (unless the person chose to run the vendor's), no setuid/setgid, nothing group- or world-writable on files, and every vendor
   file survives (two enforced checks). Try archives with odd names, links, owners with spaces, huge entries.
-- Vendor scripts are never run, not even sandboxed (a decision: see `security.md`).
+- **Start here: the script action (`PlanScript`, polkit `scripts.run`; `plan_script`, `script_folder`, `script_argv`, `check_script_command`,
+  `forward_output` in `cygnus/helper/actions.py`, `PlanScript` and `script_runner` in `service.py`, `cygnus/core/util/scriptrun.py`).** It is the one
+  place where the helper runs text it was handed, and it deliberately runs it *outside* the helper's own sandbox (a transient system unit, like
+  `sudo`). The claims to break: (1) the bytes run are exactly the bytes whose SHA-256 the client gave (try a client that sends other bytes, a
+  checksum that matches a different script, changing the plan between plan and commit, a second connection committing it); (2) authorisation is
+  asked for every run and never cached (`auth_admin` in `data/polkit/*.policy`); (3) the only command the helper runs for a script plan is the exact
+  shape `script_argv` builds (try argv injection through the name, the folder, the script text, the unit name; a text that looks like an option; a
+  folder with newlines, `..`, a trailing slash, a link); `systemd-run` is not in the general allow-list, so no other plan can reach it; (4) the folder
+  must be a plain path to a folder owned by the caller and is checked again at run time; (5) output cannot exhaust the helper's memory (bytes are
+  read in chunks, a line is cut at 2,000 bytes, 1 MiB is passed on). **Known soft spot:** any process of the same account can call `PlanScript` with a
+  script of its own; the helper cannot know that a window showed it, so the password dialog (which names the script, its size, interpreter, first
+  line and full checksum) is the only gate, as with `sudo`. The interpreter is chosen from the script's first line against a fixed table (`sh`,
+  `bash`, `zsh`, `python3`, `perl`; a first line asking for anything else is refused). The user-side runner (`cygnus/core/ops/scripts.py`,
+  `scriptrun.run_bounded`) is not privileged but is worth a read: reading the script without following links, the once-only marker, the clean
+  environment, the time limit that holds against a program a script leaves running. For deb/rpm the vendor's scripts are written into `.INSTALL`
+  by `cygnus/core/ops/vendor_install.py`: check that the embedding is byte-exact whatever the script contains (the tests compare bytes), that the
+  generated runner (`_cygnus_run`) quotes everything, and that nothing is written unless the person ticked the box (with the checksum of the analysis).
+- Without the person's choice no vendor script is run (the default path of every flow; the tests that pin it are in `tests/test_scripts*.py`,
+  `tests/test_vendor_install.py`, `tests/test_helper_scripts*.py`, `tests/test_scripts_qml.py`).
 - The optional AI assistant never acts: its answer reaches the helper only as a token Cygnus itself stored after `cygnus/core/ai/needs.py`
   (`validate`) accepted it, and `cygnus/gui/fixes.py` (`plan_suggestion`) re-checks the shape. Try an answer that names a group or
   package outside the shapes, a quote that is not on the page, or a page that talks to the model; and `sources.py` for fetching an

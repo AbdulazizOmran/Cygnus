@@ -50,6 +50,16 @@ Kirigami.ScrollablePage {
     property string log: ""
     property var optionalChosen: ({}) // optional libraries the person ticked: {package: true}
     property bool scriptsShown: false
+    // A box is only there while the script's text is on screen, so hiding the text takes the choice back: nothing that cannot be seen runs.
+    onScriptsShownChanged: {
+        if (!scriptsShown)
+            scriptChoice = ({});
+    }
+    onVendorShownChanged: {
+        if (!vendorShown)
+            runVendor.checked = false;
+    }
+    readonly property bool vendorChosen: runVendor.checked && vendorShown // the deb/rpm scripts are run only if the box is ticked and their text is shown
     property bool effectsShown: false
     property string archiveMain: "" // the program to start, for a program unpacked from an archive: the one the person picked or the one Cygnus found
     property var libraries: null // what the program from an archive still needs from your repositories (checked after installing)
@@ -74,6 +84,90 @@ Kirigami.ScrollablePage {
 
     function chosenOptional() {
         return Object.keys(optionalChosen).filter(k => optionalChosen[k]);
+    }
+
+    // Install scripts the person ticked: name -> "user" (run as them) or "admin" (run through the helper, with a password). Nothing is
+    // ticked for any program until the person does it, and the box can only be ticked while the script's full text is on screen.
+    property var scriptChoice: ({})
+    property bool vendorShown: false // the vendor's own scripts of a .deb or .rpm are on screen
+    property var pendingAdmin: [] // scripts to run as administrator once the program is installed: one confirmation and password each
+
+    function setScriptChoice(name, how) {
+        const c = Object.assign({}, scriptChoice);
+        if (how)
+            c[name] = how;
+        else
+            delete c[name];
+        scriptChoice = c;
+    }
+
+    function chosenScripts() {
+        if (!scriptsShown)
+            return [];
+        const items = page.plan && page.plan.scripts && page.plan.scripts.items ? page.plan.scripts.items : [];
+        return items.filter(i => i.phase === "install" && scriptChoice[i.name]).map(i => ({
+                    name: i.name,
+                    sha256: i.sha256,
+                    as: scriptChoice[i.name]
+                }));
+    }
+
+    // In words, what the person has chosen to run: shown next to the Install button, so that nothing runs without being in sight.
+    function scriptSummary() {
+        if (!plan)
+            return "";
+        if (plan.kind === "foreign")
+            return vendorChosen ? "The vendor's install scripts will run as administrator when the package is installed and removed." : "";
+        const chosen = chosenScripts();
+        if (!chosen.length)
+            return "";
+        return "After installing, Cygnus will run: " + chosen.map(c => c.name + (c.as === "admin" ? " (as administrator, asking for your password)" : " (as you)")).join("; ") + ".";
+    }
+
+    function reportScripts(results) {
+        const failed = results.filter(x => !x.ok);
+        results.forEach(x => {
+            log += (x.ok ? "Ran " : "Did not run ") + x.script + (x.ok ? ": it finished without an error" : ": " + x.error) + "\n";
+            if (x.output)
+                log += x.output + "\n";
+        });
+        if (failed.length)
+            page.showAttention("The program is installed, but the script " + failed.map(x => x.script).join(", ") + " did not finish: " + failed[0].error + " (what it printed is in the log below).");
+    }
+
+    function nextAdminScript() {
+        if (!pendingAdmin.length)
+            return;
+        const s = pendingAdmin[0];
+        const seq = analysisSeq; // an answer that arrives after another file was opened belongs to the earlier program: it is dropped
+        pendingAdmin = pendingAdmin.slice(1);
+        page.ask(backend.planScriptAdmin(s.installationId, s.name, s.sha256), function (p) {
+            if (seq !== analysisSeq)
+                return;
+            if (!p.ok) {
+                const rest = pendingAdmin.map(x => x.name);
+                pendingAdmin = [];
+                page.log += "Not run: " + s.name + (rest.length ? ", " + rest.join(", ") : "") + "\n";
+                page.showError("The program is installed, but " + s.name + " could not be run as administrator: " + p.error);
+                return;
+            }
+            afterCommit = function () {
+                log += "Ran " + s.name + " as administrator.\n";
+                page.nextAdminScript();
+                return "continue"; // the program was already announced as installed
+            };
+            confirmPlan = p.result;
+            confirmDialog.open();
+        });
+    }
+
+    function runAdminScripts(installationId, list) {
+        pendingAdmin = list.map(x => ({
+                    installationId: installationId,
+                    name: x.name,
+                    sha256: x.sha256
+                }));
+        page.nextAdminScript();
     }
     property var storage: JSON.parse(backend ? backend.storageJson : "{\"locations\": [], \"candidates\": []}")
     readonly property var locationLabels: storage.locations.map(l => l.label)
@@ -104,6 +198,10 @@ Kirigami.ScrollablePage {
         optionalChosen = ({});
         scriptsShown = false;
         effectsShown = false;
+        scriptChoice = ({});
+        vendorShown = false;
+        pendingAdmin = [];
+        runVendor.checked = false;
         archiveMain = "";
         libraries = null;
         librariesNote = "";
@@ -317,8 +415,12 @@ Kirigami.ScrollablePage {
 
     function finishArchive(r) {
         finish(r);
-        if (r.ok && r.result.ok && r.result.installation_id)
-            page.checkLibraries(r.result.installation_id);
+        if (r.ok && r.result.ok && r.result.installation_id) {
+            const id = r.result.installation_id;
+            page.reportScripts(r.result.scripts || []);
+            page.checkLibraries(id);
+            page.runAdminScripts(id, r.result.admin_scripts || []);
+        }
     }
 
     function install() {
@@ -337,13 +439,13 @@ Kirigami.ScrollablePage {
         } else if (plan.format === "appimage") {
             page.ask(backend.installFile(s.fileUrl, plan.target || s.location), finish, onLine);
         } else if (plan.format === "archive") {
-            page.ask(backend.installArchive(s.fileUrl, plan.target || s.location, plan.sha256 || "", page.archiveMain), page.finishArchive, onLine);
+            page.ask(backend.installArchive(s.fileUrl, plan.target || s.location, plan.sha256 || "", page.archiveMain, JSON.stringify(page.chosenScripts())), page.finishArchive, onLine);
         } else if (plan.format === "flatpak") {
             page.ask(backend.installFlatpakRef(s.appSpec, plan.target || s.location), finish, onLine);
         } else if (plan.format === "flatpak-bundle") {
             page.ask(backend.installFlatpakBundle(s.fileUrl, plan.target || s.location), finish, onLine);
         } else if (plan.kind === "foreign") {
-            page.ask(backend.convertForeign(s.fileUrl, plan.sha256 || "", JSON.stringify(page.chosenOptional()), acceptScripts.checked), function (r) {
+            page.ask(backend.convertForeign(s.fileUrl, plan.sha256 || "", JSON.stringify(page.chosenOptional()), acceptScripts.checked, page.vendorChosen), function (r) {
                 if (!r.ok) {
                     installing = false;
                     page.showError(r.error);
@@ -385,7 +487,7 @@ Kirigami.ScrollablePage {
     Kirigami.PromptDialog {
         id: confirmDialog
         property bool confirmed: false
-        title: "Confirm installation"
+        title: page.confirmPlan && page.confirmPlan.dialog_title ? root.flat(page.confirmPlan.dialog_title) : "Confirm installation"
         subtitle: page.confirmPlan ? root.flat(page.confirmPlan.message + (page.confirmPlan.security_note ? "\n\n" + page.confirmPlan.security_note : "") + (page.confirmPlan.relogin ? "\n\nYou will need to log out and back in afterwards." : "")) : ""
         standardButtons: Kirigami.Dialog.Cancel
         onOpened: confirmed = false
@@ -394,13 +496,16 @@ Kirigami.ScrollablePage {
                 page.afterCommit = null;
                 page.confirmPlan = null;
                 page.installing = false;
+                if (page.pendingAdmin.length)
+                    page.log += "Not run (cancelled): " + page.pendingAdmin.map(x => x.name).join(", ") + "\n";
+                page.pendingAdmin = []; // cancelled: the scripts that were waiting are not run
                 if (page.plan && page.plan.kind === "aur")
                     page.refreshUnfinished(); // a dependency may already be installed: say that this one was not finished
             }
         }
         customFooterActions: [
             Kirigami.Action {
-                text: "Install"
+                text: page.confirmPlan && page.confirmPlan.action ? root.flat(page.confirmPlan.action) : "Install"
                 icon.name: "dialog-ok"
                 onTriggered: {
                     if (confirmDialog.confirmed) // a second click while the dialog closes
@@ -787,7 +892,7 @@ Kirigami.ScrollablePage {
                         Layout.fillWidth: true
                         visible: true
                         type: Kirigami.MessageType.Warning
-                        text: page.plan && page.plan.format === "archive" ? "This archive contains install scripts. Cygnus never runs them, so nothing they would do (stopping the program, changing system settings, deleting caches) happens. They are listed so you can see what the program's maker expected." : "Cygnus could not fully read this package's install scripts. Converting never runs them, so nothing they would do (adding a software repository, creating groups, changing settings) happens. If the program needs one of those things it may not work properly, and a program that updates itself through the vendor's repository will not do that: update it by converting the newer file."
+                        text: page.plan && page.plan.format === "archive" ? "This archive contains install scripts. Cygnus does not run them unless you choose to: show a script below and tick the box under it. If you do not, nothing they would do (stopping the program, changing system settings, deleting caches) happens. They are listed so you can see what the program's maker expected." : "Cygnus could not fully read this package's install scripts. Converting does not run them unless you choose to (in the section below, which shows them in full), so nothing they would do (adding a software repository, creating groups, changing settings) happens by default. If the program needs one of those things it may not work properly, and a program that updates itself through the vendor's repository will not do that: update it by converting the newer file."
                     }
                     QQC2.Label {
                         textFormat: Text.PlainText
@@ -851,6 +956,16 @@ Kirigami.ScrollablePage {
                             }
                         }
                     }
+                    Repeater {
+                        model: page.plan && page.plan.scripts && page.plan.scripts.not_runnable ? page.plan.scripts.not_runnable : []
+                        delegate: QQC2.Label {
+                            textFormat: Text.PlainText
+                            wrapMode: Text.Wrap
+                            Layout.fillWidth: true
+                            opacity: 0.7
+                            text: modelData.name + " cannot be run by Cygnus: " + modelData.reason + "."
+                        }
+                    }
                     QQC2.Button {
                         text: page.scriptsShown ? "Hide the scripts" : "Show the scripts"
                         onClicked: page.scriptsShown = !page.scriptsShown
@@ -860,6 +975,7 @@ Kirigami.ScrollablePage {
                         delegate: ColumnLayout {
                             id: scriptView
                             required property string modelData
+                            readonly property var item: page.plan && page.plan.scripts && page.plan.scripts.items ? (page.plan.scripts.items.find(i => i.name === modelData) || null) : null
                             Layout.fillWidth: true
                             Kirigami.Heading {
                                 textFormat: Text.PlainText
@@ -876,6 +992,40 @@ Kirigami.ScrollablePage {
                                     wrapMode: TextEdit.NoWrap
                                     text: page.plan.scripts.texts[scriptView.modelData]
                                 }
+                            }
+                            // The box is only here while the whole script is on screen above it, and it starts unticked for every program.
+                            RowLayout {
+                                Layout.fillWidth: true
+                                visible: page.plan.format === "archive" && scriptView.item !== null && scriptView.item.phase === "install"
+                                QQC2.CheckBox {
+                                    id: runBox
+                                    Layout.fillWidth: true
+                                    checked: !!page.scriptChoice[scriptView.modelData]
+                                    enabled: !page.installing
+                                    onToggled: page.setScriptChoice(scriptView.modelData, checked ? (howBox.currentIndex === 1 ? "admin" : "user") : "")
+                                    text: "Run " + scriptView.modelData + " after installing"
+                                    contentItem: QQC2.Label {
+                                        textFormat: Text.PlainText
+                                        wrapMode: Text.Wrap
+                                        leftPadding: runBox.indicator ? runBox.indicator.width + runBox.spacing : 0
+                                        text: runBox.text
+                                    }
+                                }
+                                QQC2.ComboBox {
+                                    id: howBox
+                                    model: ["as me", "as administrator (asks for your password)"]
+                                    currentIndex: page.scriptChoice[scriptView.modelData] === "admin" ? 1 : 0
+                                    enabled: runBox.checked && !page.installing
+                                    onActivated: page.setScriptChoice(scriptView.modelData, currentIndex === 1 ? "admin" : "user")
+                                }
+                            }
+                            QQC2.Label {
+                                textFormat: Text.PlainText
+                                visible: page.plan.format === "archive" && scriptView.item !== null && scriptView.item.phase === "remove"
+                                wrapMode: Text.Wrap
+                                Layout.fillWidth: true
+                                opacity: 0.7
+                                text: "This one belongs to removing the program: it is offered when you uninstall it."
                             }
                         }
                     }
@@ -895,6 +1045,83 @@ Kirigami.ScrollablePage {
                         }
                     }
                 }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    visible: !!(page.plan && page.plan.kind === "foreign" && page.plan.vendor_scripts)
+                    spacing: Kirigami.Units.smallSpacing
+                    Kirigami.InlineMessage {
+                        Layout.fillWidth: true
+                        visible: true
+                        type: Kirigami.MessageType.Warning
+                        text: "This package has install scripts of its own. Cygnus does not run them unless you choose to: show them below, read them, then tick the box. If you do, they are put into the converted package, and pacman runs them as administrator when it is installed and again when it is removed. " + (page.plan && page.plan.vendor_scripts ? page.plan.vendor_scripts.warning : "")
+                    }
+                    QQC2.Label {
+                        textFormat: Text.PlainText
+                        visible: !!(page.plan && page.plan.vendor_scripts && page.plan.vendor_scripts.mentions.length)
+                        text: "The scripts mention:"
+                        font.bold: true
+                    }
+                    Repeater {
+                        model: page.plan && page.plan.vendor_scripts ? page.plan.vendor_scripts.mentions : []
+                        delegate: QQC2.Label {
+                            textFormat: Text.PlainText
+                            wrapMode: Text.Wrap
+                            Layout.fillWidth: true
+                            font.bold: modelData.important
+                            text: (modelData.important ? "! " : "• ") + modelData.command + ": " + modelData.what + " (" + modelData.scripts.join(", ") + ")"
+                        }
+                    }
+                    Repeater {
+                        model: page.plan && page.plan.vendor_scripts ? page.plan.vendor_scripts.left_out : []
+                        delegate: QQC2.Label {
+                            textFormat: Text.PlainText
+                            wrapMode: Text.Wrap
+                            Layout.fillWidth: true
+                            opacity: 0.7
+                            text: modelData
+                        }
+                    }
+                    QQC2.Button {
+                        text: page.vendorShown ? "Hide the scripts" : "Show the scripts"
+                        onClicked: page.vendorShown = !page.vendorShown
+                    }
+                    Repeater {
+                        model: page.vendorShown && page.plan && page.plan.vendor_scripts ? Object.keys(page.plan.vendor_scripts.texts) : []
+                        delegate: ColumnLayout {
+                            id: vendorView
+                            required property string modelData
+                            Layout.fillWidth: true
+                            Kirigami.Heading {
+                                textFormat: Text.PlainText
+                                level: 5
+                                text: vendorView.modelData
+                            }
+                            QQC2.ScrollView {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: Kirigami.Units.gridUnit * 14
+                                QQC2.TextArea {
+                                    textFormat: TextEdit.PlainText
+                                    readOnly: true
+                                    font.family: "monospace"
+                                    wrapMode: TextEdit.NoWrap
+                                    text: page.plan.vendor_scripts.texts[vendorView.modelData]
+                                }
+                            }
+                        }
+                    }
+                    QQC2.CheckBox {
+                        id: runVendor
+                        Layout.fillWidth: true
+                        enabled: page.vendorShown && !page.installing
+                        text: "I have read these scripts. Run them as administrator when the package is installed and removed."
+                        contentItem: QQC2.Label {
+                            textFormat: Text.PlainText
+                            wrapMode: Text.Wrap
+                            leftPadding: runVendor.indicator ? runVendor.indicator.width + runVendor.spacing : 0
+                            text: runVendor.text
+                        }
+                    }
+                }
                 QQC2.Label {
                     textFormat: Text.PlainText
                     visible: page.log !== ""
@@ -902,12 +1129,20 @@ Kirigami.ScrollablePage {
                     font.family: "monospace"
                     opacity: 0.8
                 }
+                QQC2.Label {
+                    textFormat: Text.PlainText
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    font.bold: true
+                    visible: text !== ""
+                    text: page.scriptSummary()
+                }
                 RowLayout {
                     Layout.alignment: Qt.AlignRight
                     QQC2.Button {
                         text: page.plan && page.plan.kind === "foreign" ? "Convert and install" : page.plan && page.plan.kind === "aur" ? "Build and install" : "Install"
                         icon.name: "download"
-                        enabled: !!(page.plan && (page.plan.installable || (page.plan.installable_after_review && acceptScripts.checked))) && !page.installing && (page.plan.kind !== "aur" || reviewed.checked) && (page.plan.format !== "archive" || page.archiveMain !== "")
+                        enabled: !!(page.plan && (page.plan.installable || (page.plan.installable_after_review && acceptScripts.checked) || (page.plan.vendor_scripts && page.vendorChosen))) && !page.installing && (page.plan.kind !== "aur" || reviewed.checked) && (page.plan.format !== "archive" || page.archiveMain !== "")
                         onClicked: page.install()
                     }
                 }

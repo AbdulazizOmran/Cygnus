@@ -52,7 +52,7 @@ def test_the_screen_shows_what_will_happen_before_anything_is_unpacked(tmp_path,
     payload = next(p for p in plan["placements"] if p["role"] == "payload")
     assert payload["location"] == "HDD" and payload["bytes"] > 0 and payload["reason"] == ""
     text = " ".join(plan["notes"])
-    assert "never runs them" in text and "who made this archive" in text and "does not update it" in text and "libraries" in text
+    assert "does not run them unless you tick one" in text and "who made this archive" in text and "does not update it" in text and "libraries" in text
     assert plan["scripts"]["texts"].keys() == {"postinst.sh"}
     by = {m["command"]: m for m in plan["scripts"]["mentions"]}
     assert {"systemctl", "pkill", "rm", "update-desktop-database"} <= by.keys()
@@ -223,7 +223,8 @@ def test_the_update_check_says_it_cannot_check_and_does_not_claim_the_system_upd
 # -- the terminal -----------------------------------------------------------------------------------------------------------------------
 def args(file, **kw):
     return argparse.Namespace(file=file, to=kw.get("to", "HDD"), yes=kw.get("yes", True), program=kw.get("program"), registry=None,
-                              with_optional=False)
+                              with_optional=False, run_scripts=kw.get("run_scripts", False), scripts_as_admin=kw.get("scripts_as_admin", False),
+                              accept_scripts=False)
 
 
 def test_the_terminal_installs_shows_the_scripts_and_removes(tmp_path, monkeypatch, capsys):
@@ -232,10 +233,11 @@ def test_the_terminal_installs_shows_the_scripts_and_removes(tmp_path, monkeypat
     monkeypatch.setattr(service, "archive_libraries", lambda *a, **k: {"glibc": None, "packages": ["gtk3"], "unresolved": ["libx.so.1"]})
     assert cli.cmd_install(args(path)) == 0
     out = capsys.readouterr().out
-    assert "Discord" in out and "the install scripts mention systemctl" in out and "never run" in out and "done" in out
+    assert "Discord" in out and "the install scripts mention systemctl" in out and "not run unless you pass --run-scripts" in out and "done" in out
     assert "sudo pacman -S --needed --asdeps gtk3" in out and "libx.so.1" in out
     assert (mount / "Applications" / "Discord" / "discord").is_file()
-    assert cli.cmd_uninstall(argparse.Namespace(app="Discord", delete_file=True, remove_autostart=False, yes=True, registry=None)) == 0
+    assert cli.cmd_uninstall(argparse.Namespace(app="Discord", delete_file=True, remove_autostart=False, yes=True, registry=None,
+                                                run_scripts=False, scripts_as_admin=False)) == 0
     assert not (mount / "Applications" / "Discord").exists()
 
 

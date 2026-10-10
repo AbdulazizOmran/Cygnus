@@ -74,11 +74,86 @@ Kirigami.ScrollablePage {
 
     property var archiveInfo: null // for a program unpacked from an archive: how big its folder is and what changed in it since
     property var libraryResult: null // what a program from an archive still needs from your repositories
+    property var scriptsInfo: null // the scripts the program's archive held (as recorded), with their text, for the "Install scripts" dialog
+    property var removalScripts: [] // the removal scripts (prerm, postrm, uninstall) that are still as recorded, offered when uninstalling
+    property var removalChoice: ({}) // name -> true for the removal scripts that were ticked
+
+    function chosenRemovalScripts() {
+        return removalScripts.filter(x => removalChoice[x.name]).map(x => ({
+                    name: x.name,
+                    sha256: x.sha256,
+                    as: "user"
+                }));
+    }
+
+    function setRemovalChoice(name, on) {
+        const c = Object.assign({}, removalChoice);
+        if (on)
+            c[name] = true;
+        else
+            delete c[name];
+        removalChoice = c;
+    }
+
+    function openScripts() {
+        if (busyText !== "")
+            return;
+        busyText = "Reading the program's scripts…";
+        page.ask(backend.archiveScripts(installationId), function (r) {
+            busyText = "";
+            if (!r.ok) {
+                showError(r.error);
+                return;
+            }
+            scriptsInfo = r.result;
+            scriptsDialog.open();
+        });
+    }
+
+    // Runs one script now: as the person, or as administrator through the helper (the usual confirmation, then the password).
+    function runScript(name, sha256, admin) {
+        scriptsDialog.close();
+        if (busyText !== "")
+            return;
+        if (admin) {
+            busyText = "Preparing…";
+            page.ask(backend.planScriptAdmin(installationId, name, sha256), function (r) {
+                busyText = "";
+                if (!r.ok) {
+                    showError(r.error);
+                    return;
+                }
+                fixPlan = r.result;
+                fixDialog.open();
+            });
+            return;
+        }
+        busyText = "Running " + root.flat(name) + "…";
+        progressValue = -1;
+        progressLabel = "";
+        page.ask(backend.runArchiveScript(installationId, name, sha256), function (r) {
+            busyText = "";
+            if (!r.ok) {
+                showError(r.error);
+                return;
+            }
+            const x = r.result.result;
+            if (x.ok)
+                root.notify(root.flat(name) + " ran without an error.");
+            else
+                showAttention(name + ": " + (x.error || "it did not finish") + (x.output ? "\n" + x.output.slice(-600) : ""));
+        }, function (line) {
+            if (line !== "")
+                page.progressLabel = line;
+        });
+    }
 
     // Asks what removing a program's folder would remove before the question is put.
     function openUninstall() {
         if (installationFormat !== "archive") {
             deleteFile.checked = false;
+            removalChoice = ({}); // a choice made for another program never reaches this one
+            removalScripts = [];
             uninstallDialog.open();
             return;
         }
@@ -93,7 +168,13 @@ Kirigami.ScrollablePage {
             }
             archiveInfo = r.result;
             deleteFile.checked = false; // never carried over from another program
-            uninstallDialog.open();
+            removalChoice = ({}); // nor the choice of removal scripts
+            removalScripts = [];
+            page.ask(backend.archiveScripts(installationId), function (s) {
+                if (s.ok)
+                    removalScripts = s.result.scripts.filter(x => x.phase === "remove" && x.state === "ok");
+                uninstallDialog.open(); // no removal scripts to offer is not a reason to hold the removal back
+            });
         });
     }
 
@@ -281,6 +362,13 @@ Kirigami.ScrollablePage {
             icon.name: "system-search"
             visible: page.installationFormat === "archive"
             onTriggered: page.checkLibraries()
+        },
+        Kirigami.Action {
+            text: "Install scripts…"
+            enabled: page.busyText === ""
+            icon.name: "utilities-terminal"
+            visible: page.installationFormat === "archive"
+            onTriggered: page.openScripts()
         },
         Kirigami.Action {
             text: "What else does this need?"
@@ -585,6 +673,76 @@ Kirigami.ScrollablePage {
     }
 
     Kirigami.PromptDialog {
+        id: scriptsDialog
+        title: root.flat("Install scripts of " + page.appName)
+        subtitle: "These came with the program's archive. Nothing here runs unless you press one of the Run buttons; each one runs exactly the text shown, and only while it is still as it was when the program was installed."
+        standardButtons: Kirigami.Dialog.Close
+        ColumnLayout {
+            spacing: Kirigami.Units.largeSpacing
+            QQC2.Label {
+                textFormat: Text.PlainText
+                visible: !!page.scriptsInfo && page.scriptsInfo.scripts.length === 0
+                text: "This program's archive had no install scripts."
+            }
+            Repeater {
+                model: page.scriptsInfo ? page.scriptsInfo.scripts : []
+                delegate: ColumnLayout {
+                    id: scriptRow
+                    required property var modelData
+                    Layout.fillWidth: true
+                    Kirigami.Heading {
+                        textFormat: Text.PlainText
+                        level: 5
+                        text: scriptRow.modelData.name + (scriptRow.modelData.phase === "remove" ? " (for removing the program)" : "")
+                    }
+                    QQC2.Label {
+                        textFormat: Text.PlainText
+                        visible: scriptRow.modelData.state !== "ok"
+                        wrapMode: Text.Wrap
+                        Layout.fillWidth: true
+                        text: scriptRow.modelData.state === "changed" ? "It has been changed since the program was installed, so it will not be run." : "It is not there any more."
+                    }
+                    QQC2.ScrollView {
+                        visible: scriptRow.modelData.state === "ok"
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: Kirigami.Units.gridUnit * 10
+                        QQC2.TextArea {
+                            textFormat: TextEdit.PlainText
+                            readOnly: true
+                            font.family: "monospace"
+                            wrapMode: TextEdit.NoWrap
+                            text: scriptRow.modelData.text || ""
+                        }
+                    }
+                    QQC2.Label {
+                        textFormat: Text.PlainText
+                        visible: scriptRow.modelData.state === "ok" && scriptRow.modelData.phase !== "install"
+                        wrapMode: Text.Wrap
+                        Layout.fillWidth: true
+                        opacity: 0.7
+                        text: "It is offered when you remove the program."
+                    }
+                    RowLayout {
+                        visible: scriptRow.modelData.state === "ok" && scriptRow.modelData.phase === "install"
+                        QQC2.Button {
+                            text: "Run as me"
+                            icon.name: "media-playback-start"
+                            enabled: page.busyText === ""
+                            onClicked: page.runScript(scriptRow.modelData.name, scriptRow.modelData.sha256, false)
+                        }
+                        QQC2.Button {
+                            text: "Run as administrator…"
+                            icon.name: "dialog-password"
+                            enabled: page.busyText === ""
+                            onClicked: page.runScript(scriptRow.modelData.name, scriptRow.modelData.sha256, true)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Kirigami.PromptDialog {
         id: libraryDialog
         title: root.flat("What " + page.appName + " is missing")
         subtitle: !page.libraryResult ? "" : root.flat((page.libraryResult.glibc ? "It was built for a newer C library (" + page.libraryResult.glibc.needs + ") than this computer has (" + page.libraryResult.glibc.have + "), so it may not start. " : "") + (page.libraryResult.packages.length ? "Libraries it needs are not installed here. Your repositories have them in: " + page.libraryResult.packages.join(", ") + ". " : "") + (page.libraryResult.unresolved.length ? "No repository provides: " + page.libraryResult.unresolved.slice(0, 6).join(", ") + (page.libraryResult.unresolved.length > 6 ? " and more" : "") + ". It may not start. " : "") + (page.libraryResult.optional.length ? "Some parts also want: " + page.libraryResult.optional.map(o => o.package).join(", ") + " (optional)." : ""))
@@ -714,11 +872,14 @@ Kirigami.ScrollablePage {
                     page.busyText = "Removing…";
                     page.progressValue = -1;
                     page.progressLabel = "";
-                    page.ask(backend.uninstall(page.installationId, deleteFile.visible && deleteFile.checked), function (r) {
+                    const chosen = page.chosenRemovalScripts();
+                    page.ask(chosen.length ? backend.uninstallArchive(page.installationId, deleteFile.visible && deleteFile.checked, JSON.stringify(chosen)) : backend.uninstall(page.installationId, deleteFile.visible && deleteFile.checked), function (r) {
                         page.busyText = "";
-                        if (r.ok && r.result.ok)
+                        if (r.ok && r.result.ok) {
+                            if (r.result.attention)
+                                root.notify(root.flat(r.result.attention)); // the page is about to go: a script that did not finish is said here
                             root.showPage(appsPage);
-                        else {
+                        } else {
                             page.showError(root.why(r));
                         }
                     }, function (line) {
@@ -728,6 +889,38 @@ Kirigami.ScrollablePage {
                 }
             }
         ]
+        Repeater {
+            model: page.installationFormat === "archive" ? page.removalScripts : []
+            delegate: ColumnLayout {
+                id: removalRow
+                required property var modelData
+                Layout.fillWidth: true
+                QQC2.ScrollView {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Kirigami.Units.gridUnit * 6
+                    QQC2.TextArea {
+                        textFormat: TextEdit.PlainText
+                        readOnly: true
+                        font.family: "monospace"
+                        wrapMode: TextEdit.NoWrap
+                        text: removalRow.modelData.text || ""
+                    }
+                }
+                QQC2.CheckBox {
+                    id: removalBox
+                    Layout.fillWidth: true
+                    checked: !!page.removalChoice[removalRow.modelData.name]
+                    onToggled: page.setRemovalChoice(removalRow.modelData.name, checked)
+                    text: "Run " + removalRow.modelData.name + " first (as me, exactly the text above)"
+                    contentItem: QQC2.Label {
+                        textFormat: Text.PlainText
+                        wrapMode: Text.Wrap
+                        leftPadding: removalBox.indicator ? removalBox.indicator.width + removalBox.spacing : 0
+                        text: removalBox.text
+                    }
+                }
+            }
+        }
         QQC2.CheckBox {
             id: deleteFile
             visible: page.installationFormat === "appimage" || (page.installationFormat === "archive" && !!page.archiveInfo && page.archiveInfo.present && page.archiveInfo.ours)

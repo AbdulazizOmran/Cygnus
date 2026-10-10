@@ -243,6 +243,8 @@ def analyse(path: str, location_label: str | None, registry_path: str | None = N
                 "scripts": {"unreadable": verdict.scripts.unknown[:8], "mentions": verdict.script_mentions,
                             "effects": verdict.script_effects,
                             "texts": verdict.script_sources} if verdict.scripts_acknowledgeable else None,
+                # the vendor's scripts, in full, for a person who wants them run (nothing of the vendor's runs unless they tick the box)
+                "vendor_scripts": _vendor_scripts(cand, verdict),
                 "sha256": digest}  # what the user is shown belongs to exactly this file
     else:
         return {**base, "kind": "info", "issues": [], "placements": [], "components": [], "installable": False,
@@ -254,6 +256,48 @@ def analyse(path: str, location_label: str | None, registry_path: str | None = N
             "issues": [_issue(i) for i in plan.issues], "blocked": plan.blocked,
             "installable": not plan.blocked and cand.format in (PackageFormat.APPIMAGE, PackageFormat.LOCAL_PKG,
                                                                 PackageFormat.FLATPAK_BUNDLE)}
+
+
+def _vendor_scripts(cand, verdict) -> dict[str, Any] | None:
+    """What choosing to run a .deb's or .rpm's own install scripts would run: their names and full text, what they mention, and
+    the ones that are left out (with why). None when the package has nothing to run or is not converted at all."""
+    from cygnus.core.backends import foreign, translate
+    from cygnus.core.ops import vendor_install
+
+    if verdict.strategy not in ("convert", "review"):
+        return None
+    texts = foreign.install_script_texts(cand)
+    names = vendor_install.script_names(cand.format, texts)
+    if not names:
+        return None
+    _file, included, left_out = vendor_install.build(cand.format, texts, {k: v.get("interpreter") for k, v in (cand.metadata.get("scriptlets") or {}).items()},
+                                                     cand.metadata.get("uninspected_scripts") or ())
+    names = [n for n in names if n in included]  # offered only what would really be written
+    if not names:
+        return None
+    try:
+        effects = translate.describe_effects(translate.script_effects(texts))
+    except Exception:  # noqa: BLE001 - a script the reader cannot follow is still shown whole
+        effects = []
+    from cygnus.core.backends import portable
+
+    limit = foreign.MAX_SHOWN_SCRIPT
+    shown = {n: (str(texts[n]) if len(str(texts[n])) <= limit else str(texts[n])[:limit] + f"\n… (only the first {limit:,} characters are shown; "
+                                                                                       f"{len(str(texts[n])) - limit:,} more are not, and this script is not run)")
+             for n in sorted(texts)}  # a script that is offered is one whose text fits whole; the others say they were cut
+    by_command = {m["command"]: m for m in foreign.mentioned_commands(texts)}
+    for m in portable.mentions({n: str(t) for n, t in texts.items()}):  # what the scripts' commands do, read like a shell would (rm, chmod, ...)
+        have = by_command.get(m["command"])
+        if have is None:
+            by_command[m["command"]] = m
+        else:
+            have["scripts"] = sorted(set(have["scripts"]) | set(m["scripts"]))
+    mentions = sorted(by_command.values(), key=lambda m: (not m["important"], m["command"]))
+    return {"names": names, "texts": shown, "mentions": mentions, "effects": effects, "left_out": left_out,
+            "warning": "They run as administrator when the package is installed, and again when it is removed. On an upgrade pacman runs "
+                       "only the new package's pre- and post-install scripts, never the old package's removal scripts. A script that fails "
+                       "or refuses (exits with an error) cannot stop the install or the removal: pacman goes on and shows what the script "
+                       "said. Scripts written for Debian or Fedora expect that system's own tools; one that cannot find them fails."}
 
 
 _ARCHIVE_TITLES = {
@@ -348,10 +392,21 @@ def _analyse_archive(cand, base: dict[str, Any], reg, target, system, path: str,
                       "themselves). After installing, Cygnus checks that the libraries it needs are on this computer.")
     if not meta.get("desktop_entries"):
         plan.notes.append("The archive has no menu entry, so Cygnus makes a simple one.")
-    scripts = portable.scripts_report(meta.get("scripts") or {})
-    if scripts:
-        plan.notes.append("The archive contains install scripts (" + ", ".join(sorted(meta["scripts"])[:4]) + "). Cygnus never runs them: "
-                          "they are listed below with what they would have done.")
+    from cygnus.core.util import scriptrun
+
+    scripts = portable.scripts_report(meta.get("scripts") or {}, cap=scriptrun.MAX_SCRIPT_BYTES)  # every script shown whole
+    if scripts is None and meta.get("script_problems"):  # nothing can be offered, but what was left out is still said
+        scripts = {"unreadable": [], "mentions": [], "effects": [], "texts": {}}
+    if scripts is not None:
+        from cygnus.core.ops import scripts as script_ops
+
+        hashes = meta.get("script_sha256") or {}
+        scripts["items"] = [{"name": n, "sha256": hashes[n], "phase": script_ops.phase_of(n)} for n in sorted(meta["scripts"])
+                            if n in hashes and scripts["texts"].get(n) == meta["scripts"][n]]  # offered only when the text shown is the whole of it
+        scripts["not_runnable"] = [{"name": n, "reason": r} for n, r in sorted((meta.get("script_problems") or {}).items())]
+        if meta["scripts"]:
+            plan.notes.append("The archive contains install scripts (" + ", ".join(sorted(meta["scripts"])[:4]) + "). Cygnus does not run them unless "
+                              "you tick one below: they are listed with what they would do.")
     return {**base, "kind": "plan", "placements": [asdict(p) for p in plan.placements], "components": [], "runtime": "",
             "usage": plan.usage_by_location(), "notes": plan.notes, "issues": [_issue(i) for i in plan.issues], "blocked": plan.blocked,
             "installable": not plan.blocked and bool(choices), "sha256": digest, "scripts": scripts,
@@ -359,8 +414,29 @@ def _analyse_archive(cand, base: dict[str, Any], reg, target, system, path: str,
                         "files": meta.get("file_count") or 0, "has_menu_entry": bool(meta.get("desktop_entries"))}}
 
 
+def _plain_name(name: object) -> str:
+    """A script's name for a message: whatever is not printable becomes a question mark."""
+    return "".join(c if c.isprintable() else "?" for c in str(name))[:80]
+
+
+def _script_choices(run_scripts: Any) -> list[dict[str, str]]:
+    """The scripts the person ticked, as the screen or the terminal sent them ({"name", "sha256", "as": "user" | "admin"}); anything
+    that is not exactly that is refused. Nothing is run for a choice that was not made."""
+    if run_scripts in (None, []):
+        return []
+    if not isinstance(run_scripts, list) or len(run_scripts) > 8:
+        raise CygnusError("the choice of scripts to run was not understood")
+    out: list[dict[str, str]] = []
+    for c in run_scripts:
+        if not (isinstance(c, dict) and isinstance(c.get("name"), str) and isinstance(c.get("sha256"), str) and c.get("as") in ("user", "admin")):
+            raise CygnusError("the choice of scripts to run was not understood")
+        if all(o["name"] != c["name"] for o in out):
+            out.append({"name": c["name"], "sha256": c["sha256"], "as": c["as"]})
+    return out
+
+
 def install_archive(path: str, location_label: str, sha256: str, main: str, progress: Callable[[str], None],
-                    registry_path: str | None = None) -> dict[str, Any]:
+                    registry_path: str | None = None, run_scripts: list[dict[str, str]] | None = None) -> dict[str, Any]:
     from cygnus.core.ops import archive_ops
 
     import re
@@ -380,11 +456,25 @@ def install_archive(path: str, location_label: str, sha256: str, main: str, prog
         raise CygnusError(f"no storage location named {location_label!r}; add one on the Storage page first")
     where, apps, _why, _problems = _archive_destination(cand, target, _system_location(reg), reg)
     key = archive_ops.app_key_for(cand)
+    wanted = _script_choices(run_scripts)
+    archive_ops.chosen_scripts(dict(cand.metadata.get("script_sha256") or {}), [c for c in wanted if c["as"] == "admin"], "install")  # refused before anything runs
     steps = archive_ops.plan_install(cand, app_key=key, location=where, apps_dir=apps, main=main or cand.metadata.get("main") or "",
-                                     sha256=sha256)
+                                     sha256=sha256, run_scripts=[c for c in wanted if c["as"] == "user"])
     report = archive_ops.executor(reg).run("install", steps, app_id=key, progress=progress_mod.steps(progress, numbered=True))
-    return {"ok": report.state == "succeeded", "state": report.state, "error": report.error or "",
-            "installation_id": steps[0].params["installation_id"] if report.state == "succeeded" else ""}  # the one just recorded
+    done = report.state == "succeeded"
+    ran = [report.results[i] for i, st in enumerate(steps) if st.kind == "archive.run_script" and i in report.results]
+    admin = [{"name": c["name"], "sha256": c["sha256"]} for c in wanted if c["as"] == "admin"] if done else []
+    out: dict[str, Any] = {"ok": done, "state": report.state, "error": report.error or "",
+                           "installation_id": steps[0].params["installation_id"] if done else "",  # the one just recorded
+                           "scripts": ran, "admin_scripts": admin}
+    failed = [r for r in ran if not r.get("ok")]
+    if failed:  # shown by the page, or by the main window when the page has been left
+        out["attention"] = ("The program is installed, but the script " + ", ".join(_plain_name(r["script"]) for r in failed)
+                            + " did not finish: " + str(failed[0].get("error") or "it did not finish"))
+    if admin:  # only the main window says this (the page it is for would have gone on to ask for the password)
+        out["late_attention"] = ("The program is installed. The scripts you chose to run as administrator were not run, because the page was "
+                                 "left: open the program, then Install scripts…, to run them.")
+    return out
 
 
 def _archive_row(installation_id: str, registry_path: str | None = None):
@@ -392,6 +482,9 @@ def _archive_row(installation_id: str, registry_path: str | None = None):
     row = next((r for r in regdb.list_installations(reg) if r["id"] == installation_id), None)
     if row is None or row["format"] != "archive":
         raise CygnusError("this is not a program installed from an archive")
+    folder = row["source"].get("path")
+    if not isinstance(folder, str) or not folder.startswith("/"):  # an empty path would mean "the folder Cygnus happens to be in"
+        raise CygnusError("Cygnus's record of this program does not say where its folder is")
     return reg, row
 
 
@@ -412,6 +505,70 @@ def archive_libraries(installation_id: str, progress: Callable[[str], None] = la
     cfg = pm.read_config()
     return portable.library_check(folder, satisfy=lambda d: pm.run_worker(cfg, {"op": "satisfy", "deps": d})["satisfiers"],
                                   locate=lambda sonames: filedb.locate(sonames, progress=progress, cfg=cfg))
+
+
+def archive_scripts(installation_id: str, registry_path: str | None = None) -> dict[str, Any]:
+    """The scripts of an installed program from an archive, as recorded when it was installed: each with its checksum, whether it is
+    still in the folder exactly as recorded ("ok"), "changed" or "missing", and (only when it is still the recorded one) its text and
+    what it mentions. Nothing is run."""
+    from cygnus.core.backends import portable
+    from cygnus.core.ops import archive_ops, scripts as script_ops
+    from cygnus.core.util import scriptrun
+    from cygnus.core.util.scriptrun import ScriptChanged, ScriptRefused
+
+    reg, row = _archive_row(installation_id, registry_path)
+    folder = Path(row["source"].get("path") or "")
+    marker = archive_ops.read_marker(folder) if folder.is_dir() and not folder.is_symlink() else None
+    ours = bool(marker and marker.get("installation") == installation_id)
+    items: list[dict[str, Any]] = []
+    texts: dict[str, str] = {}
+    for entry in row["source"].get("scripts") or []:
+        if not (isinstance(entry, dict) and isinstance(entry.get("name"), str) and isinstance(entry.get("sha256"), str)):
+            continue
+        state, text = "missing", None
+        if ours:
+            try:
+                text = script_ops.read_in_tree(folder, entry["name"], entry["sha256"]).decode("utf-8", "replace")
+                state = "ok"
+            except ScriptChanged:
+                state = "changed"
+            except ScriptRefused:
+                state = "missing"
+        if text is not None:
+            texts[entry["name"]] = text
+        items.append({"name": entry["name"], "sha256": entry["sha256"], "phase": script_ops.phase_of(entry["name"]), "state": state, "text": text})
+    return {"folder": str(folder), "ours": ours, "scripts": items, "report": portable.scripts_report(texts, cap=scriptrun.MAX_SCRIPT_BYTES) if texts else None}
+
+
+def prepare_admin_script(installation_id: str, name: str, sha256: str, client: Any, registry_path: str | None = None, *, phase: str = "install"):
+    """The helper's plan for running one recorded script of an installed program from an archive as administrator (nothing runs
+    yet). The script must be one recorded at install with this checksum, in the folder Cygnus made, and still exactly those bytes;
+    the helper is given the bytes and the checksum the person was shown and refuses unless they match."""
+    from cygnus.core.ops import archive_ops
+    from cygnus.core.ops import scripts as script_ops
+
+    _reg, row = _archive_row(installation_id, registry_path)
+    archive_ops.chosen_scripts(archive_ops.recorded_scripts(row["source"]), [{"name": name, "sha256": sha256}], phase)
+    folder = Path(row["source"].get("path") or "")
+    marker = archive_ops.read_marker(folder) if folder.is_dir() and not folder.is_symlink() else None
+    if not marker or marker.get("installation") != installation_id:
+        raise CygnusError("that folder is not the one Cygnus made for this program, so nothing in it is run")
+    return client.plan_script(name, script_ops.read_in_tree(folder, name, sha256), sha256, str(folder))
+
+
+def run_archive_script(installation_id: str, name: str, sha256: str, progress: Callable[[str], None] = lambda _: None,
+                       registry_path: str | None = None, *, phase: str = "install") -> dict[str, Any]:
+    """Run one recorded script of an installed program from an archive, as the person, now. The script must be one recorded at
+    install with this very checksum, and still be exactly that in the folder; the answer says how it went."""
+    from cygnus.core.ops import archive_ops
+
+    reg, row = _archive_row(installation_id, registry_path)
+    known = archive_ops.recorded_scripts(row["source"])
+    chosen = archive_ops.chosen_scripts(known, [{"name": name, "sha256": sha256}], phase)
+    steps = archive_ops.script_steps(Path(row["source"].get("path") or ""), installation_id, chosen)
+    report = archive_ops.executor(reg).run("run_script", steps, app_id=row["app_id"], progress=progress_mod.steps(progress, numbered=False))
+    result = report.results.get(0) or {"script": name, "sha256": sha256, "as": "user", "ran": False, "ok": False, "error": report.error or "it was not run"}
+    return {"ok": bool(result.get("ok")), "result": result}
 
 
 def archive_info(installation_id: str, registry_path: str | None = None) -> dict[str, Any]:
@@ -481,19 +638,30 @@ def install_appimage(path: str, location_label: str, progress: Callable[[str], N
     return {"ok": report.state == "succeeded", "state": report.state, "error": report.error or ""}
 
 
-def uninstall(installation_id: str, delete_file: bool, progress: Callable[[str], None]) -> dict[str, Any]:
+def uninstall(installation_id: str, delete_file: bool, progress: Callable[[str], None],
+              run_scripts: list[dict[str, str]] | None = None) -> dict[str, Any]:
+    """Remove a program. `run_scripts` are removal scripts of a program from an archive, as the person ticked them (run as them,
+    first); a removal script to run as administrator is done by the caller afterwards, through the helper."""
     from cygnus.core.ops import plan_uninstall
 
     reg = _registry()
     row = reg.conn.execute("SELECT format, application_id FROM installation WHERE id=?", (installation_id,)).fetchone()
     if row is None:
         raise CygnusError("unknown installation")
-    steps = plan_uninstall(reg, installation_id, remove_payload=delete_file)
+    wanted = _script_choices(run_scripts)
+    if any(c["as"] != "user" for c in wanted):  # a removal script as administrator goes through the helper first, never through here
+        raise CygnusError("only removal scripts to run as you can be run here; one for administrator is run through the helper before the removal")
+    steps = plan_uninstall(reg, installation_id, remove_payload=delete_file, run_scripts=wanted)
     report = executor_for(reg).run(
         "uninstall", steps, app_id=row[1],
         progress=progress_mod.steps(progress, numbered=True))
-    return {"ok": report.state == "succeeded", "state": report.state, "error": report.error or "",
-            "kept": report.kept}
+    ran = [report.results[i] for i, st in enumerate(steps) if st.kind == "archive.run_script" and i in report.results]
+    out: dict[str, Any] = {"ok": report.state == "succeeded", "state": report.state, "error": report.error or "", "kept": report.kept, "scripts": ran}
+    failed = [r for r in ran if not r.get("ok")]
+    if failed and out["ok"]:
+        out["attention"] = ("The program is removed, but the script " + ", ".join(_plain_name(r["script"]) for r in failed)
+                            + " did not finish: " + str(failed[0].get("error") or "it did not finish"))
+    return out
 
 
 def add_location(path: str, label: str, make_default: bool) -> dict[str, Any]:
@@ -920,6 +1088,47 @@ def check_updates(progress: Callable[[str], None]) -> list[dict[str, Any]]:
     return [u.as_dict() for u in updates.last_known(reg)]
 
 
+def packages_search(text: str) -> dict[str, Any]:
+    """Repository packages matching a search (reads the package lists; changes nothing)."""
+    from cygnus.core import packages
+
+    return packages.search(text)
+
+
+def packages_installed() -> dict[str, Any]:
+    from cygnus.core import packages
+
+    return packages.installed()
+
+
+def package_details(name: str, repo: str | None = None) -> dict[str, Any]:
+    from cygnus.core import packages
+
+    return packages.details(name, repo or None)
+
+
+def package_older_versions(name: str) -> dict[str, Any]:
+    """The older versions of an installed package that pacman's cache still holds (nothing for a protected or uninstalled one)."""
+    from cygnus.core import packages, pkgcache
+
+    info = packages.details(name)
+    if not info["installed"] or info["protected"]:
+        return {"installed_version": info["installed_version"], "versions": []}
+    return {"installed_version": info["installed_version"],
+            "versions": [v.as_dict() for v in pkgcache.older_versions(name, info["installed_version"])]}
+
+
+def cache_preview(keep: Any, uninstalled: Any) -> dict[str, Any]:
+    """What cleaning pacman's package cache with these choices would remove (looks only; removes nothing)."""
+    from cygnus.core import cacheclean
+    from cygnus.core.backends import pacman as pm
+
+    try:
+        return cacheclean.preview(pm.read_config(), keep, uninstalled)
+    except cacheclean.CacheRefused as exc:
+        raise CygnusError(str(exc)) from None
+
+
 def cygnus_update() -> dict[str, Any] | None:
     """The last answer to "is there a newer Cygnus?" (no network), judged against the version installed now."""
     from cygnus.core import self_update
@@ -1275,18 +1484,22 @@ def _converted_packages(registry_path: str | None = None) -> dict[str, str]:
 
 
 def convert_foreign(path: str, progress: Callable[[str], None], expected_sha256: str | None = None,
-                    optional: list[str] | tuple[str, ...] = (), accept_unread_scripts: bool = False) -> dict[str, Any]:
+                    optional: list[str] | tuple[str, ...] = (), accept_unread_scripts: bool = False,
+                    run_vendor_scripts: bool = False) -> dict[str, Any]:
     """Convert a .deb/.rpm the analysis found safe into a pacman package (not installed yet).
 
     The file is copied once into a private folder while it is hashed, and everything after that (the check, the
     analysis, the conversion) works on that copy, so it is exactly the file that was hashed. With `expected_sha256`
     (from the analysis you confirmed), a file that has changed since is refused."""
+    import re
     import shutil
     import tempfile
 
     from cygnus.core.backends import translate
     from cygnus.core.ops import convert
 
+    if run_vendor_scripts and not re.fullmatch(r"[0-9a-f]{64}", expected_sha256 or ""):
+        raise CygnusError("the checksum of the analysis you read is missing, so the scripts you read cannot be tied to this file: analyse it again")
     incoming = paths.cache_dir() / "convert" / "incoming"
     incoming.mkdir(parents=True, exist_ok=True)
     original = Path(path)
@@ -1309,6 +1522,7 @@ def convert_foreign(path: str, progress: Callable[[str], None], expected_sha256:
         verdict = _foreign_verdict(cand, progress)
         pkg, notes = convert.convert(cand, verdict, paths.cache_dir() / "convert" / "packages", progress,
                                      install_optional=list(optional), accept_unread_scripts=accept_unread_scripts,
+                                     run_vendor_scripts=run_vendor_scripts,
                                      owner=translate.ignoring(_owner, convert.pacman_name(cand.name or "")))
         shutil.rmtree(tmp, ignore_errors=True)
     return {"package": str(pkg), "name": convert.pacman_name(cand.name or ""), "notes": notes,

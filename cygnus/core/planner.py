@@ -197,7 +197,7 @@ def plan_appimage(cand: Candidate, target: StorageLocation, system: StorageLocat
 def plan_archive(cand: Candidate, target: StorageLocation, system: StorageLocation, *, drive_problems: list[str] = (),
                  extra_issues: list[Issue] | None = None) -> InstallPlan:
     """A program from a plain archive: unpacked into the applications folder of `target` (or of the system drive when the
-    chosen one cannot hold it), integrated with the menu. Nothing in the archive is run."""
+    chosen one cannot hold it), integrated with the menu. Nothing in the archive is run unless the person chooses to run one of its install scripts."""
     name = cand.name or "the program"
     plan = InstallPlan(app_name=name, source_label="Archive", format=PackageFormat.ARCHIVE.value, target=target.label, trust="unverified")
     ok, reason = location_supports(target, "portable-links" if cand.metadata.get("has_symlinks") else "portable")

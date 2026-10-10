@@ -1,7 +1,7 @@
 """DEB / RPM policy engine (architecture §10.3): prefer native, analyse, convert only when demonstrably safe.
 
 Nothing here installs anything. The payload is extracted only into a private temporary directory
-for inspection; maintainer scripts are classified as text and never executed.
+for inspection; maintainer scripts are classified as text and executed only if the person chose to run them (ops/vendor_install.py).
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ class PayloadError(DetectionError, ValueError):
 # counts as the program). Anything the lexer does not positively understand (command substitution,
 # process substitution, here-documents, functions, redirections to real files, wrapper programs such
 # as env/xargs/sh -c) makes the script "unknown", and anything unknown blocks automatic conversion
-# (architecture §10.3). Scripts are never run; the cost of a wrong judgement is a silently dropped step.
+# (architecture §10.3). Unless the person chose to run them, scripts are not run; the cost of a wrong judgement is a silently dropped step.
 _STRUCTURE = {"if", "then", "else", "elif", "fi", "case", "esac", "for", "while", "until", "do", "done", "in",
               "{", "}", "true", "false", ":", "break", "continue", "return", "exit", "shift", "set", "wait",
               "local", "export", "unset", "readonly"}
@@ -134,8 +134,8 @@ class ScriptAnalysis:
     @property
     def acknowledgeable(self) -> bool:
         """Scripts Cygnus could not read, and nothing positively found in what it CAN read that makes the result wrong
-        (a user the package declares, a kernel module in a readable script...). Converting never runs a script, so the
-        person may knowingly go ahead, after being shown what the scripts mention. Note that a script with any part
+        (a user the package declares, a kernel module in a readable script...). Unless the person chooses to run the scripts, converting
+        does not run them, so the person may knowingly go ahead, after being shown what the scripts mention. Note that a script with any part
         Cygnus cannot read is unreadable as a whole: a group created inside it is not "found", only mentioned, which is why
         what they mention is shown first and has to be acknowledged."""
         return bool(self.unknown) and not self.blocking
@@ -505,7 +505,7 @@ def classify_scripts(scripts: dict[str, str], interpreters: dict[str, str | None
         for words in commands:
             line = " ".join(words)[:200]
             if name in _REMOVAL_SCRIPTS and _program(words[0]) in ("rm", "rmdir", "unlink"):
-                # Cleanup of what the vendor's install script made: that script is never run here, and pacman removes the
+                # Cleanup of what the vendor's install script made: that script is not run here (unless the person chose to run it), and pacman removes the
                 # package's own files, so dropping the cleanup loses nothing and cannot harm. It is only noted.
                 samples = analysis.categories.setdefault("cleanup", [])
                 if len(samples) < 5:
@@ -1116,7 +1116,8 @@ class ForeignVerdict:
     # packages only on-demand parts of the program want: [{"package", "libraries", "files"}], never installed unasked
     optional_dependencies: list[dict[str, Any]] = field(default_factory=list)
     # install scripts Cygnus could not read, and nothing recognised as dangerous: the person may go ahead knowing the
-    # scripts are never run (what they set up will be missing). What they mention, and their text, are for that decision.
+    # scripts are not run (what they set up will be missing; unless the person chooses to run them). What they mention, and their text,
+    # are for that decision.
     additions: list[dict[str, str]] = field(default_factory=list)  # what Cygnus adds to the package itself (icon, command link)
     scripts_acknowledgeable: bool = False
     script_mentions: list[dict[str, Any]] = field(default_factory=list)
@@ -1202,7 +1203,7 @@ def analyse(cand: Candidate, *, satisfy: Callable[[list[str]], dict[str, dict[st
         interpreters = {k: v.get("interpreter") or "/bin/sh" for k, v in rpm_scripts.items()}
     scripts = classify_scripts(scripts_src, interpreters)
     for name in cand.metadata.get("uninspected_scripts") or []:
-        scripts.unknown.append(f"[{name}] is too large to inspect")  # never converted unread
+        scripts.unknown.append(f"[{name}] could not be read in full (it is too large, or not a plain file)")  # never converted unread
     for line in cand.metadata.get("sysusers") or []:  # users/groups the package declares: conversion would drop them
         scripts.blocking.append(f"creates a system user or group: {str(line)[:100]}")
     issues: list[Issue] = []
@@ -1364,7 +1365,7 @@ def analyse(cand: Candidate, *, satisfy: Callable[[list[str]], dict[str, dict[st
     elif scripts.blocks_auto_conversion:
         strategy = "review"
         summary = ("The package's install scripts do things Cygnus cannot translate automatically."
-                   + (" You can convert it anyway after reading what they contain: Cygnus never runs them."
+                   + (" You can convert it anyway after reading what they contain: Cygnus does not run them unless you choose to."
                       if scripts.acknowledgeable else " Manual review is needed."))
         issues.append(Issue(code="FOREIGN_SCRIPTS_UNRECOGNISED", severity=IssueSeverity.BLOCKER,
                             title="Install scripts need review",

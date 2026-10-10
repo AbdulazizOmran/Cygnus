@@ -68,3 +68,35 @@ def test_the_slow_planning_and_network_jobs_are_not_on_the_quick_pool():
         assert call and "long=True" in call.group(0), name
     # analysing a file reports progress (it may have to fetch the package file lists), which also puts it on the long pool
     assert re.search(r"def analyseFile.*?wants_progress=True", source, re.S)
+
+
+SIGNAL_SCRIPT = r'''
+import json, os
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+from PySide6.QtCore import QCoreApplication, QEventLoop, QTimer
+from cygnus.gui import fixes
+from cygnus.gui.bridge import Backend
+
+app = QCoreApplication([])
+backend = Backend()
+backend.refreshApps = lambda: "x"
+heard = []
+backend.packagesChanged.connect(lambda: heard.append("changed"))
+results = {}
+for label, outcome in (("done", {"ok": True}), ("failed", {"ok": False, "detail": "no"})):
+    fixes.commit = lambda token, progress, outcome=outcome: outcome
+    loop = QEventLoop()
+    rid = backend.commitFix("t")
+    backend.finished.connect(lambda r, payload, rid=rid: loop.quit() if r == rid else None)
+    QTimer.singleShot(5000, loop.quit)
+    loop.exec()
+    results[label] = len(heard)
+print(json.dumps(results))
+'''
+
+
+def test_the_backend_says_when_a_commit_has_finished_whatever_page_asked_and_however_it_ended():
+    out = subprocess.run([sys.executable, "-c", SIGNAL_SCRIPT], capture_output=True, text=True, timeout=120)
+    import json
+
+    assert json.loads(out.stdout.strip().splitlines()[-1]) == {"done": 1, "failed": 2}, out.stderr[-2000:]

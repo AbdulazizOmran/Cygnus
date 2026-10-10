@@ -21,8 +21,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
+from cygnus.core import cacheclean
 from cygnus.core.backends import pacman as pm
 from cygnus.core.errors import CygnusError
+from cygnus.core.util import scriptrun
 from cygnus.helper import ACTION_PREFIX
 
 PKG_NAME = re.compile(r"^[a-z0-9@_+][a-z0-9@._+-]{0,99}\Z")  # \Z, not $: "$" accepts a trailing newline
@@ -51,7 +53,7 @@ class PlanRefused(CygnusError):
 @dataclass(slots=True, kw_only=True)
 class HelperPlan:
     id: str
-    kind: str  # packages | unit | group
+    kind: str  # packages | unit | group | lock | script | cache
     caller_uid: int
     caller_sender: str
     action_id: str  # polkit action
@@ -66,6 +68,15 @@ class HelperPlan:
     created: float = field(default_factory=time.time)
     local_fingerprint: str | None = None  # installed packages when planned (packages plans only)
     sync_fingerprint: str | None = None  # repository databases the plan was computed from
+    script: bytes | None = None  # a script plan: the exact bytes that were shown and will be run (script plans only)
+    script_sha256: str | None = None
+    script_name: str = ""  # its name, as the person saw it (shown in messages and passed to the script as $0)
+    script_workdir: str = ""
+    script_user: tuple[str, int, int] | None = None  # who asked: (name, uid, gid), what `sudo` would have told the script
+    script_folder_id: tuple[int, int] | None = None  # (device, inode) of the folder when it was planned: it must be the same one at the run
+    cache_keep: int = 0  # a cache cleaning: how many older versions stay besides the installed one
+    cache_uninstalled: bool = False  # ... and whether packages that are not installed lose every cached version
+    cache_files: list[tuple[str, str, int, int]] = field(default_factory=list)  # what was shown: (folder, name, device, inode); nothing else is removed
 
 
 def _plan_id() -> str:
@@ -413,8 +424,13 @@ def _plan_packages(req: dict[str, Any], *, caller_uid: int, caller_sender: str, 
     ledger_ops = [("record_package", {"name": p["name"], "version": p["version"],
                                       "reason": "asdeps" if asdeps or p.get("reason") == "dependency" else "explicit"})
                   for p in summary["install"]]
+    # A file that replaces a package the ledger does not hold (a repository package that is only being taken back to an older version)
+    # is not claimed as installed by Cygnus when the request says so: the ledger is what lets a later removal skip the question about
+    # a package Cygnus did not install. One the ledger already holds is recorded (its version is brought up to date), and so is
+    # everything else, as before.
+    claim = req.get("claim_ownership") is not False
     ledger_ops += [("record_package", {"name": p["name"], "version": p["version"], "reason": "local"})
-                   for p in summary["local"]]
+                   for p in summary["local"] if claim or not p.get("replaces_installed") or ledger.owns_package(p["name"])]
     ledger_ops += [("forget_package", {"name": p["name"]}) for p in summary["remove"]]
     return HelperPlan(id=_plan_id(), kind="packages", caller_uid=caller_uid, caller_sender=caller_sender,
                       action_id=f"{ACTION_PREFIX}.{action}", message=message, summary=summary,
@@ -448,6 +464,69 @@ def _package_message(s: dict[str, Any], sysupgrade: bool) -> str:
         parts.append("Remove " + ", ".join(p["name"] for p in removed[:8])
                      + (f" and {len(removed) - 8} more" if len(removed) > 8 else ""))
     return ". ".join(parts) + "."
+
+
+# -- cleaning pacman's package cache ----------------------------------------------------------------------
+
+def _pacman_config_for_cache() -> pm.PacmanConfig:
+    """pacman's configuration as the helper itself reads it (what is cleaned and what is installed come from it, never from a client)."""
+    try:
+        config = pm.read_config()
+    except (CygnusError, OSError) as exc:
+        raise PlanRefused(f"pacman's configuration could not be read ({exc})") from None
+    if os.path.normpath(config.dbpath) != os.path.normpath(DBPATH):
+        raise PlanRefused(f"pacman is set up to keep its databases in {config.dbpath}, but the Cygnus helper supports only {DBPATH}")
+    return config
+
+
+def plan_cache_clean(keep: Any, uninstalled: Any, *, caller_uid: int, caller_sender: str, config: pm.PacmanConfig | None = None,
+                     selection=cacheclean.selection) -> HelperPlan:
+    """A plan to remove old files from pacman's package cache. A client gives two choices and nothing else (how many older versions to
+    keep, and whether packages that are not installed lose all theirs); the helper reads the cache and pacman's own database itself and
+    chooses the files (see cygnus.core.cacheclean for the rules). The plan holds that exact list; what the person is shown is its count, size,
+    folder and some examples."""
+    try:
+        keep, uninstalled = cacheclean.check_request(keep, uninstalled)
+    except cacheclean.CacheRefused as exc:
+        raise PlanRefused(str(exc)) from None
+    config = config or _pacman_config_for_cache()
+    try:
+        doomed, problems, _looked = selection(config, keep, uninstalled, viewer_uid=caller_uid)
+    except cacheclean.CacheRefused as exc:
+        raise PlanRefused(str(exc)) from None
+    if not doomed:
+        raise PlanRefused("there is nothing to clean with these choices" + (": " + "; ".join(problems) if problems else ""))
+    folders = sorted({e.folder for e in doomed})
+    freed = sum(e.size for e in doomed)
+    packages = {(e.name, e.arch, e.version) for e in doomed if not e.signature}
+    summary = {"files": len(doomed), "bytes": freed, "packages": len(packages), "keep": keep, "uninstalled": uninstalled, "folders": folders,
+               "examples": sorted({f"{n} {v}" for n, _a, v in packages})[:cacheclean.MAX_EXAMPLES], "problems": problems}
+    size = f"{freed / 2**20:.1f} MiB" if freed >= 2**20 else f"{max(1, round(freed / 1024))} KiB"
+    kept = ("keeping only the installed version of every package" if keep == 0 else
+            f"keeping the installed version of every package and the {keep} newest older one{'' if keep == 1 else 's'}")
+    message = (f"Delete {len(doomed)} cached package files ({size}) from {', '.join(folders)}, {kept}"
+               + ("; packages that are not installed lose all their cached versions" if uninstalled else "") + ".")
+    return HelperPlan(id=_plan_id(), kind="cache", caller_uid=caller_uid, caller_sender=caller_sender, action_id=f"{ACTION_PREFIX}.cache.clean",
+                      message=message, summary=summary, commands=[], expires=time.monotonic() + PLAN_TTL, cache_keep=keep,
+                      cache_uninstalled=uninstalled, cache_files=[e.key for e in doomed])
+
+
+def clean_cache(plan: HelperPlan, sink: Callable[[str], None], *, config: pm.PacmanConfig | None = None,
+                selection=cacheclean.selection) -> dict[str, Any]:
+    """Remove what the plan showed, and only what is still chosen: the cache is read again now (under pacman's lock, with the database as
+    it is now), and a file goes only if it was in the plan AND the same rules choose it again AND it is still the same file. A package
+    installed since can only make the list shorter."""
+    config = config or _pacman_config_for_cache()
+    doomed, problems, _looked = selection(config, plan.cache_keep, plan.cache_uninstalled, viewer_uid=plan.caller_uid)
+    for problem in problems:
+        sink(f"left alone: {problem}")
+    result = cacheclean.delete(doomed, set(plan.cache_files))
+    freed = result["bytes"]
+    size = f"{freed / 2**20:.1f} MiB" if freed >= 2**20 else f"{max(1, round(freed / 1024))} KiB"
+    sink(f"Removed {result['removed']} files ({size}) from the package cache.")
+    for name, why in result["skipped"][:20]:
+        sink(f"  not removed: {name}: {why}")
+    return result
 
 
 # -- stale pacman lock ------------------------------------------------------------------------------------
@@ -564,8 +643,159 @@ def plan_group(group: str, op: str, *, caller_uid: int, caller_sender: str, ledg
                       else [("record_group", {"username": user, "group": group, "action": op})])
 
 
+# -- scripts ---------------------------------------------------------------------------------------------
+SCRIPT_RUN_SECONDS = 600
+MAX_SCRIPT_LOG_LINES = 500
+SCRIPT_UNIT = re.compile(r"cygnus-script-[0-9a-f]{16}\Z")
+SCRIPT_NAME = re.compile(r"[^\x00-\x1f\x7f]{1,200}\Z")
+SCRIPT_PATH = "/usr/local/sbin:/usr/local/bin:/usr/bin"
+
+
+def script_folder(path: str, caller_uid: int) -> tuple[int, int]:
+    """(device, inode) of the folder a script is to run in. It must be written as the plain absolute path it is (no trailing slash, `.`,
+    `..` or `//`, which are how a link at the end of a path is made to look like a folder), a real folder and not a link, and owned by
+    the person who asks: a script run as administrator in a folder of somebody else's, or of the system's, would pick up what is in it."""
+    if not isinstance(path, str) or not path.startswith("/") or "\0" in path or len(path) > 4096 or os.path.normpath(path) != path:
+        raise PlanRefused("the script's folder is not a plain absolute path")
+    try:
+        fd = os.open(path, os.O_PATH | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
+    except OSError as exc:
+        raise PlanRefused("the script's folder is not there, or is not a plain folder") from exc
+    try:
+        st = os.fstat(fd)
+    finally:
+        os.close(fd)
+    if st.st_uid != caller_uid:
+        raise PlanRefused("the script's folder is not yours")
+    return st.st_dev, st.st_ino
+
+
+def check_script_folder(plan: HelperPlan) -> None:
+    """Right before the run: the folder is still the very one that was planned (it was not replaced by a link or another folder)."""
+    if plan.script_folder_id is None or script_folder(plan.script_workdir, plan.caller_uid) != plan.script_folder_id:
+        raise PlanRefused("the script's folder is not the one that was planned any more, so the script will not be run")
+
+
+def plan_script(name: str, data: bytes, sha256: str, workdir: str, *, caller_uid: int, caller_sender: str) -> HelperPlan:
+    """Running one install script as administrator, only after a person said yes. The plan holds the exact bytes (the client sends them,
+    and the checksum it says it showed must be theirs), so what runs later is those bytes and nothing the client can change afterwards.
+    The script is run like `sudo` would run it, by a transient system unit with none of this helper's own restrictions (a private
+    /tmp, a read-only /home), because that is what the person who ticked the box expects. The helper cannot know that anything was
+    shown: any process of the person's account can ask for a script of its own, so the message of the password dialog says what the
+    script is (its size, interpreter, first line and full checksum) and that the person should only go on if they asked for it."""
+    if not isinstance(name, str) or not SCRIPT_NAME.match(name):
+        raise PlanRefused("that is not a script name")
+    if not isinstance(sha256, str) or not re.fullmatch(r"[0-9a-f]{64}", sha256):
+        raise PlanRefused("the checksum of the script that was shown is missing")
+    try:
+        text = scriptrun.script_text(data)
+        interpreter = scriptrun.interpreter_for(text)
+    except scriptrun.ScriptRefused as exc:
+        raise PlanRefused(str(exc)) from exc
+    if scriptrun.sha256(data) != sha256:
+        raise PlanRefused("this is not the script that was shown to you (its checksum differs), so it will not be run")
+    folder_id = script_folder(workdir, caller_uid)
+    try:
+        user = pwd.getpwuid(caller_uid)
+    except KeyError as exc:
+        raise PlanRefused("the person who asked has no account entry") from exc
+    shown = "".join(c if c.isprintable() else "?" for c in name)
+    first = text.split("\n", 1)[0][:60]
+    message = (f"Run the install script {shown} as administrator: {len(data)} bytes, run with {interpreter.program}"
+               f"{' ' + ' '.join(interpreter.options) if interpreter.options else ''}; its first line is {first!r}; checksum {sha256}. "
+               "Cygnus's own window shows a script in full before it asks, but this helper cannot check that anything was shown: only go on "
+               "if you just asked Cygnus to run this script. It can do anything on this computer, and Cygnus cannot undo what it does.")
+    plan = HelperPlan(id=_plan_id(), kind="script", caller_uid=caller_uid, caller_sender=caller_sender,
+                      action_id=f"{ACTION_PREFIX}.scripts.run", message=message,
+                      summary={"script": shown, "sha256": sha256, "folder": workdir, "bytes": len(data),
+                               "interpreter": interpreter.program, "first_line": first},
+                      commands=[], expires=time.monotonic() + PLAN_TTL, script=bytes(data), script_sha256=sha256, script_name=name,
+                      script_workdir=workdir, script_user=(user.pw_name, caller_uid, user.pw_gid), script_folder_id=folder_id)
+    plan.commands = [script_argv(plan, shown_only=True)]
+    return plan
+
+
+def script_argv(plan: HelperPlan, *, shown_only: bool = False) -> list[str]:
+    """The one command that runs a script plan. Built only from the plan's own fields, and again at run time from the bytes
+    (`shown_only` puts the checksum where the text would be, for the ledger and the log: they keep what ran, not its text)."""
+    if plan.script is None or plan.script_user is None or plan.script_sha256 is None:
+        raise PlanRefused("this plan holds no script")
+    if scriptrun.sha256(plan.script) != plan.script_sha256:
+        raise PlanRefused("the script no longer matches the checksum that was shown, so it will not be run")
+    text = scriptrun.script_text(plan.script)
+    user, uid, gid = plan.script_user
+    unit = f"cygnus-script-{plan.id[:16]}"
+    env = {"PATH": SCRIPT_PATH, "HOME": "/root", "USER": "root", "LOGNAME": "root", "SHELL": "/usr/bin/sh", "LANG": "C.UTF-8",
+           "SUDO_USER": user, "SUDO_UID": str(uid), "SUDO_GID": str(gid)}
+    argv = ["systemd-run", "--quiet", "--wait", "--pipe", "--collect", f"--unit={unit}", f"--working-directory={plan.script_workdir}",
+            "-p", f"RuntimeMaxSec={SCRIPT_RUN_SECONDS}", *[f"--setenv={k}={v}" for k, v in env.items()], "--"]
+    command = scriptrun.command_for(text, os.path.join(plan.script_workdir, plan.script_name))
+    if shown_only:
+        command[command.index(text)] = f"<the script with checksum {plan.script_sha256}>"
+    return argv + command
+
+
+def check_script_command(argv: list[str], plan: HelperPlan) -> None:
+    """Last line of defence for a script plan: the command to run is exactly what the plan builds, nothing else. (`systemd-run` is not
+    in the general allow-list: this is the only place that lets it through, and only for a script plan.)"""
+    if plan.kind != "script" or argv != script_argv(plan):
+        raise PlanRefused("the command to run is not the one this plan describes")
+
+
+SCRIPT_OUTPUT_LIMIT = 1024 * 1024  # what a script prints is passed on up to this much; the rest is read and thrown away
+SCRIPT_LINE_LIMIT = 2000
+
+
+def forward_output(read: Callable[[int], bytes], sink: Callable[[str], None], *, limit: int = SCRIPT_OUTPUT_LIMIT,
+                   line_limit: int = SCRIPT_LINE_LIMIT) -> int:
+    """Pass a program's output to `sink` line by line, whatever shape it has: one line is cut at `line_limit` bytes (the rest of it, up to
+    the newline, is dropped without being kept), and after `limit` bytes in all the rest is read and discarded, so that the program is
+    never held up and this process's memory is bounded by one line however much is written (the limit is checked after each read, so it
+    holds to within one read). Returns the number of bytes read."""
+    pending = bytearray()
+    dropping = False  # inside a line that was cut
+    total = 0
+    noted = False
+
+    def emit() -> None:
+        sink(bytes(pending).decode("utf-8", "replace"))
+        pending.clear()
+
+    while True:
+        chunk = read(65536)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > limit:
+            if not noted:
+                noted = True
+                if pending:
+                    emit()
+                sink(f"[the rest of the output was dropped: more than {f'{limit // 1024} KiB' if limit >= 1024 else f'{limit} bytes'}]")
+            continue
+        start = 0
+        while start < len(chunk):
+            newline = chunk.find(b"\n", start)
+            end = len(chunk) if newline < 0 else newline
+            if not dropping:
+                pending += chunk[start:end]
+                if len(pending) > line_limit:
+                    del pending[line_limit:]
+                    dropping = True
+                    emit()
+            if newline < 0:
+                break
+            if not dropping:
+                emit()
+            dropping = False
+            start = newline + 1
+    if pending and not noted:
+        emit()
+    return total
+
+
 # -- execution ------------------------------------------------------------------------------------------
-ALLOWED_PROGRAMS = {"pacman", "systemctl", "gpasswd"}
+ALLOWED_PROGRAMS = {"pacman", "systemctl", "gpasswd"}  # a script plan's one command (systemd-run) is checked by check_script_command, not here
 PACMAN_FLAGS = {"-S", "-Su", "-U", "-R", "--noconfirm", "--needed", "--asdeps", "--"}
 
 
@@ -767,9 +997,13 @@ def changes_since(when: float, log_path: str | None = None, limit: int = 1 << 20
 def execute(plan: HelperPlan, *, run: Callable[[list[str], Callable[[str], None]], int], ledger, op_id: str,
             progress: Callable[[str], None] = lambda line: None) -> tuple[bool, str]:
     log: list[str] = []
+    dropped = [0]
 
     def sink(line: str) -> None:
         log.append(line)
+        if plan.kind == "script" and len(log) > MAX_SCRIPT_LOG_LINES:  # what a script prints is not allowed to fill this process's memory
+            del log[:len(log) - MAX_SCRIPT_LOG_LINES]
+            dropped[0] += 1
         progress(line)
 
     ok = True
@@ -793,6 +1027,10 @@ def execute(plan: HelperPlan, *, run: Callable[[list[str], Callable[[str], None]
         ledger.begin(op_id, plan.kind, plan.caller_uid, plan.summary, plan.commands)  # inside: cleanup must always run
         if plan.kind == "lock":  # no commands: the helper removes the file itself, after checking again
             sink(clear_stale_lock(plan))
+        if plan.kind == "cache":  # no commands: the helper removes the files itself, with pacman's lock held so nothing is being downloaded into the folder
+            wait_for_pacman_lock(sink)
+            with _HeldLock():
+                clean_cache(plan, sink)
         if plan.kind == "packages":
             wait_for_pacman_lock(sink)
             still_current()
@@ -800,7 +1038,16 @@ def execute(plan: HelperPlan, *, run: Callable[[list[str], Callable[[str], None]
             with _HeldLock():
                 install_sync_snapshot(plan.sync_snapshot)
             expect_sync = sync_db_fingerprint()
-        for argv in plan.commands:
+        if plan.kind == "script":  # one command, built again from the bytes that were shown, and checked against the plan
+            check_script_folder(plan)
+            argv = script_argv(plan)
+            check_script_command(argv, plan)
+            sink(f"$ run {plan.script_name!r} as administrator (checksum {plan.script_sha256})")
+            rc = run(argv, sink)
+            if rc != 0:
+                sink(f"[exit status {rc}]")
+                ok = False
+        for argv in ([] if plan.kind == "script" else plan.commands):
             check_command(argv, plan.staged)
             if plan.kind == "packages":
                 still_current()  # before EVERY command: another program may act between two of ours
@@ -835,6 +1082,8 @@ def execute(plan: HelperPlan, *, run: Callable[[list[str], Callable[[str], None]
                 pass
         if plan.sync_snapshot:
             shutil.rmtree(plan.sync_snapshot, ignore_errors=True)
+        if dropped[0]:
+            log.insert(0, f"[the first {dropped[0]} lines of output were dropped]")
         ledger.finish(op_id, "succeeded" if ok else "failed", "\n".join(log))
     return ok, "\n".join(log[-50:])
 

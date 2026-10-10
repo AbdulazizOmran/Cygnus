@@ -2,7 +2,8 @@
 
 Runs as root, D-Bus activated, exits when idle. It computes plans itself, binds them to the
 calling process, asks polkit with a summary it generated, and executes only allow-listed
-commands (pacman, systemctl, gpasswd) with argv lists. It never runs shell strings.
+commands (pacman, systemctl, gpasswd) with argv lists. It never runs shell strings of its own; the one exception is the text of an
+install script a person chose to run as administrator, handed to its interpreter after the checks described in docs/security.md.
 """
 
 import os

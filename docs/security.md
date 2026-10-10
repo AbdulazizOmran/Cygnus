@@ -9,14 +9,14 @@ narrower than that design, this document says so.
 | Process | Runs as | Does |
 |---|---|---|
 | **Cygnus** (`cygnus`, `cygnus-gui`) | you | Everything in your account: analysis, health checks, AppImages, the Flatpak *user* installation, menu entries, the registry and journal. |
-| **Helper** (`io.github.omranabdulaziz.Cygnus.Helper1`) | root, started on demand by systemd over D-Bus | Only system changes: pacman installs, enabling services that installed packages ship, adding *you* to an allow-listed group. |
+| **Helper** (`io.github.omranabdulaziz.Cygnus.Helper1`) | root, started on demand by systemd over D-Bus | Only system changes: pacman installs, enabling services that installed packages ship, adding *you* to an allow-listed group, and (only when you chose it, for a script you were shown) running one install script as administrator, see [Running install scripts](#running-install-scripts-an-opt-in). |
 
 There is never a root GUI.
 - **Integrity:** the helper and the pyalpm worker run Python in isolated mode (`-I`): user
   `site-packages`, `.pth` files and `PYTHON*` variables are ignored. The GUI, the command line and
   the background check are ordinary programs of your own account (they can do only what you can).
 - **Lifetime:** the helper exits when idle.
-- **Sandboxing:** the helper's unit has a private `/tmp` and a read-only `/home`.
+- **Sandboxing:** the helper's unit has a private `/tmp` and a read-only `/home`. The one deliberate exception is a script you chose to run as administrator: it runs in a system unit of its own without those limits, as `sudo` would run it (see below).
 
 ## 2. The helper owns every plan
 
@@ -42,7 +42,7 @@ summary.
 |---|---|---|
 | `packages.install-repo`, `system.upgrade` | `auth_admin_keep` | installs and full upgrades from your configured, signed repositories |
 | `packages.install-local` | `auth_admin` | downloaded or locally built packages: unsigned code that runs as root |
-| `packages.remove`, `services.manage`, `permissions.manage`, `recovery.manage` | `auth_admin` | each time, with details |
+| `packages.remove`, `services.manage`, `permissions.manage`, `recovery.manage`, `scripts.run`, `cache.clean` | `auth_admin` | each time, with details |
 
 Inactive and remote sessions are always denied (`allow_any` and `allow_inactive` are `no`).
 
@@ -205,6 +205,90 @@ installations. On this machine's NTFS drive neither would be allowed anyway.
 **System update checks** run without root. Fresh databases are downloaded into Cygnus's own cache
 (the way `checkupdates` does it); `/var/lib/pacman` is only read.
 
+**Arch news** (`cygnus/core/news.py`). Before a system update the Arch news feed is read from `archlinux.org` only (HTTPS, redirects
+checked hop by hop against that host, 1 MiB cap; the update waits at most 20 seconds for it, in the terminal too). The document is refused if it contains a document type or an entity
+declaration, in any encoding (expat's own handlers, after a first look at the bytes; nothing in a feed needs either, and both are how XML is attacked), at most 60 items are read, every text is reduced
+to plain text (scripts and styles dropped, non-printable characters replaced), and an item's link is kept only if it is an ordinary
+`https://archlinux.org/...` address; it is only ever opened by a click. "Since your last upgrade" is read from the tail of
+`/var/log/pacman.log` (world-readable). Every item that says it needs a manual step is among the items shown (wherever it comes in the feed, and the wording is searched in the
+whole text, not the shown part), so the acknowledgement is never for something unseen. A feed that cannot be read never blocks an update: the answer says so.
+
+**Snapshot note** (`cygnus/core/snapshots.py`). Only looks: the hook files pacman will really use (the hook folders in `pacman-conf`'s
+order, the shipped folder last; a link to `/dev/null` switches a hook off), `/etc/snap-pac.ini` and Snapper's list of configurations
+(`/etc/conf.d/snapper`), the way snap-pac itself reads them. snap-pac counts as installed only when the hook its package ships is there.
+Cygnus runs no snapshot tool: a Snapper snapshot taken from the helper, as root, would be code nobody could try on a machine that
+already has snap-pac, so it was not built. The acknowledgement
+for an item that needs a manual step is a courtesy to the person at the keyboard (a disabled button, a terminal question that
+`--yes` does not answer), not a security boundary; the helper does not know about it.
+
+### Cleaning pacman's package cache (a helper action that deletes cache files)
+
+`cache.clean` is the helper action that deletes files from pacman's package cache, and it does so itself (there is no command line: no
+`pacman -Sc`, no `paccache`; the helper's other deletions are its own staged package copies and a stale `db.lck`), so it is built
+narrowly (`cygnus/core/cacheclean.py`, `plan_cache_clean` / `clean_cache` in `cygnus/helper/actions.py`, D-Bus `PlanCacheClean(y, b)`):
+- **A client gives two choices and nothing else**: how many older versions to keep (0 to 10) and whether packages that are not
+  installed lose all their cached versions. Anything else is refused. The helper reads `pacman-conf` and pacman's own database itself and
+  chooses the files; it never accepts a path, a name or a pattern from a client.
+- **Which folders**: only the `CacheDir`s `pacman-conf` names, and only a folder that is an absolute path with no odd part in it,
+  reached with no link anywhere on the way (each component opened with `O_DIRECTORY|O_NOFOLLOW`), root's own, and not group- or world-writable. A folder that does not
+  pass is left alone and said so (the same rule keeps a downgrade from using a user-writable folder). A folder that also holds a repository
+  database (`*.db`, `*.files`) is a local repository used as a cache folder, and is left alone too: its database still lists the packages;
+  so is a folder with more than 40,000 entries (too many to judge safely). A folder is judged whole or not at all. Every folder on the way
+  to the cache folder must be root's own and not writable by anyone else (a sticky folder such as `/tmp` is allowed), the path is walked
+  one component at a time with `O_NOFOLLOW`, and when someone other than root asks for a plan, a folder they could not look into
+  themselves is refused (what is in it is not theirs to learn from a plan).
+- **Which files**: regular files only (never a link, a folder such as `download-*`, or a `.part` file) whose name parses as
+  `name-pkgver-pkgrel-arch.pkg.tar[.ext]` for a valid package name, and the `.sig` next to such a package. Nothing else is ever touched.
+- **What stays**: per package and architecture the installed version, always, plus the `keep` newest others, ordered by libalpm's own
+  version rules in one question to the worker (never by file date). A group whose order does not match exactly the cached versions is
+  skipped rather than guessed at.
+- **Shown, then removed**: the plan holds the exact list (folder, name, device, inode). At commit the helper waits for pacman's lock, takes
+  it (`db.lck`, like the sync-database install does), chooses AGAIN with the database as it is then, and removes a file only if it was in
+  the plan, is chosen again, and is still the same regular file; each file is removed with `unlinkat` relative to the folder's descriptor,
+  so a link put in its place is never followed. A package installed in between can only make the list shorter.
+- The polkit action is `auth_admin` every time, never `_keep`; the message names the count, the size and the folder.
+
+### The Packages page (repository packages by name)
+
+Search, the installed list and a package's details are read-only: three more operations of the same crash-isolated libalpm worker
+(`search`, `installed`, `details` in `cygnus/core/backends/alpm_worker.py`), which works on a private scratch database folder whose
+`local` and `sync` entries are links to the real ones (nothing is written). The search is Cygnus's own substring search, never
+libalpm's, which takes regular expressions: what is typed is plain text, at most 8 words of 100 characters, and results are capped
+(200 matches, 200 entries per list, 3,000 file names; the answer says how much was left out). Text that comes from a package
+database (names, descriptions, URLs, file names) is made safe in the worker: every character that is not printable is replaced by a
+space, so an escape sequence or a direction mark cannot reach a terminal or move text around on screen.
+
+No new administrator action was added. Install and Remove ask the helper for the same package plans as everything else
+(`pacman -S --noconfirm --needed -- NAMES`, `pacman -R --noconfirm -- NAMES`, never `-s`, `-c` or `-d`: pacman itself refuses to remove
+what another package needs). The page's own checks (the name is valid, the package is offered or installed, nothing needs it, it is
+not protected) exist to say why in words; the helper repeats every rule that matters and the page's answer is never trusted: names
+must match the helper's pattern, protected packages and `HoldPkg` are refused, the partial-upgrade blocker applies (installing with
+updates waiting is refused, and the page then points at the Updates page), and removing a package the ledger does not hold needs
+`confirm_not_installed_by_cygnus`, which the page sends only after a box ticked on purpose (the terminal: its own flag, never `--yes`).
+Search reads the system's current package lists as they are and shows their age; Cygnus never refreshes them alone (a refresh
+without an upgrade is a partial upgrade). Removing everything no longer needed is a package removal like any other (`pacman -R --noconfirm -- NAMES`, up to 200 names, one
+question to the worker for all of them): protected packages, packages another installed package needs (unless it is removed in the same
+plan), and packages Cygnus manages as applications are refused, and a package Cygnus did not install needs the explicit confirmation
+(one for the whole plan, which lists the names). "No longer needed" is what `pacman -Qdt` lists; it is advice, not proof (a tool you use
+by hand, or built something with, can be on it), which the screen says.
+
+Going back to an older version (`cygnus/core/pkgcache.py`) adds no helper surface either: the cached versions are listed from
+the cache folders `pacman-conf` names (regular files only, never links; names parsed strictly, then compared with libalpm's own
+rules in one worker call), and the chosen one goes through the existing package-file plan. The window names a package and a version,
+never a path: the file is found again at the moment of use, hashed without following links, and the helper's reading of it (name and
+version, through libalpm) must equal what was asked for. A protected package is refused (the helper refuses it too), and nothing is
+recorded in Cygnus's application list. The helper does not check a package file's signature (it labels it UNSIGNED and shows the
+SHA-256): the file's standing is that the cache is administrator-only and pacman put it there after checking the signature.
+
+The helper takes one more request field, `claim_ownership` (default true): a package FILE that only replaces an installed package the
+ledger does not hold (going back to an older version of a repository package) is then not entered in the ledger as installed by
+Cygnus, so a later removal still asks about it. Only exactly `false` declines; a package the ledger already holds is still recorded
+(its version follows), and a package that was not installed before is recorded as always.
+
+A package installed here is recorded in the helper's ledger like any other and is not an
+"application" in Cygnus's own list; and a package that IS one (a converted `.deb`/`.rpm`, a package file, an AUR build) is not removed
+from this page, so that the application list never keeps an entry whose package is gone.
+
 ## 3. Everything from outside is hostile
 
 **Package files.** AppImage, Flatpak bundle, `.pkg.tar.*`, `.deb` and `.rpm` parsers:
@@ -225,7 +309,7 @@ reduced to 0755 (any execute bit) or 0644 and folders to 0755 (no setuid, setgid
 again by where it really leads on the unpacked tree, and the whole tree is unpacked into a hidden folder beside the final one
 and renamed into place only when complete and equal to what the archive listed. The target drive's abilities
 (permissions kept, rename, links if needed, file names it can hold) are checked first, and the system drive is used when the
-chosen one cannot; too little free space stops the install instead (never a silent move). Nothing from the archive is run, ever; its install scripts are shown with what they mention. The folder holds a
+chosen one cannot; too little free space stops the install instead (never a silent move). Nothing from the archive is run unless you tick one of its install scripts (see [Running install scripts](#running-install-scripts-an-opt-in)); they are shown in full, with what they mention. The folder holds a
 marker file with the installation's id; **removal** only ever deletes a real folder (not a link) whose marker has that id, after the
 person asked and was told how many files changed or were added since (a program that updates itself changes its own folder), and
 never `/` or the home folder; the step is last and has no undo. A program from an archive runs as the person, unsandboxed, like any
@@ -260,10 +344,10 @@ capped. Digests are verified before a file is used, and partial files are delete
 - **Build.** The build uses exactly the reviewed commit, as you, in a checkout where your git
   configuration and hooks do not apply. Installing the result is a separate `auth_admin` step.
 
-**Converted DEB/RPM packages** carry no install scripts and no setuid bits, and pacman owns every
+**Converted DEB/RPM packages** carry no install scripts (unless you chose to run the vendor's, see below) and no setuid bits, and pacman owns every
 file. Files go only to `/usr`, `/etc` and `/opt` (anything else is refused when the package is
 analysed, and again when it is built).
-- **Scripts are read, never run.** Cygnus splits each maintainer script into its commands and
+- **Scripts are read first, and run only if you choose to.** Cygnus splits each maintainer script into its commands and
   recognises a small set of them (cache updates such as `ldconfig` and `update-desktop-database`,
   messages, systemd calls, Debian packaging helpers). Anything it cannot read with confidence blocks
   the conversion by default: command or process substitution, here-documents, functions, wrapper programs
@@ -271,7 +355,7 @@ analysed, and again when it is built).
   (found from its `#!` line, or from the RPM program tag), and any command it does not know. File
   commands on system paths, recursive removals, and user or group creation (including RPM
   `sysusers` entries) block it too. File commands elsewhere are shown to you for review.
-- **Scripts that could not be read may be gone past knowingly, never run.** Conversion drops every script, so
+- **Scripts that could not be read may be gone past knowingly, not run.** Unless you chose to run them, conversion drops every script, so
   nothing in one can execute either way. When the only reason is that Cygnus cannot read a script, the person
   may convert anyway after Cygnus shows what the scripts mention (a plain word search for notable commands;
   user, group, kernel-module and service commands are listed first and flagged), the whole script text, and a
@@ -320,12 +404,12 @@ analysed, and again when it is built).
   link targets read as paths inside the package), so a dangling link or a text file with a library's name does not hide a
   missing library. Files under `/etc/grub.d` (run as administrator whenever the boot menu is rebuilt) block like the other
   files that run as administrator.
-- **Vendor scripts are never run, not even in a sandbox (a decision, not a gap).** Running a maintainer script in a sandbox
-  to watch what it does was considered and rejected. Debian's scripts expect Debian's own tools (`dpkg`, `debconf`,
+- **Cygnus never runs a script to find out what it does (a decision, not a gap).** Running a maintainer script in a sandbox
+  to watch it was considered and rejected. Debian's scripts expect Debian's own tools (`dpkg`, `debconf`,
   `update-alternatives`, `adduser`), so on Arch they would mostly fail or need imitations that make the observation a guess; what
   they could tell that the text reading above cannot (files generated at run time) is small; and every sandbox is a promise that
-  a kernel or sandbox flaw can break, while "nothing in the vendor's package is executed during conversion" is a promise that
-  needs no trust at all. If a package needs a step Cygnus cannot read, it says so, shows the script, and the person decides.
+  a kernel or sandbox flaw can break. If a package needs a step Cygnus cannot read, it says so and shows the script. A script is
+  run only when you choose to run it for real: see below.
 - **Updates of converted programs download, they do not install.** For the vendors that publish an apt `Packages` list (a built-in list of thirteen well known
   vendors, plus any you add yourself with `cygnus feed add`, which must be https and is read once before it is kept) Cygnus reads the newest version from it over HTTPS (TLS only; the list is decompressed with a
   size cap, every field is validated, and a file name that leads outside the vendor's own folder is refused). "Download and review"
@@ -364,7 +448,7 @@ analysed, and again when it is built).
   compares with the installed version, and keeps the last good answer. It downloads and installs nothing: Cygnus does not update
   itself, because its package contains the administrator helper and its releases are not signed.
 - **Uninstall scripts and `/var`.** `rm`, `rmdir` and `unlink` in an uninstall script (prerm, postrm, preun, postun) are
-  ignored, because those scripts are never run and what they clean up was never made; the same commands in an install
+  ignored, because by default those scripts are not run and what they clean up was never made; the same commands in an install
   script still block. A `/var` that holds only empty folders is left out; one with any file or link in it is refused.
 - **Missing libraries.** A library is *required* when a program of the package (a file with a program
   interpreter) loads it, directly or through a library of the package; a library only a file nothing loads at
@@ -390,9 +474,104 @@ analysed, and again when it is built).
 - **What you confirm is what is converted:** the analysis carries the file's SHA-256, and a file
   that changed afterwards is refused.
 
-**Vendor scripts are never run.**
+### Running install scripts (an opt-in)
+
+Until 0.1.2 no install script was ever run. Since then a person can choose to run the scripts that come with a file. This was a
+change of the project's rule made at the user's request (2026-10-10), and it is the one place where Cygnus runs code that came out
+of a file it did not make. **Nothing runs by default**, and nothing runs for a script the person was not shown.
+
+What is offered, and how each one runs:
+
+| Where the script comes from | Who runs it | How |
+|---|---|---|
+| A tar archive (Discord's `postinst.sh`, an `install.sh`) directly in the program's folder | **you**, or **administrator** | As you: Cygnus starts the interpreter itself, after the install, in the program's folder. As administrator: through the helper (below). |
+| A `.deb` or `.rpm` | **pacman, as administrator** | The vendor's scripts are written into the converted package's pacman install file (`.INSTALL`), so pacman runs them inside the install the person already approves, with the arguments Debian or rpm would have given them. |
+| An Arch package or an AUR build | pacman, as administrator | Unchanged: pacman always did this, and the approval dialog says "it runs an install script as root". |
+| AppImage, Flatpak | nothing | They have no install scripts. |
+
+What is guaranteed for every script:
+- **Off by default, for every file.** The box starts unticked and is reset when another file is opened. It is only there while the script's
+  full text is on screen, with what it mentions, and hiding the text takes the choice back; what will run is written next to the Install
+  button. (Static tests pin all of this: `tests/test_scripts_qml.py`.) `-y` in the terminal never implies it: `--run-scripts` does, and
+  `--scripts-as-admin` is refused without it.
+- **A script is only offered if it can be shown exactly as it would run.** It must be valid UTF-8 with no zero byte and none of the
+  characters that cannot be seen or that move text around (a carriage return, zero-width and direction marks, a byte-order mark, a
+  no-break space, other control characters; only the newline and the tab are allowed besides ordinary characters), must not start with a
+  dash (a text that is itself an option, like `-x`, would make the shell run the file on disk instead), and must name an interpreter
+  Cygnus knows: `sh`, `bash`, `zsh`, `python3`/`python`, `perl`. The first line is followed as it says or the script is refused:
+  the program must be in `/bin` or `/usr/bin` (or found by `env` with no options), and at most one option cluster of a short list
+  may follow (`-e`, `-x`, `-u`... for shells, `-u`, `-O`... for Python, `-w` for Perl); `#!/bin/sh -e` runs with `-e`. It must be shown
+  whole: an archive's scripts up to 64 KiB are shown in full; a deb's or rpm's up to 60,000 characters, and one the reader only kept
+  the start of (`uninspected_scripts`, which includes a maintainer script that is a link) is never written into a package. An
+  archive's install scripts are the ones directly in the program's folder (a file called `update` deeper down is part of the program),
+  at most eight. Anything else that looks like a script is listed with the reason and never offered: none is dropped without a word.
+  Running the vendor's scripts for a deb or rpm also needs the checksum of the analysis that was read, so the scripts that run are those
+  of the file that was shown; and a package that *declares* users or groups (rpm `sysusers`) is still refused, because running its
+  scripts would not create them. For an rpm the program the package declares is used, and a first line that names another one refuses the script.
+- **The bytes that run are the bytes that were shown.** The archive reader records the SHA-256 of each script's raw bytes; the choice
+  carries it; before running, the file in the program's folder is read again without following any link on the way and must match.
+  As you, and as administrator, the text goes to the interpreter on its command line (`interpreter [options] -c TEXT NAME`), so there is
+  no file to swap between the check and the run and the script's standard input stays free. For a deb or rpm the text is written
+  out of the install file byte for byte (a test compares the bytes) into a private temporary folder and run from there.
+- **Once.** As you, a marker is taken before the run, so a step that was interrupted is never repeated by a resume; a script that may
+  have half-run is not run a second time. As administrator, a plan is single-use: it runs once, and running it again takes a new
+  confirmation and a new password. (A deb or rpm script runs when pacman installs, upgrades or removes the package, as pacman decides.)
+- **A failing script never undoes the install.** Scripts run last, after the program is recorded. One that fails, times out (300 s as
+  you; 600 s as administrator, and in a deb/rpm's direct fallback) or is refused is reported ("The program is installed, but the script
+  ... did not finish: ...", and a non-zero exit status 2 in the terminal) and nothing is rolled back. There is no undo for what a script
+  did. pacman ignores the exit status of an install script, so a deb or rpm script that refuses (exits with an error) cannot stop the
+  install or the removal; its message is shown.
+- **The time limit holds.** As you, the limit is enforced from outside: a program the script started and left running (even in a session
+  of its own) never makes Cygnus wait, though one that called `setsid` is not stopped when the time is up (the script's own process
+  group is). A script that starts a program on purpose and ends is allowed to: the program is not stopped, and what it prints is thrown away.
+- **A clean environment.** As you, a script sees your home, name and desktop session variables and a plain `PATH`; nothing else of
+  Cygnus's environment (a token in it is not handed over). What it prints is kept to the last 16 KiB, with control characters removed.
+- **Removal scripts** (`prerm`, `postrm`, `uninstall`) run first when the program is uninstalled, while the folder they live in exists.
+  The window offers them to run as you; the terminal can also run them as administrator, after the removal has been confirmed. They are
+  not runnable from the "Install scripts…" dialog, which is for install scripts. For a deb or rpm they run when pacman removes the
+  package, if it was converted with them. **On an upgrade pacman runs only the new package's pre- and post-install steps**, so the old
+  package's removal scripts (Debian's `prerm`/`postrm upgrade`, rpm's `preun`/`postun` with 1) are not run, and the screen says so.
+
+**The administrator action of the helper (`PlanScript`, polkit action `scripts.run`)** is the part to audit first:
+- It is the only way the helper runs text it was handed. The client sends the script's bytes and the checksum it says it showed; the
+  helper refuses unless they match, then keeps the bytes in the plan (the client cannot change them afterwards). It refuses names with
+  control characters, a script over 64 KiB or that is not shown-exactly text, an interpreter or first-line option it does not follow,
+  and a folder that is not a plain absolute path (no trailing slash, `.`, `..` or `//`), not a real folder (a link is refused) or not owned
+  by the person who asked (so `/tmp` and system folders are refused). The folder's device and inode are noted, and checked again right
+  before the run (a best effort: the unit's own start resolves the path again).
+- The plan is the usual single-use, ten-minute plan bound to the caller's D-Bus connection and user id, with the usual limits on pending plans.
+- **The helper cannot know that anything was shown.** Any process running as the same user can call `PlanScript` with a script of its own
+  and a matching checksum; the only gate is the password dialog. So the dialog's message says what the script is (name, size, the program
+  it runs with, its first line, its full checksum) and that the person should only go on if they just asked Cygnus to run it.
+- Authorisation is `auth_admin` and **never** `auth_admin_keep`, so a password is asked for every script and nothing is cached for another
+  program on the same session to reuse.
+- At run time the helper builds the one command from the plan's own bytes (re-hashed first) and checks the command against the plan. `systemd-run`
+  is not in the helper's general allow-list; only `check_script_command`, for a script plan, lets it through, in exactly that shape: a fixed
+  set of flags, a fixed set of environment variables (`PATH`, `HOME`, `USER`, `LOGNAME`, `SHELL`, `LANG`, and `SUDO_USER`/`SUDO_UID`/`SUDO_GID` as
+  `sudo` would set them), the plan's own folder, an interpreter from a short fixed list and the script text.
+- **The script runs outside the helper's own restrictions** (a transient system unit started by systemd: no private `/tmp`, no read-only
+  `/home`), because that is what someone who chose to run it as administrator expects, and a script such as Discord's cache clean-up
+  would otherwise appear to succeed and change nothing. The unit stops itself after 600 s. This is a deliberate weakening of the
+  helper's containment for this one action: a script you chose can do anything root can.
+- What a script prints is read as bytes by the helper: a line is cut at 2,000 bytes (the rest of it is dropped as it arrives, never held),
+  1 MiB is passed on and the rest read and thrown away, and the ledger keeps 500 lines with the script's name and checksum but not its text.
+
+What this does **not** do, and cannot:
+- It is not a sandbox and not a security boundary. A script you choose to run can do anything your account (or root) can. Cygnus
+  cannot tell who made an archive; the plan says so every time.
+- Reading a script's text (the list of what it mentions) can miss what a script builds at run time, and can over-report. It helps a
+  person decide; it is not a verdict.
+- Scripts written for Debian or Fedora expect that system's own tools (`dpkg`, `debconf`, `update-alternatives`, `adduser`). One that
+  cannot find them fails (and the install goes on). `config` and trigger scripts, and scripts for lua and the like, are left out and said to be.
+  The script runs from a temporary path, not from `/var/lib/dpkg/info/<package>.postinst`, so one that looks at `$0` sees that path.
+- A deb or rpm script run by pacman cannot be shown a second confirmation at the moment it runs: the person confirmed it, with the text
+  in front of them, when choosing to convert; the helper's approval dialog says that the package runs an install script as root.
+- A script run through the long-running pool of the window can occupy one of its three threads for up to five minutes.
+- Running scripts never lets a package through that is refused for what it ships (files outside `/usr`, `/etc` and `/opt`, setuid files,
+  udev rules that run programs): only blocks that were about the scripts themselves are lifted. (The analysis still treats `rm` in a
+  removal script as clean-up and does not block on it; when the box is ticked the screen's list of what the scripts mention includes it.)
+
 - A manifest cannot express a command (see the [manifest spec](manifest-spec.md) §7).
-- DEB/RPM maintainer scripts are classified, never executed.
 - Vendor instructions such as `curl … | sudo bash` are quoted to you, never followed.
 
 ## 4. Manifests

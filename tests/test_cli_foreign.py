@@ -28,8 +28,9 @@ def calls(monkeypatch):
     monkeypatch.setattr(service, "file_sha256", lambda p: "cd" * 32)
     monkeypatch.setattr(service, "record_package_install", lambda *a, **k: None)
 
-    def convert(path, progress, sha, optional=(), accept_unread_scripts=False):
+    def convert(path, progress, sha, optional=(), accept_unread_scripts=False, run_vendor_scripts=False):
         seen["convert"].append((list(optional), accept_unread_scripts))
+        seen.setdefault("run_vendor", []).append(run_vendor_scripts)
         return {"package": "/x.pkg.tar.zst", "name": "chrome", "version": "1", "notes": [], "vendor_package": "chrome",
                 "vendor_format": "deb"}
 
@@ -39,7 +40,7 @@ def calls(monkeypatch):
 
 def _run(monkeypatch, plan, **flags):
     monkeypatch.setattr(service, "analyse", lambda *a, **k: plan)
-    options = {"with_optional": False, "accept_scripts": False, **flags}
+    options = {"with_optional": False, "accept_scripts": False, "run_scripts": False, "scripts_as_admin": False, **flags}
     return cli._install_foreign(argparse.Namespace(file="/tmp/x.deb", registry=None, yes=True, **options))
 
 
@@ -102,3 +103,11 @@ def test_progress_lines_that_only_move_a_bar_are_not_printed(capsys):
     cli._say("plain line")
     cli._say("indented", "  ")
     assert capsys.readouterr().out.splitlines() == ["Installing org.x.App…", "plain line", "  indented"]
+
+
+def test_the_vendors_scripts_are_never_run_by_accepting_unread_ones_or_by_yes_alone(monkeypatch, calls):
+    plan = {**REVIEW, "vendor_scripts": {"names": ["postinst"], "texts": {"postinst": "#!/bin/sh\ntrue\n"}, "left_out": [], "warning": "w"}}
+    assert _run(monkeypatch, plan, accept_scripts=True) == 0
+    assert calls["run_vendor"] == [False]  # --accept-scripts is about scripts Cygnus could not read; it never runs any
+    assert _run(monkeypatch, plan, run_scripts=True) == 0
+    assert calls["run_vendor"] == [False, True]  # only the flag does

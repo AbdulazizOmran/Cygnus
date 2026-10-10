@@ -138,6 +138,7 @@ class OperationReport:
     compensation_errors: list[str] = field(default_factory=list)
     kept: list[str] = field(default_factory=list)  # things deliberately left in place (e.g. files you edited)
     kept_reasons: dict[str, str] = field(default_factory=dict)  # path -> why it was left
+    results: dict[int, dict[str, Any]] = field(default_factory=dict)  # step number -> what the step reported (steps that finished)
 
 
 class Executor:
@@ -190,6 +191,7 @@ class Executor:
         completed = list(range(start))
         kept: list[str] = []
         reasons: dict[str, str] = {}
+        results: dict[int, dict[str, Any]] = {}
         for seq in range(start, len(steps)):
             step = steps[seq]
             if progress:
@@ -200,7 +202,7 @@ class Executor:
             except Exception as exc:  # noqa: BLE001 - every failure is journaled and reported
                 self._mark(op_id, seq, "failed", result={"error": str(exc), "type": type(exc).__name__})
                 report = OperationReport(op_id=op_id, state="failed", completed=completed, failed_step=seq,
-                                         error=str(exc), kept=kept, kept_reasons=reasons)
+                                         error=str(exc), kept=kept, kept_reasons=reasons, results=results)
                 if rollback:
                     self._rollback(op_id, report)
                 else:
@@ -209,6 +211,7 @@ class Executor:
                 return report
             self._mark(op_id, seq, "done", result=outcome.result, compensation=outcome.compensation)
             completed.append(seq)
+            results[seq] = outcome.result
             if isinstance(outcome.result, dict) and outcome.result.get("kept"):
                 for left in outcome.result.get("left_over") or [outcome.result.get("path")]:
                     if left:
@@ -216,7 +219,7 @@ class Executor:
                         reasons[str(left)] = str(outcome.result.get("reason") or "left in place")
         self._finish(op_id, "succeeded")
         return OperationReport(op_id=op_id, state="succeeded", completed=completed, kept=kept,
-                               kept_reasons=reasons)
+                               kept_reasons=reasons, results=results)
 
     def _rollback(self, op_id: str, report: OperationReport) -> None:
         # A step the process died in has no compensation yet; if its kind has an "<kind>.abort"

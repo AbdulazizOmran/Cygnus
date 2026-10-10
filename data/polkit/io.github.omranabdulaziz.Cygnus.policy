@@ -61,6 +61,24 @@
       <allow_active>auth_admin</allow_active>
     </defaults>
   </action>
+  <action id="io.github.omranabdulaziz.Cygnus.scripts.run">
+    <description>Run an install script as administrator</description>
+    <message>Authentication is required to run an install script as administrator</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+  </action>
+  <action id="io.github.omranabdulaziz.Cygnus.cache.clean">
+    <description>Delete old files from the package cache</description>
+    <message>Authentication is required to delete old files from the package cache</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+  </action>
   <action id="io.github.omranabdulaziz.Cygnus.recovery.manage">
     <description>Recover from a failed operation</description>
     <message>Authentication is required to repair the package system</message>

@@ -300,7 +300,9 @@ def _confirm(message: str, assume_yes: bool) -> bool:
     return assume_yes or _answer_yes("Proceed? [y/N] ")
 
 
-def _run_steps(kind: str, steps, reg, assume_yes: bool, description: str) -> int:
+def _run_steps(kind: str, steps, reg, assume_yes: bool, description: str, *, before_apply=None, after=None) -> int:
+    """Show the steps, ask once, run them. `before_apply()` runs after the question and before the first step (returning False cancels);
+    `after(report)` runs after a success and returns an exit status to add (for a script that did not finish)."""
     from cygnus.core.ops import executor_for
 
     print(description)
@@ -309,13 +311,16 @@ def _run_steps(kind: str, steps, reg, assume_yes: bool, description: str) -> int
     if not _confirm("Apply these changes?", assume_yes):
         print("cancelled")
         return 1
+    if before_apply is not None and not before_apply():
+        print("cancelled")
+        return 1
     ex = executor_for(reg)
     report = ex.run(kind, steps, progress=lambda i, n, st: print(f"[{i + 1}/{n}] {st.description or st.kind}"))
     if report.state == "succeeded":
         for path in report.kept:
             print(f"  left in place ({report.kept_reasons.get(path, 'kept')}): {path}")
         print("done")
-        return 0
+        return after(report) if after is not None else 0
     print(f"{report.state}: {report.error}")
     for e in report.compensation_errors:
         print(f"  could not undo: {e}")
@@ -676,6 +681,275 @@ def cmd_upgrade(args: argparse.Namespace) -> int:
         print(f"  {p['name']:<36} removed ({p.get('reason', '')})")
     if s.get("download_bytes"):
         print(f"Download: {s['download_bytes'] / 2**20:.0f} MiB")
+    _snapshot_note()
+    if not _news_acknowledged(args):
+        return 1
+    return 0 if _helper_commit(client, plan, args.yes) else 1
+
+
+NEWS_SECONDS = 20.0  # how long `cygnus upgrade` waits for the news before saying it could not read it
+
+
+def _snapshot_note() -> None:
+    from cygnus.core import snapshots
+    from cygnus.core.backends import pacman as pm
+
+    try:
+        print("\nSnapshot: " + snapshots.situation(pm.read_config().hookdirs)["text"])
+    except Exception as exc:  # noqa: BLE001 - a note; it never stops an update
+        print(f"\nSnapshot: could not tell whether one is taken ({exc})")
+
+
+def _news_acknowledged(args: argparse.Namespace) -> bool:
+    """Show the Arch news since the last upgrade; when an item says it needs a manual step, go on only if the person says they read it.
+    --yes (which answers the password question) never answers this one: --ack-news does, in advance. A feed that cannot be read is
+    said so and the upgrade goes on to the usual question."""
+    from cygnus.core import news
+
+    report = news.check_within(NEWS_SECONDS)
+    if not report["ok"]:
+        print(f"\nArch news could not be checked ({report['error']}); read https://archlinux.org/news/ yourself if you can.")
+        return True
+    if not report["items"]:
+        print("\nNo Arch news since your last upgrade.")
+        return True
+    print(f"\nArch news since your last upgrade ({report['total']}):")
+    for item in report["items"]:
+        print(f"\n  {'[MANUAL STEP] ' if item['manual'] else ''}{item['title']}")
+        for line in item["summary"].splitlines():
+            print(f"    {line}")
+        if item["link"]:
+            print(f"    {item['link']}")
+    if report["total"] > len(report["items"]):
+        print(f"\n  … and {report['total'] - len(report['items'])} more: https://archlinux.org/news/")
+    if report["needs_ack"] and not (args.ack_news or _answer_yes("\nI have read the news marked [MANUAL STEP] and know what to do [y/N] ")):
+        print("cancelled: read it first (and do what it says), then run again; --ack-news says you have")
+        return False
+    return True
+
+
+def _ago(epoch: float | None) -> str:
+    import time
+
+    if not epoch:
+        return "never"
+    seconds = max(0, time.time() - epoch)
+    for unit, size in (("day", 86400), ("hour", 3600), ("minute", 60)):
+        if seconds >= size:
+            n = int(seconds // size)
+            return f"{n} {unit}{'s' if n != 1 else ''} ago"
+    return "just now"
+
+
+def _date(epoch: int | None) -> str:
+    import time
+
+    return time.strftime("%Y-%m-%d", time.localtime(epoch)) if epoch else "-"
+
+
+def _size(n: int | None) -> str:
+    return "-" if not n else (f"{n / 2**20:.1f} MiB" if n >= 2**20 else f"{n / 1024:.0f} KiB")
+
+
+def _lists_note(lists: dict) -> None:
+    print(f"(package lists refreshed {_ago(lists.get('refreshed'))}; `cygnus upgrade` refreshes them)")
+
+
+def cmd_packages(args: argparse.Namespace) -> int:
+    """Repository packages by name: search, show, list what is installed, install, remove."""
+    from cygnus.core import packages
+
+    sub = args.sub
+    if sub == "search":
+        found = packages.search(" ".join(args.query))
+        for p in found["results"]:
+            tag = (f"  [installed {p['installed_version']}" + (", update available" if p["update"] else "") + "]") if p["installed_version"] else ""
+            print(f"{p['repo']}/{p['name']} {p['version']}{tag}")
+            if p["desc"]:
+                print(f"    {p['desc']}")
+        if not found["results"]:
+            print("no package matches")
+        elif found["truncated"]:
+            print(f"{found['total']} match; the first {len(found['results'])} are shown: search for more words to narrow it down")
+        _lists_note(found["lists"])
+        return 0
+    if sub == "info":
+        d = packages.details(args.name, args.repo)
+        rows = [("Name", d["name"]), ("Version", d["version"]), ("Repository", d["repo"] or "(none: not offered by a repository)"),
+                ("Description", d["desc"]), ("URL", d["url"]), ("Licenses", ", ".join(d["licenses"])),
+                ("Groups", ", ".join(d["groups"])), ("Packager", d["packager"]),
+                ("Download size", _size(d["package_size"])), ("Installed size", _size(d["installed_size"])),
+                ("Built", _date(d["build_date"])),
+                ("Installed", f"{d['installed_version']} ({d['reason']}, {_date(d['install_date'])})" if d["installed"] else "no"),
+                ("Provides", ", ".join(d["provides"])), ("Conflicts with", ", ".join(d["conflicts"])),
+                ("Replaces", ", ".join(d["replaces"]))]
+        for key, value in rows:
+            if value:
+                print(f"{key:<15}: {value}")
+        mark = {"installed": "installed", "available": "will be installed", "missing": "NOT AVAILABLE"}
+        print("Depends on     : " + (", ".join(f"{x['dep']} ({mark[x['state']]})" for x in d["depends"]) or "nothing")
+              + (f" … and {d['depends_more']} more" if d["depends_more"] else ""))
+        if d["optdepends"]:
+            print("Optional       : " + ", ".join(f"{x['dep']}{' (installed)' if x['installed'] else ''}"
+                                                  + (f" - {x['why']}" if x["why"] else "") for x in d["optdepends"]))
+        if d["installed"]:
+            print("Required by    : " + (", ".join(d["required_by"]) or "nothing")
+                  + (f" … and {d['required_by_more']} more" if d["required_by_more"] else ""))
+            if d["optional_for"]:
+                print("Optional for   : " + ", ".join(d["optional_for"]))
+            if d["has_install_script"]:
+                print("Install script : yes (pacman runs it as administrator when the package is installed or updated)")
+            if args.files:
+                for f in d["files"]:
+                    print("  " + f)
+                if d["files_total"] > len(d["files"]):
+                    print(f"  … {d['files_total'] - len(d['files'])} more of {d['files_total']}")
+            else:
+                print(f"Files          : {d['files_total']} (--files lists them)")
+        for kind in ("install", "remove"):
+            if d["blocked"][kind]:
+                print(f"Cannot {kind} from here: {d['blocked'][kind]}")
+        return 0
+    if sub == "installed":
+        found = packages.installed()
+        chosen = [p for p in found["packages"]
+                  if (not args.explicit or p["reason"] == "explicit") and (not args.deps or p["reason"] == "dependency")
+                  and (not args.unneeded or p.get("unneeded")) and (not args.updates or p["update"])
+                  and (not args.foreign or p["repo"] is None)]
+        for p in chosen:
+            print(f"{p['name']:<40} {p['version']:<24} {p['reason']:<11} {_size(p['size']):>10}"
+                  + (f"  -> {p['update_to']}" if p["update"] else "") + ("  (no longer needed)" if p.get("unneeded") else "")
+                  + ("  (no repository)" if p["repo"] is None else ""))
+        print(f"{len(chosen)} of {len(found['packages'])} installed packages; {found['updates']} have updates")
+        _lists_note(found["lists"])
+        return 0
+    if sub == "orphans":
+        found = packages.installed()
+        managed = packages.managed_packages()
+        left = [p for p in found["packages"] if p.get("unneeded") and not p["protected"] and p["name"] not in managed and not p["odd_name"]]
+        odd = [p["name"] for p in found["packages"] if p.get("unneeded") and p["odd_name"] and not p["protected"] and p["name"] not in managed]
+        for p in left:
+            print(f"{p['name']:<40} {p['version']:<24} {_size(p['size']):>10}")
+        print(f"{len(left)} packages were installed for another package and nothing needs them now ({_size(sum(p['size'] for p in left))} in all)."
+              + (" `cygnus packages remove --unneeded` removes them." if left else ""))
+        if left:
+            print("(Look first: a tool you built something with, or use by hand, can show up here. Removing some can leave others that only they needed.)")
+        if odd:
+            print(f"(Left out, because Cygnus's helper does not take names like these: {', '.join(odd[:10])}. pacman can remove them.)")
+        return 0
+    if sub in ("cache", "clean"):
+        from cygnus.core import cacheclean
+        from cygnus.core.backends import pacman as pm
+
+        try:
+            shown = cacheclean.preview(pm.read_config(), args.keep, args.uninstalled)
+        except cacheclean.CacheRefused as exc:
+            raise packages.PackagesError(str(exc)) from None
+        for problem in shown["problems"]:
+            print(f"left alone: {problem}")
+        print(f"{shown['files']} cached files ({_size(shown['bytes'])}) of {shown['packages']} package versions would go ({shown['looked_at']} files looked at), "
+              + ("keeping only the installed version of every package" if args.keep == 0 else
+                f"keeping the installed version of every package and the {args.keep} newest older one{'' if args.keep == 1 else 's'}")
+              + ("; packages that are not installed lose all their cached versions" if args.uninstalled else "") + ".")
+        for example in shown["examples"]:
+            print(f"  {example}")
+        if shown["packages"] > len(shown["examples"]):
+            print(f"  … and {shown['packages'] - len(shown['examples'])} more")
+        if sub == "cache" or not shown["files"]:
+            return 0
+        from cygnus.core.privilege import HelperClient
+
+        client = HelperClient()
+        return 0 if _helper_commit(client, client.plan_cache_clean(args.keep, args.uninstalled), args.yes) else 1
+    if sub == "versions":
+        from cygnus.core import pkgcache
+
+        d = packages.details(args.name)
+        if not d["installed"]:
+            raise packages.PackagesError(f"{args.name} is not installed")
+        if d["protected"]:
+            print(f"{args.name} is a protected system package: Cygnus never replaces it from a file")
+            return 0
+        found = pkgcache.older_versions(args.name, d["installed_version"])
+        print(f"{args.name} {d['installed_version']} is installed")
+        for v in found:
+            print(f"  {v.version:<28} {_date(v.modified)}  {_size(v.size):>10}")
+        print(f"go back with: cygnus packages downgrade {args.name} --to VERSION" if found else "no older version is in your package cache")
+        return 0
+
+    from cygnus.core.privilege import HelperClient
+
+    if sub == "downgrade":
+        from cygnus.core import pkgcache
+
+        d = packages.details(args.name)
+        if not d["installed"]:
+            raise packages.PackagesError(f"{args.name} is not installed")
+        version = args.to
+        if version is None:
+            found = pkgcache.older_versions(args.name, d["installed_version"]) if not d["protected"] else []
+            if not found:
+                raise pkgcache.DowngradeError("no older version of it is in your package cache (or it is a protected package)")
+            version = found[0].version
+        checked = pkgcache.check_downgrade(args.name, version)
+        client = HelperClient()
+        plan, installed = pkgcache.plan_downgrade(client, args.name, version, checked=checked)
+        print(f"  {args.name:<36} {installed:<22} → {version}  (older)")
+        for p in plan.summary.get("install", []):
+            print(f"  {p['name']:<36} {'(new)':<22} → {p['version']}  ({p.get('reason') or 'needed'})")
+        print("Other packages that need the newer version make this fail (pacman changes nothing then); the next system update\n"
+              "installs the newer version again. The helper does not check a package file's signature: it shows the file's SHA-256, and\n"
+              "this file is from pacman's own cache (root's folder, filled by pacman after it checked the signature).")
+        return 0 if _helper_commit(client, plan, args.yes) else 1
+    client = HelperClient()
+    if sub == "install":
+        wanted = packages.check_install(args.names)
+        try:
+            plan = client.plan_packages(install_repo=wanted)
+        except CygnusError as exc:
+            if packages.refusal(str(exc)) == "update_first":
+                print(packages.REFUSAL_TEXT["update_first"] + "\n`cygnus upgrade` does that.")
+                return 1
+            raise
+    else:
+        if args.unneeded:
+            if args.names:
+                raise packages.PackagesError("name the packages to remove, or use --unneeded for everything no longer needed, not both")
+            found = packages.installed()
+            managed = packages.managed_packages()
+            args.names = [p["name"] for p in found["packages"]
+                          if p.get("unneeded") and not p["protected"] and p["name"] not in managed and not p["odd_name"]][:packages.MAX_BATCH]
+            odd = [p["name"] for p in found["packages"] if p.get("unneeded") and p["odd_name"] and not p["protected"] and p["name"] not in managed]
+            if odd:
+                print(f"Left out, because Cygnus's helper does not take names like these (pacman can remove them): {', '.join(odd[:10])}")
+            if not args.names:
+                print("Nothing is left over: no installed package is waiting for something that needs it.")
+                return 0
+            print("Installed for another package, and nothing needs them now: " + ", ".join(args.names)
+                  + "\n(Packages that only these needed show up next time; run it again to remove those too.)")
+        elif not args.names:
+            raise packages.PackagesError("name the packages to remove, or use --unneeded")
+        wanted = packages.check_removal(args.names, limit=packages.MAX_BATCH)
+        confirmed = bool(args.not_installed_by_cygnus)
+        try:
+            plan = client.plan_packages(remove=wanted, confirm_not_installed_by_cygnus=confirmed)
+        except CygnusError as exc:
+            if confirmed or packages.refusal(str(exc)) != "not_installed_by_cygnus":
+                raise
+            print(packages.REFUSAL_TEXT["not_installed_by_cygnus"])
+            if not _answer_yes(f"Remove {', '.join(wanted)} anyway? [y/N] "):  # --yes never answers this one
+                print("cancelled (to answer this in advance: --not-installed-by-cygnus)")
+                return 1
+            plan = client.plan_packages(remove=wanted, confirm_not_installed_by_cygnus=True)
+    s = plan.summary
+    for p in s.get("upgrade", []):
+        print(f"  {p['name']:<36} {p.get('from') or '':<22} → {p['version']}")
+    for p in s.get("install", []):
+        print(f"  {p['name']:<36} {'(new)':<22} → {p['version']}" + (f"  ({p['reason']})" if p.get("reason") else ""))
+    for p in s.get("remove", []):
+        print(f"  {p['name']:<36} removed ({p.get('reason', '')})")
+    if s.get("download_bytes"):
+        print(f"Download: {s['download_bytes'] / 2**20:.0f} MiB")
     return 0 if _helper_commit(client, plan, args.yes) else 1
 
 
@@ -709,9 +983,15 @@ def cmd_install(args: argparse.Namespace) -> int:
     from cygnus.core.models import PackageFormat
     from cygnus.core.ops import appimage_ops
 
+    _check_script_flags(args)
     if not Path(args.file).exists() and not args.file.startswith(("/", "./", "~")):
+        if getattr(args, "run_scripts", False):
+            raise CygnusError("--run-scripts is for programs in archives and for .deb and .rpm files: a Flatpak has no install scripts")
         return _install_flatpak_ref(args)
     cand = detect_file(args.file)
+    if getattr(args, "run_scripts", False) and cand.format not in (PackageFormat.ARCHIVE, PackageFormat.DEB, PackageFormat.RPM):
+        raise CygnusError("--run-scripts is for programs in archives and for .deb and .rpm files: this kind of file has no install scripts "
+                          "Cygnus runs (an Arch package's own install script is always run by pacman)")
     if cand.format is PackageFormat.FLATPAK_BUNDLE:
         return _install_flatpak_bundle(args)
     if cand.format in (PackageFormat.DEB, PackageFormat.RPM):
@@ -737,6 +1017,54 @@ def cmd_install(args: argparse.Namespace) -> int:
     return _run_steps("install", steps, reg, args.yes, f"Install {cand.name} on {loc.label}:")
 
 
+def _safe(text: object) -> str:
+    """A name or message from an archive or a script, with nothing in it that a terminal would obey."""
+    from cygnus.core.util import scriptrun
+
+    return scriptrun.printable(str(text).encode("utf-8", "replace"))
+
+
+def _show_scripts(items: list[dict], texts: dict[str, str], who: str) -> None:
+    for i in items:
+        print(f"\n--- {_safe(i['name'])} (it would run as {who}) ---")
+        print(_safe(texts.get(i["name"], "")))
+    print("---")
+
+
+def _report_scripts(results: list[dict]) -> int:
+    """Say how each script went; 2 if any did not finish (the change itself was made)."""
+    bad = 0
+    for r in results:
+        if r.get("ok"):
+            print(f"  ran {_safe(r['script'])}: ok")
+        else:
+            bad = 2
+            print(f"  {_safe(r['script'])}: " + ("not run" if not r.get("ran") else "did not finish") + f": {_safe(r.get('error') or 'it did not finish')}")
+        if r.get("output"):
+            for line in _safe(r["output"]).rstrip().splitlines()[-12:]:
+                print("    " + line)
+    return bad
+
+
+def _run_admin_scripts(installation_id: str, chosen: list[dict], registry_path: str | None, assume_yes: bool, *, phase: str = "install") -> bool:
+    """Run scripts as administrator through the helper, one confirmation (and one password) for each. False when any of them was
+    declined, did not run or did not finish: the helper's own words are printed above."""
+    from cygnus.core.privilege import HelperClient
+    from cygnus.gui import service
+
+    client = HelperClient()
+    done = True
+    for c in chosen:
+        plan = service.prepare_admin_script(installation_id, c["name"], c["sha256"], client, registry_path, phase=phase)
+        done = _helper_commit(client, plan, assume_yes) and done
+    return done
+
+
+def _check_script_flags(args: argparse.Namespace) -> None:
+    if getattr(args, "scripts_as_admin", False) and not getattr(args, "run_scripts", False):
+        raise CygnusError("--scripts-as-admin only means something together with --run-scripts")
+
+
 def _install_archive(args: argparse.Namespace) -> int:
     """A program in a plain archive: shown (what is in it, where it goes, what its install scripts would have done), then unpacked."""
     from cygnus.gui import service
@@ -748,7 +1076,7 @@ def _install_archive(args: argparse.Namespace) -> int:
     scripts = plan.get("scripts")
     if scripts:
         for m in scripts["mentions"][:8]:
-            print(f"  the install scripts mention {m['command']}: {m['what']} (never run)")
+            print(f"  the install scripts mention {m['command']}: {m['what']}" + ("" if args.run_scripts else " (not run unless you pass --run-scripts)"))
     if not ok:
         return 1
     info = plan["archive"]
@@ -763,16 +1091,32 @@ def _install_archive(args: argparse.Namespace) -> int:
     if not _confirm(f"Unpack {plan['name']} onto {plan['target']} and start {main} from there?", args.yes):
         print("cancelled")
         return 1
-    result = service.install_archive(args.file, args.to or plan["target"], plan["sha256"], main, _say, args.registry)
+    run: list[dict[str, str]] = []
+    if args.run_scripts:
+        items = [i for i in (scripts or {}).get("items", []) if i["phase"] == "install"]
+        who = "administrator" if args.scripts_as_admin else "you"
+        if not items:
+            print("the archive has no install scripts to run")
+        else:
+            _show_scripts(items, scripts["texts"], who)
+            if not _confirm(f"Run {', '.join(i['name'] for i in items)} as {who} after installing?", args.yes):
+                print("cancelled")
+                return 1
+            run = [{"name": i["name"], "sha256": i["sha256"], "as": "admin" if args.scripts_as_admin else "user"} for i in items]
+    result = service.install_archive(args.file, args.to or plan["target"], plan["sha256"], main, _say, args.registry, run_scripts=run)
     if not result["ok"]:
         print(f"not installed: {result['error']}")
         return 1
     print("done")
+    status = _report_scripts(result["scripts"])
+    if result["admin_scripts"] and not _run_admin_scripts(result["installation_id"], result["admin_scripts"], args.registry, args.yes):
+        print("the program is installed; the script you asked to run as administrator did not run or did not finish")
+        status = 2
     try:
         libs = service.archive_libraries(result["installation_id"], _say, args.registry)
     except CygnusError as exc:
         print(f"the libraries could not be checked: {exc}")
-        return 0
+        return status
     if libs["glibc"]:
         print(f"  warning: built for a newer C library ({libs['glibc']['needs']}) than this computer has ({libs['glibc']['have']})")
     if libs["packages"]:
@@ -780,7 +1124,7 @@ def _install_archive(args: argparse.Namespace) -> int:
         print("  install them with:  sudo pacman -S --needed --asdeps " + " ".join(libs["packages"]))
     if libs["unresolved"]:
         print("  no repository provides: " + ", ".join(libs["unresolved"][:8]))
-    return 0
+    return status
 
 
 def _print_plan(plan: dict) -> bool:
@@ -838,12 +1182,31 @@ def _install_foreign(args: argparse.Namespace) -> int:
         print(f"  optional: {o['package']} ({', '.join(o['files'])} use it)"
               + ("; will be installed (--with-optional)" if args.with_optional else "; add --with-optional to install it"))
     accept = False
-    if plan["strategy"] != "convert":
+    vendor = plan.get("vendor_scripts")
+    run_vendor = False
+    if args.run_scripts:
+        if not vendor:
+            print("the package has no install scripts that Cygnus can run")
+        else:
+            from cygnus.core.util import scriptrun
+
+            print("\nThe vendor's install scripts. If you go on they are put into the converted package, and pacman runs them as "
+                  "administrator when it installs and removes it. " + vendor["warning"])
+            for name in vendor["names"]:
+                print(f"\n--- {name} ---\n" + scriptrun.printable(str(vendor["texts"].get(name, "")).encode("utf-8", "replace")).rstrip())
+            for note in vendor["left_out"]:
+                print(f"  {note}")
+            print("---")
+            if not _confirm("Run these scripts as administrator when the package is installed?", args.yes):
+                print("cancelled")
+                return 1
+            run_vendor = True
+    if plan["strategy"] != "convert" and not run_vendor:
         if not plan.get("installable_after_review"):
             return 1
         scripts = plan["scripts"]
-        print("\nCygnus could not fully read this package's install scripts. Converting never runs them, so nothing they "
-              "would do happens. They mention:")
+        print("\nCygnus could not fully read this package's install scripts. Converting does not run them (unless you pass "
+              "--run-scripts), so nothing they would do happens. They mention:")
         for m in scripts["mentions"]:
             print(f"  {m['command']}: {m['what']} ({', '.join(m['scripts'])})")
         for group in scripts.get("effects") or []:
@@ -859,7 +1222,7 @@ def _install_foreign(args: argparse.Namespace) -> int:
         print("cancelled")
         return 1
     converted = service.convert_foreign(args.file, _say, plan.get("sha256"),
-                                        optional if args.with_optional else (), accept)
+                                        optional if args.with_optional else (), accept, run_vendor_scripts=run_vendor)
     print("converted: " + "; ".join(converted["notes"] or ["no changes needed"]))
     client = HelperClient()
     if not _helper_commit(client, client.plan_packages(
@@ -889,6 +1252,7 @@ def cmd_uninstall(args: argparse.Namespace) -> int:
     from cygnus.core.ops import plan_uninstall
     from cygnus.core.registry import db as regdb
 
+    _check_script_flags(args)
     reg = open_registry(args.registry)
     inst = _find_installation(reg, args.app)
     if inst["format"] in ("aur", "pacman"):
@@ -904,9 +1268,48 @@ def cmd_uninstall(args: argparse.Namespace) -> int:
         print("done")
         return 0
     adopted = [a["locator"] for a in regdb.artifacts_of(reg, inst["id"]) if a["ownership"] == "adopted"]
+    chosen: list[dict[str, str]] = []  # removal scripts to run as you, as steps of the removal
+    admin_chosen: list[dict[str, str]] = []  # removal scripts to run as administrator, once the removal has been confirmed
+    if args.run_scripts:
+        if inst["format"] != "archive":
+            raise CygnusError("only programs installed from an archive have removal scripts of their own to run")
+        from cygnus.gui import service
+
+        listing = service.archive_scripts(inst["id"], args.registry)
+        items = [i for i in listing["scripts"] if i["phase"] == "remove" and i["state"] == "ok"]
+        who = "administrator" if args.scripts_as_admin else "you"
+        if not items:
+            print("this program has no removal scripts to run (or they are no longer as they were)")
+        else:
+            _show_scripts(items, {i["name"]: i["text"] for i in items}, who)
+            if not _confirm(f"Run {', '.join(_safe(i['name']) for i in items)} as {who} when the program is removed?", args.yes):
+                print("cancelled")
+                return 1
+            picked = [{"name": i["name"], "sha256": i["sha256"]} for i in items]
+            if args.scripts_as_admin:
+                admin_chosen = picked
+            else:
+                chosen = picked
     steps = plan_uninstall(reg, inst["id"], remove_payload=args.delete_file,
-                           remove_adopted=adopted if args.remove_autostart else [])
-    return _run_steps("uninstall", steps, reg, args.yes, f"Remove {inst['name']}:")
+                           remove_adopted=adopted if args.remove_autostart else [],
+                           run_scripts=[{**c, "as": "user"} for c in chosen] or None)
+    state = {"script_failed": False}
+
+    def before_apply() -> bool:
+        if not admin_chosen:
+            return True
+        if _run_admin_scripts(inst["id"], admin_chosen, args.registry, args.yes, phase="remove"):
+            return True
+        state["script_failed"] = True  # one policy for every removal script: a script that does not finish does not decide for the person
+        return _confirm("A removal script did not run or did not finish. Remove the program anyway?", args.yes)
+
+    def after(report) -> int:
+        results = [report.results[i] for i, st in enumerate(steps) if st.kind == "archive.run_script" and i in report.results]
+        return max(_report_scripts(results), 2 if state["script_failed"] else 0)
+
+    first = [f"first, as administrator, after you confirm: {_safe(c['name'])}" for c in admin_chosen]
+    return _run_steps("uninstall", steps, reg, args.yes, f"Remove {inst['name']}:" + "".join(f"\n  • {line}" for line in first),
+                      before_apply=before_apply, after=after)
 
 
 def cmd_move(args: argparse.Namespace) -> int:
@@ -1146,7 +1549,56 @@ def build_parser() -> argparse.ArgumentParser:
     s.set_defaults(func=cmd_dismiss)
     s = sub.add_parser("upgrade", help="update the whole system through the helper (never a partial upgrade)")
     s.add_argument("--yes", action="store_true", help="do not ask before the password prompt")
+    s.add_argument("--ack-news", action="store_true",
+                   help="say in advance that you read the Arch news that needs a manual step (--yes never says that)")
     s.set_defaults(func=cmd_upgrade)
+    pk = sub.add_parser("packages", help="packages from your repositories, by name: search, show, install, remove").add_subparsers(
+        dest="sub", required=True)
+    s = pk.add_parser("search", help="find repository packages (every word must appear in the name, description, provides or group)")
+    s.add_argument("query", nargs="+")
+    s.set_defaults(func=cmd_packages)
+    s = pk.add_parser("info", help="show a package: what it needs, what needs it, its files (changes nothing)")
+    s.add_argument("name")
+    s.add_argument("--repo", help="the repository, when more than one offers the name")
+    s.add_argument("--files", action="store_true", help="list the files of an installed package")
+    s.set_defaults(func=cmd_packages)
+    s = pk.add_parser("installed", help="list installed packages")
+    s.add_argument("--explicit", action="store_true", help="only those you chose to install")
+    s.add_argument("--deps", action="store_true", help="only those installed as another package's dependency")
+    s.add_argument("--unneeded", action="store_true", help="only dependencies no installed package needs any more")
+    s.add_argument("--updates", action="store_true", help="only those with a newer version in your repositories")
+    s.add_argument("--foreign", action="store_true", help="only those no repository offers (from a file or the AUR)")
+    s.set_defaults(func=cmd_packages)
+    s = pk.add_parser("versions", help="older versions of an installed package that pacman's cache still holds (changes nothing)")
+    s.add_argument("name")
+    s.set_defaults(func=cmd_packages)
+    s = pk.add_parser("downgrade", help="go back to an older version from pacman's cache (the newest older one unless --to says)")
+    s.add_argument("name")
+    s.add_argument("--to", metavar="VERSION", help="the version to go back to, as `versions` lists it")
+    s.add_argument("-y", "--yes", action="store_true", help="do not ask before the password prompt")
+    s.set_defaults(func=cmd_packages)
+    s = pk.add_parser("install", help="install packages from your repositories (only when the system is up to date)")
+    s.add_argument("names", nargs="+")
+    s.add_argument("-y", "--yes", action="store_true", help="do not ask before the password prompt")
+    s.set_defaults(func=cmd_packages)
+    s = pk.add_parser("orphans", help="packages installed for another package that nothing needs now (changes nothing)")
+    s.set_defaults(func=cmd_packages)
+    s = pk.add_parser("cache", help="what cleaning pacman's package cache would remove (changes nothing)")
+    s.add_argument("--keep", type=int, default=2, help="older versions to keep besides the installed one (0 to 10, default 2)")
+    s.add_argument("--uninstalled", action="store_true", help="packages that are not installed lose all their cached versions")
+    s.set_defaults(func=cmd_packages)
+    s = pk.add_parser("clean", help="remove old files from pacman's package cache (asks first; the installed version always stays)")
+    s.add_argument("--keep", type=int, default=2, help="older versions to keep besides the installed one (0 to 10, default 2)")
+    s.add_argument("--uninstalled", action="store_true", help="packages that are not installed lose all their cached versions")
+    s.add_argument("-y", "--yes", action="store_true", help="do not ask before the password prompt")
+    s.set_defaults(func=cmd_packages)
+    s = pk.add_parser("remove", help="remove packages (never a protected one, never one another package needs)")
+    s.add_argument("names", nargs="*")
+    s.add_argument("--unneeded", action="store_true", help="remove everything installed for another package that nothing needs now")
+    s.add_argument("--not-installed-by-cygnus", action="store_true",
+                   help="confirm, in advance, that you want to remove packages Cygnus did not install (-y does not answer that)")
+    s.add_argument("-y", "--yes", action="store_true", help="do not ask before the password prompt")
+    s.set_defaults(func=cmd_packages)
     fd = sub.add_parser("feed", help="where newer versions of programs converted from a .deb/.rpm are published").add_subparsers(
         dest="sub", required=True)
     s = fd.add_parser("list", help="the built-in sources and the ones you added")
@@ -1226,13 +1678,22 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--with-optional", action="store_true",
                    help=".deb/.rpm: also install the repository packages that only some parts of the program use")
     s.add_argument("--accept-scripts", action="store_true",
-                   help=".deb/.rpm: convert even though Cygnus could not read all of the install scripts (they are never "
-                        "run, so what they would have done does not happen); read them first")
+                   help=".deb/.rpm: convert even though Cygnus could not read all of the install scripts (they are not "
+                        "run unless you also pass --run-scripts, so what they would have done does not happen); read them first")
+    s.add_argument("--run-scripts", action="store_true",
+                   help="also run the install scripts that come with the file, after showing them in full (-y does not imply this). "
+                        "Archives: the archive's scripts, as you (--scripts-as-admin for administrator). .deb/.rpm: the vendor's "
+                        "scripts are put into the converted package and run as administrator by pacman, when it is installed and removed")
+    s.add_argument("--scripts-as-admin", action="store_true",
+                   help="archives, with --run-scripts: run the scripts as administrator (your password is asked) instead of as you")
     s.set_defaults(func=cmd_install)
     s = sub.add_parser("uninstall", help="remove an application managed by Cygnus")
     s.add_argument("app")
     s.add_argument("--delete-file", action="store_true", help="also delete the application file itself")
     s.add_argument("--remove-autostart", action="store_true", help="also remove autostart entries it had")
+    s.add_argument("--run-scripts", action="store_true",
+                   help="programs from an archive: first run the removal scripts it carries (prerm, postrm, uninstall), after showing them")
+    s.add_argument("--scripts-as-admin", action="store_true", help="with --run-scripts: run them as administrator (your password is asked)")
     s.add_argument("-y", "--yes", action="store_true")
     s.set_defaults(func=cmd_uninstall)
     s = sub.add_parser("fix", help="install a missing component of an application")

@@ -24,6 +24,7 @@
   </developer>
   <!-- Implied by the app ID (io.github.<user>.<App>); the repository must exist before release. -->
   <url type="homepage">https://github.com/AbdulazizOmran/Cygnus</url>
+  <url type="donation">https://azizomran.gumroad.com/l/jtudib</url>
   <content_rating type="oars-1.1"/>
   <provides>
     <binary>cygnus</binary>

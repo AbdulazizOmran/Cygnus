@@ -192,7 +192,7 @@ def test_a_script_too_large_to_read_blocks_conversion():
     cand = Candidate(format=PackageFormat.DEB, source="x.deb", name="big", version="1", arch="x86_64",
                      metadata={"maintainer_scripts": {}, "uninspected_scripts": ["postinst"]})
     verdict = foreign.analyse(cand, inspect_payload=False, find_alternatives=None)
-    assert verdict.strategy == "review" and any("too large to inspect" in u for u in verdict.scripts.unknown)
+    assert verdict.strategy == "review" and any("could not be read in full" in u for u in verdict.scripts.unknown)
 
 
 def test_oversized_maintainer_scripts_are_recorded_by_the_detectors(tmp_path):

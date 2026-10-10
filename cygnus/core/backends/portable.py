@@ -56,7 +56,7 @@ def name_problems(names: list[str], *, fs_type: str = "", caps: dict[str, Any] |
 
 
 # What a command in an archive's install script would have done, in plain words. These are descriptions of text, not of anything
-# Cygnus does: nothing in the archive is run. The "important" ones are what a program may count on having been set up.
+# Cygnus does (unless the person ticks a script, nothing in the archive is run). The "important" ones are what a program may count on having been set up.
 _MENTIONS: dict[str, tuple[str, bool]] = {
     "systemctl": ("starts, stops, enables or reloads system services", True), "service": ("starts or stops system services", True),
     "useradd": ("creates a user", True), "adduser": ("creates a user", True), "groupadd": ("creates a group", True),
@@ -144,11 +144,12 @@ def mentions(scripts: dict[str, str]) -> list[dict[str, Any]]:
                   key=lambda m: (not m["important"], m["command"]))
 
 
-def scripts_report(scripts: dict[str, str]) -> dict[str, Any] | None:
-    """What the install scripts in the archive mention and would have done, read from their text (nothing is run)."""
+def scripts_report(scripts: dict[str, str], *, cap: int = foreign.MAX_SHOWN_SCRIPT) -> dict[str, Any] | None:
+    """What the install scripts in the archive mention and would have done, read from their text (nothing is run). `cap` is how much of
+    each text is shown: for a script that may be run it is the whole script, so what is read is all of what would run."""
     if not scripts:
         return None
-    texts = {name: text[:foreign.MAX_SHOWN_SCRIPT] for name, text in scripts.items()}
+    texts = {name: text[:cap] for name, text in scripts.items()}
     try:
         effects = translate.describe_effects(translate.script_effects(texts))
     except Exception:  # noqa: BLE001 - a script the reader cannot follow is still shown whole, and listed by what it mentions

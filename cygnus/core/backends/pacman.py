@@ -57,6 +57,9 @@ class PacmanConfig:
     repos: tuple[str, ...]
     servers: dict[str, tuple[str, ...]]
     hold: tuple[str, ...]
+    hookdirs: tuple[str, ...] = ("/etc/pacman.d/hooks/",)
+    sig_level: tuple[str, ...] = ()
+    local_file_sig_level: tuple[str, ...] = ()  # empty: a package file is judged by sig_level, like pacman does
 
     @property
     def worker_base(self) -> dict[str, Any]:
@@ -88,7 +91,19 @@ def parse_pacman_conf(text: str) -> PacmanConfig:
         repos=tuple(repos),
         servers={k: tuple(v) for k, v in servers.items()},
         hold=tuple(opts.get("HoldPkg", [])),
+        hookdirs=tuple(opts.get("HookDir", ["/etc/pacman.d/hooks/"])),
+        sig_level=tuple(opts.get("SigLevel", ())),
+        local_file_sig_level=tuple(opts.get("LocalFileSigLevel", ())),
     )
+
+
+def package_signature_required(config: PacmanConfig) -> bool:
+    """Does pacman on this computer insist on a signature for a package file given to `pacman -U`? It judges such a file by
+    LocalFileSigLevel, else by SigLevel; only the package part counts ("Package…", or a bare word), and Optional or Never means an
+    unsigned file is accepted. With neither, pacman's own default (Required) applies."""
+    levels = config.local_file_sig_level or config.sig_level
+    names = {t.removeprefix("Package") for t in levels}  # a "Database…" word stays as it is, so it never reads as Optional or Never
+    return not ({"Never", "Optional"} & names)
 
 
 def read_config() -> PacmanConfig:
@@ -314,7 +329,7 @@ def _partial_upgrade_issue(upgrades: list[dict[str, Any]], outdated: list[dict[s
         resolutions=[
             Resolution(id="full-upgrade", title="Upgrade the whole system, then install",
                        explanation="Runs a full system upgrade and installs the application in the same "
-                                   "transaction. Snapper takes a snapshot first.",
+                                   "transaction.",
                        safety=SafetyClass.APPROVAL, privilege=Privilege.ROOT, recommended=True, rank=10,
                        actions=[Action(kind="pacman.sysupgrade_with_targets")]),
             explain_only("cancel", "Install later", "Cancel and install after your next system upgrade."),

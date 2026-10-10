@@ -65,11 +65,14 @@ class HelperClient:
 
     def plan_packages(self, *, install_repo: list[str] = (), local_files: list[tuple[str, str]] = (),
                       remove: list[str] = (), sysupgrade: bool = False, asdeps: bool = False,
-                      confirm_not_installed_by_cygnus: bool = False) -> Plan:
+                      confirm_not_installed_by_cygnus: bool = False, claim_ownership: bool = True) -> Plan:
+        """`claim_ownership=False`: a package file that only replaces a package the helper's ledger does not hold (an older version of a
+        repository package) is not entered in the ledger as installed by Cygnus. (An older helper ignores this.)"""
         V = self.GLib.Variant
         request = {"install_repo": V("as", list(install_repo)), "remove": V("as", list(remove)),
                    "sysupgrade": V("b", sysupgrade), "asdeps": V("b", asdeps),
-                   "confirm_not_installed_by_cygnus": V("b", confirm_not_installed_by_cygnus)}
+                   "confirm_not_installed_by_cygnus": V("b", confirm_not_installed_by_cygnus),
+                   "claim_ownership": V("b", claim_ownership)}
         fd_list = self.Gio.UnixFDList.new()
         handles, shas, opened = [], [], []
         try:
@@ -87,6 +90,31 @@ class HelperClient:
 
     def plan_unit(self, unit: str, action: str) -> Plan:
         plan_id, summary, message = self._call("PlanUnit", self.GLib.Variant("(ss)", (unit, action)), "(sss)")
+        return Plan(plan_id, json.loads(summary), message)
+
+    def plan_script(self, name: str, data: bytes, sha256: str, folder: str) -> Plan:
+        """A plan to run one install script as administrator. The helper takes the bytes and the checksum the person was shown, and
+        refuses unless they match; it runs those bytes, after its own authorisation that is asked for every time."""
+        try:
+            plan_id, summary, message = self._call("PlanScript", self.GLib.Variant("(sayss)", (name, bytes(data), sha256, folder)), "(sss)")
+        except HelperError as exc:
+            if any(word in str(exc) for word in ("UnknownMethod", "Unknown method", "No such method")):
+                raise HelperError("the administrator helper that is running is from an older version of Cygnus and does not know how to run "
+                                  "scripts yet. It restarts by itself a couple of minutes after it was last used; or run "
+                                  "`sudo systemctl restart cygnus-helper` and try again.") from exc
+            raise
+        return Plan(plan_id, json.loads(summary), message)
+
+    def plan_cache_clean(self, keep: int, uninstalled: bool) -> Plan:
+        """A plan to delete old files from pacman's package cache. Only the two choices go to the helper; it chooses the files itself."""
+        try:
+            plan_id, summary, message = self._call("PlanCacheClean", self.GLib.Variant("(yb)", (keep, uninstalled)), "(sss)")
+        except HelperError as exc:
+            if any(word in str(exc) for word in ("UnknownMethod", "Unknown method", "No such method")):
+                raise HelperError("the administrator helper that is running is from an older version of Cygnus and does not know how to clean the "
+                                  "package cache yet. It restarts by itself a couple of minutes after it was last used; or run "
+                                  "`sudo systemctl restart cygnus-helper` and try again.") from exc
+            raise
         return Plan(plan_id, json.loads(summary), message)
 
     def plan_clear_stale_lock(self) -> Plan:

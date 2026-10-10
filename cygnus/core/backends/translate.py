@@ -1,6 +1,6 @@
 """The effects of install scripts that can be reproduced safely without running them.
 
-A converted package never runs its vendor's scripts. Some of what they do is declarative and only involves the package's own
+A converted package does not run its vendor's scripts unless the person chose that. Some of what they do is declarative and only involves the package's own
 files, and doing it ourselves makes the program work as its vendor intended:
   * `xdg-icon-resource install … DIR/FILE NAME`  -> the menu icon, in the sizes the package ships;
   * `update-alternatives --install LINK NAME PATH` and `ln -s TARGET LINK` -> a command in /usr/bin that points into the package.

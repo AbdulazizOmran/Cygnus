@@ -58,6 +58,7 @@ class Backend(QObject):
     progressValue = Signal(str, float, str)  # request id, fraction 0..1, label: only where a real count exists
     appsChanged = Signal()
     storageChanged = Signal()
+    packagesChanged = Signal()  # a change to the system's packages was made (the Packages page reloads, if it is there to)
 
     def __init__(self, parent: QObject | None = None):
         super().__init__(parent)
@@ -137,11 +138,39 @@ class Backend(QObject):
 
         return self._submit(run, wants_progress=True, internal=lambda p: self.refreshApps())
 
-    @Slot(str, str, str, str, result=str)
-    def installArchive(self, url: str, location: str, sha256: str, main: str) -> str:
-        """Unpack a program from an archive onto the chosen drive (what was analysed: its checksum must still match)."""
+    @Slot(str, str, str, str, str, result=str)
+    def installArchive(self, url: str, location: str, sha256: str, main: str, run_scripts_json: str) -> str:
+        """Unpack a program from an archive onto the chosen drive (what was analysed: its checksum must still match). The last
+        argument is the scripts the person ticked ([] for none): each {"name", "sha256", "as": "user" | "admin"}."""
         path = _path(url)
-        return self._submit(lambda progress: service.install_archive(path, location, sha256, main, progress),
+        # (read inside the job: a choice that is not JSON is an answer to the page, not an exception that leaves it waiting)
+        return self._submit(lambda progress: service.install_archive(path, location, sha256, main, progress,
+                                                                     run_scripts=json.loads(run_scripts_json or "[]")),
+                            wants_progress=True, internal=lambda p: self.refreshApps())
+
+    @Slot(str, result=str)
+    def archiveScripts(self, installation_id: str) -> str:
+        """The recorded scripts of an installed program from an archive: which are still as recorded, their text (runs nothing)."""
+        return self._submit(lambda: service.archive_scripts(installation_id))
+
+    @Slot(str, str, str, result=str)
+    def runArchiveScript(self, installation_id: str, name: str, sha256: str) -> str:
+        """Run one recorded script as the person (the checksum shown must be the recorded one)."""
+        return self._submit(lambda progress: service.run_archive_script(installation_id, name, sha256, progress), wants_progress=True,
+                            long=True)
+
+    @Slot(str, str, str, result=str)
+    def planScriptAdmin(self, installation_id: str, name: str, sha256: str) -> str:
+        """The helper's plan for running one recorded script as administrator (then the usual confirmation and password)."""
+        from cygnus.gui import fixes
+
+        return self._submit(lambda: fixes.plan_script_admin(installation_id, name, sha256), long=True)
+
+    @Slot(str, bool, str, result=str)
+    def uninstallArchive(self, installation_id: str, delete_file: bool, run_scripts_json: str) -> str:
+        """Remove a program from an archive, first running the removal scripts the person ticked (as themselves)."""
+        return self._submit(lambda progress: service.uninstall(installation_id, delete_file, progress,
+                                                               run_scripts=json.loads(run_scripts_json or "[]")),
                             wants_progress=True, internal=lambda p: self.refreshApps())
 
     @Slot(str, result=str)
@@ -168,12 +197,13 @@ class Backend(QObject):
         return self._submit(lambda progress: service.install_flatpak_ref(spec, location or None, progress),
                             wants_progress=True, internal=lambda p: self.refreshApps())
 
-    @Slot(str, str, str, bool, result=str)
-    def convertForeign(self, url: str, expected_sha256: str, optional_json: str, accept_unread_scripts: bool) -> str:
+    @Slot(str, str, str, bool, bool, result=str)
+    def convertForeign(self, url: str, expected_sha256: str, optional_json: str, accept_unread_scripts: bool,
+                       run_vendor_scripts: bool) -> str:
         path = _path(url)
         optional = [str(n) for n in json.loads(optional_json or "[]")]
         return self._submit(lambda progress: service.convert_foreign(path, progress, expected_sha256 or None, optional,
-                                                                      accept_unread_scripts),
+                                                                      accept_unread_scripts, run_vendor_scripts),
                             wants_progress=True)
 
     # `record_json` says what to register once pacman has installed the package(s). That is done by
@@ -329,6 +359,51 @@ class Backend(QObject):
 
         return self._submit(fixes.plan_system_upgrade, long=True)
 
+    # -- repository packages by name (the Packages page) ------------------------------------------------------------------------------
+    @Slot(str, result=str)
+    def packagesSearch(self, text: str) -> str:
+        return self._submit(lambda: service.packages_search(text))
+
+    @Slot(result=str)
+    def packagesInstalled(self) -> str:
+        return self._submit(service.packages_installed)
+
+    @Slot(str, str, result=str)
+    def packageDetails(self, name: str, repo: str) -> str:
+        return self._submit(lambda: service.package_details(name, repo))
+
+    @Slot(str, result=str)
+    def packageOlderVersions(self, name: str) -> str:
+        return self._submit(lambda: service.package_older_versions(name))
+
+    @Slot(int, bool, result=str)
+    def cachePreview(self, keep: int, uninstalled: bool) -> str:
+        return self._submit(lambda: service.cache_preview(keep, uninstalled))
+
+    @Slot(int, bool, result=str)
+    def planCacheClean(self, keep: int, uninstalled: bool) -> str:
+        from cygnus.gui import fixes
+
+        return self._submit(lambda: fixes.plan_cache_clean(keep, uninstalled), long=True)
+
+    @Slot(str, str, result=str)
+    def planDowngradePackage(self, name: str, version: str) -> str:
+        from cygnus.gui import fixes
+
+        return self._submit(lambda: fixes.plan_downgrade(name, version), long=True)  # reads and hashes a package file
+
+    @Slot(str, result=str)
+    def planInstallPackages(self, names_json: str) -> str:
+        from cygnus.gui import fixes
+
+        return self._submit(lambda: fixes.plan_install_packages(json.loads(names_json)), long=True)  # may download databases
+
+    @Slot(str, bool, result=str)
+    def planRemovePackagesByName(self, names_json: str, confirm_not_installed_by_cygnus: bool) -> str:
+        from cygnus.gui import fixes
+
+        return self._submit(lambda: fixes.plan_remove_by_name(json.loads(names_json), confirm_not_installed_by_cygnus), long=True)
+
     @Slot(result=str)
     def cygnusUpdate(self) -> str:
         return self._submit(service.cygnus_update)
@@ -417,4 +492,4 @@ class Backend(QObject):
         # The registry may have changed (an install recorded, an installation forgotten): refresh the list
         # from here, so it happens even if the page that asked is gone.
         return self._submit(lambda progress: fixes.commit(token, progress), wants_progress=True,
-                            internal=lambda p: self.refreshApps())
+                            internal=lambda p: (self.refreshApps(), self.packagesChanged.emit()))  # whatever happened, the lists are looked at again

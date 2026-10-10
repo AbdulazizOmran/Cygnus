@@ -134,7 +134,12 @@ def inspect(path: Path) -> Candidate:
                 if count >= _MAX_CONTROL_MEMBERS:
                     raise DetectionError("control archive has implausibly many members")
                 name = member.name.removeprefix("./")
-                if not name or not member.isfile():
+                if not name:
+                    continue
+                if not member.isfile():
+                    if name in MAINTAINER_SCRIPTS:  # a link standing where a script should be: nobody read it, so it never passes as harmless
+                        oversized.append(name)
+                        control_files.append(name)
                     continue
                 control_files.append(name)
                 if member.size > _MAX_SCRIPT:

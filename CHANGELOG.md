@@ -1,5 +1,64 @@
 # Changelog
 
+## Next (planned 0.2.0, in progress) — what other package managers have
+
+- **Packages from your repositories, by name.** A new **Packages** page (and `cygnus packages search | info | installed | install |
+  remove`) searches every configured repository (name, description, what a package provides, its groups; every word must match, and
+  nothing you type is a pattern), lists what is installed (chosen by you, installed for another package, no longer needed, with
+  updates, from no repository), and opens a package's details: what it needs and whether that is installed, available or missing,
+  optional extras, what needs it, what it provides and conflicts with, its size, and for an installed package its file list. Install
+  and Remove go through the helper's usual plan and confirmation; no new administrator action was added. Cygnus checks first and says
+  in words: a protected package, one that another installed package needs, or one Cygnus manages as an application (remove those under
+  Applications) cannot be removed; a package that is already installed
+  or that no repository offers cannot be installed; with updates waiting, an install is refused with "update the whole system first"
+  (installing on a system that is not up to date is what breaks Arch systems). A package Cygnus did not install is removed only
+  after you tick a box on purpose (terminal: `--not-installed-by-cygnus`; `--yes` never answers that). Search reads your current
+  package lists and says how old they are: Cygnus never refreshes them on their own, because that is a partial upgrade; updating the
+  whole system does.
+
+- **Remove everything no longer needed, and clean the package cache.** The Installed tab's **No longer needed** filter now has tick boxes
+  and **Remove selected…** (up to 200 packages in one plan; protected packages, packages another package needs and applications
+  Cygnus manages are never offered; a package Cygnus did not install needs the usual explicit confirmation, once for the plan).
+  **Clean cache…** shows what deleting old files from `/var/cache/pacman/pkg` would remove (keep the installed version and N older
+  ones, default 2; optionally every version of packages that are not installed) and, after the usual password, the helper deletes only files
+  of that list. This is a NEW administrator action (`cache.clean`, polkit `auth_admin` every time), the only one that deletes files
+  from pacman's package cache (the helper's other deletions are its own staged copies and a stale lock): the client sends two numbers, the helper chooses the files, only package files and their `.sig` in a root-owned,
+  link-free, not-world-writable folder, ordered by libalpm's version rules, removed through the folder's descriptor under pacman's lock,
+  and only what was shown and is still chosen. Terminal: `cygnus packages orphans | remove --unneeded | cache | clean`. See
+  `docs/security.md` and `docs/audit-guide.md`: this action is now the first thing to audit.
+- **What protects you during an update, said honestly.** The update dialog and `cygnus upgrade` now say whether a snapshot is taken:
+  snap-pac (judged from its hooks as pacman will really use them, its settings and Snapper's list of configurations: "normally",
+  and "cannot tell" when a setting cannot be read), Snapper without snap-pac, Timeshift, or nothing. Cygnus takes no snapshot itself.
+  The old text "Snapper takes a snapshot first" in the partial-upgrade message, which was not always true, is gone.
+- **Go back to an older version.** An installed package's page lists the older versions pacman's cache still holds, and installs
+  the one you pick through the helper's ordinary package-file plan (`cygnus packages versions NAME`, `cygnus packages downgrade NAME
+  [--to VERSION]`). The helper reads the file itself and it must be the package and version chosen; a protected package is refused;
+  nothing is recorded as an application. The helper does not check a package file's signature (it says UNSIGNED); the file's
+  standing is that it comes from pacman's own, administrator-only cache. Where pacman requires signatures for package files
+  the downgrade is refused up front, in words. Cleaned-out versions cannot be offered. A downgrade does not make Cygnus's ledger claim the
+  package (a new `claim_ownership` request field), so removing it later still asks.
+- **Arch news before a system update.** Starting an update (the Updates page, or `cygnus upgrade`) now shows the Arch Linux news
+  since your last full upgrade. An item that says it needs a manual step must be acknowledged first (a box that starts clear;
+  `--ack-news` in the terminal, which `--yes` never implies). An unreadable feed is said and never holds an update back. The feed is
+  read only from `archlinux.org` over HTTPS, size-capped, parsed with document-type and entity declarations refused, shown as plain
+  text, with only `archlinux.org` links. `archlinux.org` is added to the privacy list; nothing is fetched until you start an update.
+
+## Unreleased — install scripts you can choose to run
+
+- **A way to support the project.** Settings, About has a **Support Cygnus** button that opens the Gumroad page in your browser
+  (Cygnus sends nothing); the repository has a Sponsor button (`.github/FUNDING.yml`), the README a short "Support Cygnus" section,
+  and the AppStream data a donation link, which software centres show as "Donate".
+
+- **Run the install scripts that come with a file, if you want to.** Until now no install script was ever run. The rule was changed at
+  the user's request: nothing runs by default, but for a program in an archive (Discord's `postinst.sh`) and for a `.deb` or `.rpm`
+  you can now show the scripts, read them, and tick a box. Archives: run **as you** or **as administrator** (a new, narrowly built
+  helper action that asks for your password every time; the script runs like `sudo` would run it); removal scripts are offered when
+  uninstalling, and an installed program's page has **Install scripts…**. `.deb`/`.rpm`: the vendor's scripts are written into the
+  converted package so pacman runs them when it is installed and removed. What runs is exactly what was shown (checked by SHA-256),
+  once, last (a failing script never undoes the install), with a clean environment and a time limit. Terminal: `--run-scripts` and
+  `--scripts-as-admin`; `-y` never implies them; exit status 2 when a script you asked for did not finish. See `docs/security.md` ("Running install scripts") and `docs/audit-guide.md`: the new
+  helper action is the first thing to audit.
+
 ## 0.1.2 — programs from archives, and a notice for new versions
 
 - **Programs in archives (`.tar.gz`, `.tar.xz`, `.tar.zst`, `.tar.bz2`, `.tar`).** A file like Discord's `.tar.gz` used to be refused

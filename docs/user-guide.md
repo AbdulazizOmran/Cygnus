@@ -52,7 +52,7 @@ folder and run the program in it. Cygnus recognises such a file by what is insid
 that is really a gzip is fine), and does the unpacking for you:
 
 - It reads the archive once, without unpacking it, and shows what is in it: which program will start, how big it is, which drive it
-  goes on, and what its install scripts (such as Discord's `postinst.sh`) would have done. **Those scripts are never run.**
+  goes on, and what its install scripts (such as Discord's `postinst.sh`) would have done. **Those scripts are not run unless you choose to** (see "Install scripts: running them" below).
 - The program to start is the one the archive's own menu entry names (it usually says `/usr/bin/discord`: Cygnus uses the file of
   that name inside the archive). When that cannot be told, you choose it from a list before installing.
 - It goes into the **applications folder of the drive you choose** (so it can live on your HDD), as a folder named after the
@@ -113,7 +113,7 @@ program works without that part. If no repository has a library, a program that 
 that only wants it for an optional part is converted with a note.
 
 *Install scripts Cygnus cannot read.* Scripts that use functions, command substitution and the like cannot be
-translated with confidence, so conversion is blocked by default. Because conversion **never runs** them, you can
+translated with confidence, so conversion is blocked by default. Unless you choose to run them (see "Install scripts: running them"), conversion **does not run** them, so you can
 choose to convert anyway: Cygnus shows what the scripts mention (creating a group, adding a software
 repository, registering alternatives…), puts what could matter first, lets you read the whole scripts, and
 asks you to confirm that they will not be run. What they would have done does not happen, and a program that
@@ -197,6 +197,67 @@ only shows that something is happening.
 **Already have an AppImage?** Open its page and choose **Manage with Cygnus**. Cygnus adds a menu
 entry and a launcher that keep working when its drive is unplugged. The file stays where it is.
 
+## Packages from your repositories
+
+**Packages** lists what your configured repositories offer (**Available**) and what is installed (**Installed**). Type at least two
+characters; every word you type must be found in a package's name, description, the names it provides or its groups, and the best
+matches come first (an exact name, then names that start with the word). What you type is plain text, never a pattern. The first
+200 matches are shown, and the page says how many there were. The **Installed** tab filters what is on this computer: chosen by
+you, installed for another package, **no longer needed** (a dependency nothing needs any more, what `pacman -Qdt` lists; a package
+that is only an optional extra of another counts as no longer needed), with updates, or from no repository (a file or the AUR).
+
+Open a package to see: what it needs (each item marked installed, will be installed, or **not available** from your repositories,
+which stops an install), optional extras, what needs it, what it provides, conflicts with and replaces, its download and installed
+size, and for an installed package its files. An installed package that has an install script is marked: pacman runs it as
+administrator (the package lists do not say this for a package that is not installed yet).
+
+**Install…** and **Remove…** show the helper's plan (every package, versions, download size) and ask for your password at the end,
+like every other change. Cygnus refuses, in words, and says why (all but the "updates waiting" case before the helper is asked at all;
+that one is the helper's own check):
+- to install a package that is already installed, or that no repository offers;
+- to install anything while system updates are waiting: update the whole system first (the **Updates** page). Installing one
+  package into a system that is not up to date is the classic way to break an Arch system;
+- to remove a protected package (the base system, kernels, firmware, boot loaders, anything in `HoldPkg`) or one that another
+  installed package needs. Removing leaves the packages that were installed for it; they show up as **no longer needed**;
+- to remove a package Cygnus manages as an application (a converted `.deb`/`.rpm`, a package file, an AUR build): remove those from
+  their own page under **Applications**, so that the application list and the system agree.
+
+**Going back to an older version.** On an installed package's page, **Go back to an older version** lists the older versions that
+pacman's package cache (`/var/cache/pacman/pkg`) still holds, with their dates and sizes; **Install this version…** shows the plan
+and asks for your password like any other change. It is the same plan as installing a package file, so the helper reads the file
+itself (it must be the package and version you chose) and refuses a protected package (the base system, kernels, firmware, boot
+loaders). The helper does not check a package file's signature: it says UNSIGNED and shows the file's SHA-256, and the reason to
+trust this file is that it comes from pacman's own cache, which only the administrator can write, filled after pacman checked the
+signature. If another installed package needs the newer version, pacman refuses and changes nothing. The older version stays until
+the next system update installs the newer one again. Terminal: `cygnus packages versions NAME`, `cygnus packages downgrade NAME
+[--to VERSION]` (the newest older version unless you say). A package that is not in the cache any more (cleaned) cannot be gone
+back to from here.
+
+**No longer needed.** On the **Installed** tab the filter **No longer needed** lists packages that were installed for another
+package and that nothing needs now (what `pacman -Qdt` lists; a package that is only an optional extra of another counts). Tick the ones
+to remove (**Select all** ticks the list) and press **Remove selected…**: one plan, one confirmation, one password. Look before you
+remove: a tool you use by hand, or built something with (build tools such as `cmake` show up), can be on the list, and removing some can
+leave others that only they needed; they appear the next time. Protected packages and ones Cygnus manages as applications are never on
+the list (they are left out of it, so they cannot be ticked). Terminal: `cygnus packages orphans`, `cygnus packages remove --unneeded`.
+
+**Cleaning the package cache.** pacman keeps every package it ever downloaded (`/var/cache/pacman/pkg`). **Clean cache…** (the toolbar
+of the Packages page) shows what a cleaning would delete with your settings (how many older versions of each package to keep besides the
+installed one, default 2; whether packages that are not installed lose every cached version) and, after you press **Clean…** and
+confirm, the administrator helper deletes only files of that list (it chooses again when it starts, so a package installed meanwhile can only shrink it). The installed version of every package always stays; the order of
+versions is libalpm's, not file dates; only package files and their signature files in a folder that is root's own are touched. A
+version deleted here that is no longer on the mirrors cannot be fetched again, and is then gone for "going back to an older version".
+Terminal: `cygnus packages cache [--keep N] [--uninstalled]` (looks only) and `cygnus packages clean [--keep N] [--uninstalled]`.
+
+A package that **Cygnus did not install** is removed only after a second question with a box you tick on purpose. The helper
+checks all of this again: nothing the page decides is trusted.
+
+The search reads your **current package lists** and shows how old they are. Cygnus never refreshes them by themselves: refreshing the
+lists without upgrading is what causes partial upgrades. **Update system…** refreshes them together with the upgrade. If an install
+cannot download a file, the lists are old: update the system.
+
+Terminal: `cygnus packages search WORDS…`, `info NAME [--files]`, `installed [--explicit --deps --unneeded --updates --foreign]`,
+`install NAME…`, `remove NAME… [--not-installed-by-cygnus]`, `versions NAME`, `downgrade NAME [--to VERSION]`, `orphans`, `cache`, `clean`.
+
 ## Checking an application
 
 Each application's page lists its features and their state:
@@ -253,6 +314,25 @@ your repositories have. Cygnus checks this without administrator rights.
 The plan always installs fresh package databases together with every upgrade, so it is never a
 partial upgrade. In the terminal: `cygnus upgrade`.
 
+**Snapshots.** Next to the news the dialog (and `cygnus upgrade`) says what will protect you if the update goes wrong. Cygnus takes
+no snapshot itself and runs neither Snapper nor Timeshift; it only looks, and says "normally" because a hook can still fail later:
+- **snap-pac** (Snapper's pacman hooks) snapshots around every package change, including this update, when its hook is in place
+  (not replaced by a link to `/dev/null`), `/etc/snap-pac.ini` does not turn the root configuration off and `/etc/conf.d/snapper`
+  lists `root`. If it cannot take the snapshot, pacman stops before changing anything. A setting it cannot read is reported as "cannot
+  tell", never as protection;
+- **Snapper without snap-pac**, or **Timeshift**: named, with what to do by hand before updating;
+- **nothing found**: said, so that you know there is nothing to roll back to.
+
+**Arch news.** While the plan is made, Cygnus reads the Arch Linux news feed (`archlinux.org`, over HTTPS; nothing about you is
+sent beyond your address and `Cygnus/<version>`) and shows the items published since your last full upgrade (the date comes from
+pacman's log; with no record, the last 30 days). An item whose text says it **needs a manual step** (Arch's usual "requires manual
+intervention") is marked, and the **Update** button stays disabled until you tick that you have read it and know what to do. In
+the terminal `cygnus upgrade` asks the same question; `--yes` skips only the password question, never this one, and
+`--ack-news` answers it in advance. News that does not need anything is shown and does not hold the update. If the feed cannot be
+read, that is said and the update is not held back (security updates must not wait for a web page): read
+`archlinux.org/news` yourself if you can. This is Arch's news only: a distribution built on Arch (CachyOS, for one) has
+announcements of its own, which you need to follow separately.
+
 **Background checks.** Under **Settings → Background checks** (or `cygnus watch --enable`), Cygnus
 checks every few hours and sends a notification about anything new:
 - an application update;
@@ -271,6 +351,45 @@ It never installs anything by itself.
   - **Flatpaks:** a missing storage link, an app Flatpak lost, or its runtime is reinstalled. Flatpak
     then checks every file of your personal installation. If the application updated itself, Repair records the new
   version. If the file now belongs to a different application, Repair refuses.
+
+## Install scripts: running them
+
+Some files come with install scripts: a `postinst.sh` in a program's archive, or the maintainer scripts inside a `.deb` or `.rpm`.
+**Cygnus does not run any of them unless you choose to.** Nothing is ticked by default, for any file, and a box only appears once the
+script's whole text is on screen, next to what it mentions (creating a user, loading a kernel module, restarting a service…).
+If you hide the text again, the choice is taken back; what will run is written next to the Install button.
+
+- **A program in an archive.** Show the scripts on the Install screen, read one, and tick *Run it after installing*. Choose **as me**
+  (Cygnus runs it in the program's folder, with your own rights) or **as administrator** (your password is asked, every time, and the
+  dialog says what the script is: its size, the program it runs with, its first line and its checksum). It runs after the program is
+  installed, so a script that fails never undoes the install; the screen then says "the program is installed, but the script did not
+  finish" and shows what the script printed. Only scripts directly in the program's folder count as install scripts. Later, an
+  installed program's page has **Install scripts…**, which lists them again and runs one on request (only while it is still exactly as
+  it was when the program was installed). Removal scripts (`prerm`, `postrm`, `uninstall`) are offered, to run as you, when you remove
+  the program; a script that fails is reported and the removal goes on. In the terminal a removal script can also run as administrator.
+- **A `.deb` or `.rpm`.** The Install screen has a section with the vendor's scripts in full. Tick *Run them as administrator* and the
+  scripts are put into the converted package, so pacman runs them when the package is installed and when it is removed (with the
+  arguments Debian or rpm would have given them). On an **upgrade** pacman runs only the new package's pre- and post-install scripts,
+  never the old package's removal scripts. A script that fails or refuses cannot stop pacman: the install or removal goes on, and
+  pacman shows what the script said. Scripts for programs Cygnus does not know how to run (such as lua), debconf's `config` and trigger
+  scripts are left out, and the screen lists them. This also lets you convert a package whose only problem was its scripts; it never
+  lets through a package that ships files Cygnus refuses (setuid files, udev rules, files outside `/usr`, `/etc` and `/opt`), or one that
+  declares system users.
+- **In the terminal:** `--run-scripts` shows each script in full, asks, and runs it (`-y` never implies this). For archives add
+  `--scripts-as-admin` to use your password instead of your own rights (it is refused without `--run-scripts`);
+  `cygnus uninstall PROGRAM --run-scripts` does the same for removal scripts, after you have confirmed the removal. The exit status is
+  **2** when the change was made but a script you asked for did not run or did not finish.
+
+A script is only offered when Cygnus can show it exactly as it would run: plain text without invisible or look-alike characters, whole,
+written for sh, bash, zsh, Python or Perl, with a first line that asks for nothing Cygnus does not follow (`#!/bin/sh -e` is followed).
+One that is binary, too long to show in full, for another language, or beyond the first eight is listed with the reason and is not
+offered; you can still run it yourself from the program's folder if you trust it.
+
+What to keep in mind: a script you choose to run can do anything your account (or, as administrator, the whole computer) can do, and
+Cygnus cannot undo it or tell who wrote it. The administrator helper cannot know that anything was shown to you; the password dialog is
+the gate, so only go on when you just asked Cygnus to run that script. Scripts written for Debian or Fedora expect that system's tools; one
+that cannot find them fails, and the install goes on. As you, a script runs once (not again if Cygnus is interrupted while it runs) and
+is stopped after five minutes; as administrator, after ten.
 
 ## Uninstalling
 
@@ -305,8 +424,9 @@ move or update software show the steps and ask first; `--yes` skips that questio
 commands (`storage add/remove/set-default`, `dismiss`, `watch --enable/--disable`) take effect at
 once and can be undone the same way. `--json` gives machine-readable output where
 supported. A program in an archive: `cygnus install ~/Downloads/Discord.tar.gz --to HDD` (add `--program PATH` to name the
-program to start when Cygnus cannot tell, `--yes` to skip the question). `cygnus updates` exits with 1 when something can be
-updated, and that includes a newer Cygnus.
+program to start when Cygnus cannot tell, `--yes` to skip the question). `--run-scripts` (with `--scripts-as-admin` for archives)
+runs the install scripts that come with a file, after showing them; `--yes` never implies it. `cygnus updates` exits with 1 when
+something can be updated, and that includes a newer Cygnus.
 
 ## Optional parts
 
@@ -361,9 +481,9 @@ In the terminal: `cygnus ai status|on|off|test`, `cygnus ai use hosted|gemini|co
 - **Programs from archives are not updated, moved or repaired by Cygnus yet.** Remove the program and install the newer archive,
   or the same archive onto another drive. They also carry no vendor signature Cygnus can check: where the archive came from is up
   to you.
-- **Install scripts are never run.** What a script creates only when it runs (generated files, caches) cannot be reproduced; a
-  script Cygnus cannot read is shown to you, and you decide. This is deliberate: nothing in a vendor's package is executed
-  during conversion.
+- **Install scripts are not run unless you choose to.** What a script creates only when it runs (generated files, caches) cannot be
+  reproduced without running it; a script Cygnus cannot read is shown to you, and you decide, and you can choose to run it (see
+  "Install scripts: running them"). Cygnus never runs a script just to find out what it does.
 - **Only some vendors can be checked for updates** (see "Updating a converted program"); add others with `cygnus feed add`.
   The vendor's package list is read over HTTPS only, not checked by signature.
 - **Cygnus never adds a software repository** that a file or a link names (`.flatpakrepo` files are explained, not followed).

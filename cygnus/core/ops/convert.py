@@ -26,6 +26,7 @@ from cygnus.core import paths
 from cygnus.core.backends import foreign, translate
 from cygnus.core.errors import CygnusError
 from cygnus.core.models import Candidate, PackageFormat
+from cygnus.core.ops import vendor_install
 from cygnus.core.util import proc
 
 _MERGE = {"bin": "usr/bin", "sbin": "usr/bin", "usr/sbin": "usr/bin", "lib": "usr/lib", "lib64": "usr/lib",
@@ -212,16 +213,23 @@ def compare_with_tree(root: Path, pkg: Path) -> list[str]:
 def convert(cand: Candidate, verdict: foreign.ForeignVerdict, out_dir: Path,
             progress: Callable[[str], None] = lambda _: None,
             install_optional: Collection[str] = (), accept_unread_scripts: bool = False,
-            owner: Callable[[str], str | None] | None = None) -> tuple[Path, list[str]]:
+            owner: Callable[[str], str | None] | None = None, run_vendor_scripts: bool = False) -> tuple[Path, list[str]]:
     """Build the pacman package; returns (package file, notes about what changed). The optional libraries the analysis
     found (only some parts of the program want them) become real dependencies when named in `install_optional`, and
-    "optional dependencies" (which pacman lists after installing) otherwise."""
+    "optional dependencies" (which pacman lists after installing) otherwise. With `run_vendor_scripts` (a choice the person made;
+    the default is that none of the vendor's scripts is ever run) the vendor's install scripts are written into the package, and
+    pacman runs them as administrator when it installs and removes it."""
     if cand.format not in (PackageFormat.DEB, PackageFormat.RPM):
         raise CygnusError("only .deb and .rpm files are converted")
-    # Install scripts are never run, so one Cygnus could not read may be gone past by someone who knows that; anything it
-    # recognised as dangerous (a user to create, a kernel module...) never can.
+    # Unless the person chose to run the scripts, they are never run: one Cygnus could not read may be gone past by someone who
+    # knows that, and anything it recognised as dangerous (a user to create, a kernel module...) never can. When they chose to
+    # run them, what the scripts would do is done by the scripts, so a block that was only about scripts no longer applies.
     unread_ok = accept_unread_scripts and verdict.strategy == "review" and verdict.scripts_acknowledgeable
-    if verdict.strategy != "convert" and not unread_ok:
+    if run_vendor_scripts and cand.metadata.get("sysusers"):  # users and groups a package declares are not made by running its scripts
+        raise CygnusError("this package declares system users or groups, and running its scripts would not create them, so Cygnus does not "
+                          "convert it")
+    scripts_run = run_vendor_scripts and verdict.strategy in ("convert", "review")
+    if verdict.strategy != "convert" and not unread_ok and not scripts_run:
         raise CygnusError("Cygnus only converts packages its analysis found safe to convert "
                           f"(this one: {verdict.summary})")
     name = pacman_name(cand.name or Path(cand.source).stem)
@@ -246,7 +254,20 @@ def convert(cand: Candidate, verdict: foreign.ForeignVerdict, out_dir: Path,
         # What the vendor's scripts did that can be done safely without running them (the menu icon, a command link), made
         # from the package's own files only; the final scan below covers them too.
         notes += translate.apply(root, translate.plan(root, foreign.install_script_texts(cand), owner))
-        if unread_ok:
+        install_file, included = None, []
+        if scripts_run:
+            install_file, included, skipped = vendor_install.build(cand.format, foreign.install_script_texts(cand),
+                                                                   {k: v.get("interpreter") for k, v in (cand.metadata.get("scriptlets") or {}).items()},
+                                                                   cand.metadata.get("uninspected_scripts") or ())
+            notes += skipped
+            if install_file:
+                (work / "cygnus.install").write_text(install_file, encoding="utf-8", errors="surrogateescape")
+                notes.append("the vendor's install scripts (" + ", ".join(included) + ") are part of the package and run as administrator "
+                             "when it is installed and removed, because you chose that (on an upgrade only the new package's pre- and "
+                             "post-install scripts run, and a script that fails cannot stop pacman)")
+            else:
+                notes.append("the package has no install scripts that Cygnus can run")
+        elif unread_ok:
             notes.append("install scripts that Cygnus could not read were not run")
         # The tree that pacman will own is checked again, whatever the earlier analysis said.
         blocked = [s for s in foreign.privileged_paths(root) if s.blocks]
@@ -263,6 +284,7 @@ def convert(cand: Candidate, verdict: foreign.ForeignVerdict, out_dir: Path,
             # Ship the vendor's files exactly as they are. makepkg's own defaults would otherwise delete libtool (.la) files,
             # .pod files, usr/share/info/dir and EMPTY FOLDERS, and rename man pages to .gz.
             "options=(!strip !debug !lto docs libtool staticlibs emptydirs !purge !zipman)",
+            *(["install=cygnus.install"] if install_file else []),
             "package() {",
             '  cp -a --no-preserve=ownership "$startdir/root/." "$pkgdir/"',
             "}",

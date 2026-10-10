@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 import secrets
+from pathlib import Path
 import subprocess
 import threading
 import time
@@ -50,6 +51,7 @@ _CHAINS_LOADED = False
 _LATE: dict[str, tuple[HelperClient, Callable[[], None], float]] = {}
 _LATE_LOADED = False
 LATE_LIMIT_S = 12 * 3600  # an operation still unknown after this long is given up on (the next Refresh shows the truth)
+NEWS_WAIT_S = 20.0  # after the plan is ready, how long the news is still waited for
 SETTLE_TIMEOUT_MS = 5000  # settling runs on a worker the lists wait for: a wedged helper must not hold it for minutes
 
 
@@ -340,8 +342,23 @@ def plan_built_packages(paths: list[str], asdeps: bool = False, origin: str = "a
     return out
 
 
+def _snapshot_situation() -> dict[str, Any]:
+    """What will protect the person if the update goes wrong (see cygnus.core.snapshots); it only looks."""
+    from cygnus.core import snapshots
+    from cygnus.core.backends import pacman as pm
+
+    try:
+        return snapshots.situation(pm.read_config().hookdirs)
+    except Exception as exc:  # noqa: BLE001 - this is a note; it never stops an update
+        return {"state": "unknown", "text": f"Cygnus could not tell whether a snapshot is taken ({exc})."}
+
+
 def plan_system_upgrade() -> dict[str, Any]:
-    """The helper's full-upgrade plan (fresh databases, never a partial upgrade), with the details to show."""
+    """The helper's full-upgrade plan (fresh databases, never a partial upgrade), with the details to show, and the Arch news since the
+    last upgrade (asked for while the plan is made; a feed that cannot be read is said so and never stops the upgrade)."""
+    from cygnus.core import news
+
+    waiting = news.start()  # in a thread of its own, a daemon: a slow feed never holds the plan up, or the program at exit
     client = HelperClient()
     plan_ = client.plan_packages(sysupgrade=True)
     out = _remember(client, [plan_], "Update the system")
@@ -350,6 +367,24 @@ def plan_system_upgrade() -> dict[str, Any]:
     out["installs"] = [{"name": p["name"], "to": p["version"], "reason": p.get("reason", "")} for p in s.get("install", [])]
     out["removals"] = [{"name": p["name"], "reason": p.get("reason", "")} for p in s.get("remove", [])]
     out["download_bytes"] = s.get("download_bytes") or 0
+    out["snapshot"] = _snapshot_situation()
+    out["news"] = waiting(NEWS_WAIT_S)
+    return out
+
+
+def plan_script_admin(installation_id: str, name: str, sha256: str) -> dict[str, Any]:
+    """The helper's plan for running one script of an installed program from an archive as administrator, for the usual
+    confirmation; the password is asked for at the commit, every time. What is checked before the helper is asked at all (the script
+    is a recorded one, with this checksum, unchanged, in the folder Cygnus made) is in service.prepare_admin_script."""
+    from cygnus.gui import service
+
+    client = HelperClient()
+    plan_ = service.prepare_admin_script(installation_id, name, sha256, client)
+    out = _remember(client, [plan_], f"Run {name.rsplit('/', 1)[-1]} as administrator")
+    out["security_note"] = ("It runs as administrator, with nothing held back, exactly as it was shown to you. Only go on if you read it "
+                            "and want what it does; Cygnus cannot undo it.")
+    out["dialog_title"] = "Run a script as administrator"
+    out["action"] = "Run as administrator"
     return out
 
 
@@ -367,6 +402,103 @@ def plan_remove_packages(names: list[str], forget: str | None = None) -> dict[st
     if forget:
         _after_commit(out["token"], _Action({"forget": forget}, lambda: service.forget_installation(forget)))
     return out
+
+
+def _plan_lists(out: dict[str, Any], plan_: Plan) -> dict[str, Any]:
+    """What the helper's plan will do, as lists for the confirmation window."""
+    s = plan_.summary
+    out["upgrades"] = [{"name": p["name"], "from": p.get("from") or "", "to": p["version"]} for p in s.get("upgrade", [])]
+    out["installs"] = [{"name": p["name"], "to": p["version"], "reason": p.get("reason", "")} for p in s.get("install", [])]
+    out["removals"] = [{"name": p["name"], "reason": p.get("reason", "")} for p in s.get("remove", [])]
+    out["download_bytes"] = s.get("download_bytes") or 0
+    return out
+
+
+def _titled(verb: str, names: list[str]) -> str:
+    return verb + " " + ", ".join(names[:3]) + (f" and {len(names) - 3} more" if len(names) > 3 else "")
+
+
+def plan_install_packages(names: list[str]) -> dict[str, Any]:
+    """The helper's plan for installing packages from your repositories, picked by name on the Packages page. They are installed as
+    ordinary, explicitly installed packages. The page's own checks (each name is offered, none is installed yet) are in
+    cygnus.core.packages; the helper checks everything again. When installing now would be a partial upgrade the answer says to update
+    the system first ({"refused": "update_first", "text"}) instead of being a plan."""
+    from cygnus.core import packages
+
+    wanted = packages.check_install(names)
+    client = HelperClient()
+    try:
+        plan_ = client.plan_packages(install_repo=wanted)
+    except CygnusError as exc:
+        if packages.refusal(str(exc)) != "update_first":
+            raise
+        return {"refused": "update_first", "text": packages.REFUSAL_TEXT["update_first"]}
+    out = _remember(client, [plan_], _titled("Install", wanted))
+    out["dialog_title"], out["action"] = "Install packages", "Install"
+    return _plan_lists(out, plan_)
+
+
+def plan_remove_by_name(names: list[str], confirm_not_installed_by_cygnus: bool = False) -> dict[str, Any]:
+    """The helper's plan for removing packages picked by name. Nothing a package that stays needs, and nothing protected, is offered
+    (cygnus.core.packages.check_removal). A package Cygnus did not install is removed only when the person has confirmed that on
+    purpose: without that the answer is {"refused": "not_installed_by_cygnus", "text", "names"}, and the page asks, then asks again."""
+    from cygnus.core import packages
+
+    wanted = packages.check_removal(names, limit=packages.MAX_BATCH)  # one name from a package's page, or everything no longer needed
+    confirmed = confirm_not_installed_by_cygnus is True
+    client = HelperClient()
+    try:
+        plan_ = client.plan_packages(remove=wanted, confirm_not_installed_by_cygnus=confirmed)
+    except CygnusError as exc:
+        if confirmed or packages.refusal(str(exc)) != "not_installed_by_cygnus":
+            raise
+        return {"refused": "not_installed_by_cygnus", "text": packages.REFUSAL_TEXT["not_installed_by_cygnus"], "names": wanted}
+    out = _remember(client, [plan_], _titled("Remove", wanted))
+    out["dialog_title"], out["action"] = "Remove packages", "Remove"
+    out["security_note"] = ("Only these packages are removed. Anything they pulled in stays installed; the Packages page lists such "
+                            "leftovers as \"no longer needed\".")
+    return _plan_lists(out, plan_)
+
+
+def plan_cache_clean(keep: Any, uninstalled: Any) -> dict[str, Any]:
+    """The helper's plan for removing old files from pacman's package cache. Only two choices go to the helper (how many older versions
+    to keep, whether packages that are not installed lose all theirs): it reads the cache and chooses the files itself, and what is shown
+    here is the list it made."""
+    from cygnus.core import cacheclean
+
+    try:
+        keep, uninstalled = cacheclean.check_request(keep, uninstalled)  # before the helper is so much as connected to
+    except cacheclean.CacheRefused as exc:
+        raise CygnusError(str(exc)) from None
+    client = HelperClient()
+    plan_ = client.plan_cache_clean(keep, uninstalled)
+    out = _remember(client, [plan_], "Clean the package cache")
+    s = plan_.summary
+    out["cache"] = {k: s.get(k) for k in ("files", "bytes", "packages", "keep", "uninstalled", "folders", "examples", "problems")}
+    out["dialog_title"], out["action"] = "Clean the package cache", "Delete the files"
+    out["security_note"] = ("Only package files that pacman downloaded, and their signature files, are deleted: the installed version of every "
+                            "package always stays. Removed files can be downloaded again, but a version that is no longer on the mirrors "
+                            "cannot, and it is then gone for \"going back to an older version\".")
+    return out
+
+
+def plan_downgrade(name: str, version: str) -> dict[str, Any]:
+    """The helper's plan for going back to an older version of an installed package that is in pacman's cache. The window names a
+    package and a version; the file is found again here (cygnus.core.pkgcache), never taken from the window."""
+    from cygnus.core import pkgcache
+
+    checked = pkgcache.check_downgrade(name, version)  # before the helper is so much as connected to
+    client = HelperClient()
+    plan_, installed = pkgcache.plan_downgrade(client, name, version, checked=checked)
+    out = _remember(client, [plan_], f"Go back to {name} {version}")
+    out["dialog_title"], out["action"] = "Install an older version", "Install the older version"
+    out["downgrade"] = {"name": name, "from": installed, "to": version}
+    out["security_note"] = ("The older package is replaced for the newer one that is installed now. Other packages that need the newer "
+                            "version will make it fail (pacman says so and changes nothing). Until the next system update installs the "
+                            "newer version again, this package is older than the rest of the system expects. The helper does not check a "
+                            "package file's signature (it says UNSIGNED and gives the file's SHA-256); this file is from pacman's own "
+                            "cache, which only the administrator can write, filled after pacman checked the signature.")
+    return _plan_lists(out, plan_)
 
 
 def commit(token: str, progress: Callable[[str], None]) -> dict[str, Any]:

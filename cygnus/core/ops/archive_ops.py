@@ -31,7 +31,7 @@ from cygnus.core.detect import archive as ad
 from cygnus.core.errors import CygnusError, UnsafeInputError
 from cygnus.core.executor import Step, StepOutcome
 from cygnus.core.models import Candidate
-from cygnus.core.ops import appimage_ops
+from cygnus.core.ops import appimage_ops, scripts
 from cygnus.core.registry import db as regdb
 from cygnus.core.registry.db import Registry, StorageLocation
 from cygnus.core.util.fs import fsync_dir, rename_noreplace
@@ -426,7 +426,48 @@ def _remove_tree(params: dict) -> StepOutcome:
     return StepOutcome(result={"removed": True})
 
 
-HANDLERS = {"archive.extract": _extract, "archive.extract.abort": _extract_abort, "archive.remove_tree": _remove_tree}
+def _run_script(params: dict) -> StepOutcome:
+    """A script the person chose to run, as themselves. The program's folder must be the one Cygnus made for this installation, and
+    the script the one whose checksum was shown. It never fails the operation: the answer says what happened, because a script that
+    goes wrong must not undo an installation that worked (and a step that raised would roll it back)."""
+    dest, iid = Path(params["dest"]), params["installation_id"]
+    result: dict[str, Any] = {"script": params["path"], "sha256": params["sha256"], "as": "user", "ran": False, "ok": False, "exit": None,
+                              "timed_out": False, "output": "", "error": ""}
+    if dest.is_symlink() or not dest.is_dir():
+        result["error"] = f"the program's folder ({dest}) is not there"
+        return StepOutcome(result=result)
+    marker = read_marker(dest)
+    if not marker or marker.get("installation") != iid:
+        result["error"] = "that folder is not the one Cygnus made for this program, so nothing in it was run"
+        return StepOutcome(result=result)
+    return StepOutcome(result=scripts.claim_and_run(root=dest, rel=params["path"], sha=params["sha256"], run_id=params["run_id"],
+                                                    timeout=float(params.get("timeout") or scripts.scriptrun.DEFAULT_TIMEOUT)))
+
+
+HANDLERS = {"archive.extract": _extract, "archive.extract.abort": _extract_abort, "archive.remove_tree": _remove_tree,
+            "archive.run_script": _run_script}
+
+
+def script_steps(dest: Path, installation_id: str, chosen: list[dict[str, str]]) -> list[Step]:
+    """One step for each script the person chose ({"name", "sha256"}), in the order given."""
+    return [Step(kind="archive.run_script", description=f"Run the script {c['name'].rsplit('/', 1)[-1]}",
+                 params={"dest": str(dest), "installation_id": installation_id, "path": c["name"], "sha256": c["sha256"],
+                         "run_id": scripts.new_run_id(), "timeout": scripts.scriptrun.DEFAULT_TIMEOUT}) for c in chosen]
+
+
+def chosen_scripts(known: dict[str, str], chosen: list[dict[str, Any]] | None, phase: str) -> list[dict[str, str]]:
+    """The scripts asked for, each checked against what the archive was shown to hold ({name: sha256}): a script that is not
+    there, or is not the one shown, or belongs to the other phase, is refused (nothing is run by a mistake of a name)."""
+    out: list[dict[str, str]] = []
+    for c in chosen or []:
+        name, sha = (c.get("name"), c.get("sha256")) if isinstance(c, dict) else (None, None)
+        if not isinstance(name, str) or not isinstance(sha, str) or known.get(name) != sha:
+            raise CygnusError(f"{str(name)[:60]!r} is not a script of this program, or it is not the one that was shown")
+        if scripts.phase_of(name) != phase:
+            raise CygnusError(f"{name} is a script for {'removing' if phase == 'install' else 'installing'} the program, not for this step")
+        if all(o["name"] != name for o in out):
+            out.append({"name": name, "sha256": sha})
+    return out
 
 
 def executor(registry: Registry):
@@ -467,9 +508,13 @@ def integration(cand: Candidate, *, app_key: str, program: Path, location: Stora
 
 
 def plan_install(cand: Candidate, *, app_key: str, location: StorageLocation, apps_dir: Path, main: str,
-                 sha256: str | None = None) -> list[Step]:
-    """Unpack the archive into <applications folder>/<program name>, integrate it and record it."""
+                 sha256: str | None = None, run_scripts: list[dict[str, Any]] | None = None) -> list[Step]:
+    """Unpack the archive into <applications folder>/<program name>, integrate it and record it. `run_scripts` ({"name", "sha256"}
+    for each install script the person ticked, to be run as themselves) come last, after the program is recorded: whatever a
+    script does or fails to do leaves the installation as it is."""
     meta = cand.metadata
+    known_scripts = dict(meta.get("script_sha256") or {})
+    chosen = chosen_scripts(known_scripts, run_scripts, "install")
     program = (meta.get("executables") or {}).get(main)
     if program is None or program.get("kind") not in ("elf", "script") or ad.INSTALL_SCRIPT.match(main.rsplit("/", 1)[-1]):
         raise CygnusError(f"{main!r} is not a program in this archive that can be started")
@@ -491,17 +536,28 @@ def plan_install(cand: Candidate, *, app_key: str, location: StorageLocation, ap
         "installation_id": iid, "format": "archive", "app_id": app_key, "name": cand.name or app_key, "vendor": None,
         "trust": "unverified", "origin": "installed",
         "source": {"path": str(dest), "main": main, "archive_name": src.name, "archive_sha256": digest,
-                   "installed_at": datetime.now(UTC).isoformat(), "update_info": None},
+                   "installed_at": datetime.now(UTC).isoformat(), "update_info": None,
+                   "scripts": [{"name": n, "sha256": h, "phase": scripts.phase_of(n)} for n, h in sorted(known_scripts.items())]},
         "version": cand.version, "location_id": location.id, "update_provider": {"type": "none"},
         "artifacts": artifacts + [{"kind": "tree", "locator": str(dest), "sha256": None}]}))
-    return steps
+    return steps + script_steps(dest, iid, chosen)
 
 
-def plan_uninstall(registry: Registry, installation_id: str, *, remove_payload: bool) -> list[Step]:
-    """Remove the menu entry, launcher and icon and forget the program; the folder goes last, and only when asked."""
-    steps = appimage_ops.plan_uninstall(registry, installation_id, remove_payload=False)
+def recorded_scripts(source: dict[str, Any]) -> dict[str, str]:
+    """{name: sha256} of the scripts the program's archive held, as recorded when it was installed."""
+    return {e["name"]: e["sha256"] for e in source.get("scripts") or [] if isinstance(e, dict) and isinstance(e.get("name"), str)
+            and isinstance(e.get("sha256"), str)}
+
+
+def plan_uninstall(registry: Registry, installation_id: str, *, remove_payload: bool,
+                   run_scripts: list[dict[str, Any]] | None = None) -> list[Step]:
+    """Remove the menu entry, launcher and icon and forget the program; the folder goes last, and only when asked. `run_scripts` are
+    the removal scripts (prerm, postrm, uninstall) the person ticked: they run first, while the folder they live in is still there."""
     row = registry.conn.execute("SELECT source FROM installation WHERE id=?", (installation_id,)).fetchone()
     source = json.loads(row[0]) if row else {}
+    chosen = chosen_scripts(recorded_scripts(source), run_scripts, "remove")
+    steps = (script_steps(Path(source.get("path") or ""), installation_id, chosen) if chosen else [])
+    steps += appimage_ops.plan_uninstall(registry, installation_id, remove_payload=False)
     if remove_payload and source.get("path"):
         steps.append(Step(kind="archive.remove_tree", description="Delete the program's folder",
                           params={"path": source["path"], "installation_id": installation_id, "created": False}))

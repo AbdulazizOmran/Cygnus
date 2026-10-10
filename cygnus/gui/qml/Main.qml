@@ -59,10 +59,11 @@ Kirigami.ApplicationWindow {
         const result = r.ok ? r.result : null;
         const failed = !r.ok || (result && result.ok === false) ? why(r) : "";
         const attention = result && result.attention ? result.attention : "";
+        const lateOnly = result && result.late_attention ? result.late_attention : ""; // for a page that is gone: the page itself goes on with it
         if (failed)
             notify(flat(what) + " did not finish: " + flat(failed));
-        else if (attention)
-            notify(flat(what) + ": " + flat(attention));
+        else if (attention || lateOnly)
+            notify(flat(what) + ": " + flat([attention, lateOnly].filter(x => x).join(" ")));
     }
 
     function showPage(component, properties) {
@@ -76,6 +77,8 @@ Kirigami.ApplicationWindow {
             apps: appsPage,
             app: appPage,
             install: installPage,
+            packages: packagesPage,
+            package: packagePage,
             updates: updatesPage,
             storage: storagePage,
             settings: settingsPage
@@ -133,6 +136,11 @@ Kirigami.ApplicationWindow {
                 onTriggered: root.showPage(installPage)
             },
             Kirigami.Action {
+                text: "Packages"
+                icon.name: "package-x-generic"
+                onTriggered: root.showPage(packagesPage)
+            },
+            Kirigami.Action {
                 text: "Updates"
                 icon.name: "update-none"
                 onTriggered: root.showPage(updatesPage)
@@ -161,6 +169,14 @@ Kirigami.ApplicationWindow {
     Component {
         id: installPage
         InstallPage {}
+    }
+    Component {
+        id: packagesPage
+        PackagesPage {}
+    }
+    Component {
+        id: packagePage
+        PackagePage {}
     }
     Component {
         id: updatesPage

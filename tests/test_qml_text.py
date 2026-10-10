@@ -44,7 +44,7 @@ def test_pages_ignore_answers_that_arrive_after_they_were_closed():
     """Pages ask the backend through page.ask(), which drops late answers. A destroyed page's callbacks cannot
     be relied on, so nothing that changes the registry may be left to one: the backend does it on commit."""
     pages = list(QML.glob("*Page.qml"))
-    assert len(pages) == 6
+    assert len(pages) == 8  # the two Packages pages are in
     direct = {}
     for f in pages:
         text = f.read_text()
@@ -53,6 +53,9 @@ def test_pages_ignore_answers_that_arrive_after_they_were_closed():
         for slot in ("recordAurInstall", "recordAurDependency", "recordPackageInstall", "forgetInstallation"):
             assert slot not in text, f"{f.name} must not record state from a callback ({slot})"
     assert set(direct.values()) == {1}   # only each page's own ask()
+    for f in pages:  # and that ask() really drops an answer for a page that is gone (a comment or an unconditional call does not)
+        code = "\n".join(re.sub(r"\s//(?![/:]).*$", "", line) for line in f.read_text().splitlines())
+        assert re.search(r"if \(!alive\.gone\)\s+callback\(r\);\s+else\s+root\.lateAnswer\(what, r\);", code), f.name
 
 
 def test_the_install_page_stays_consistent_while_an_install_runs():
