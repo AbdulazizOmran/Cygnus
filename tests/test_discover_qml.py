@@ -188,3 +188,14 @@ def test_a_busy_answer_makes_the_page_ask_again_in_a_moment():
     assert "retryRefresh.restart()" in code[code.index("function refreshCatalogues(force)"):code.index("function setCatalogue(")]
     timer = code[code.index("id: retryRefresh"):][:140]
     assert "interval: 5000" in timer and "page.refreshCatalogues(false)" in timer
+
+
+def test_the_list_starts_at_the_top_after_a_new_search_and_when_a_message_appears_above_it():
+    """Found while taking the screenshots: the first-run question appeared above the list and the list kept the first program where it was, so the
+    question's first lines were hidden above the visible part."""
+    code = (QML / "DiscoverPage.qml").read_text()
+    assert "Qt.callLater(page.showTop)" in code[code.index("function search(more)"):code.index("function searchAur()")]
+    load = code[code.index("function load(withCatalogues)"):code.index("function setGroup(")]
+    assert "Qt.callLater(page.keepTop)" in load and "list.positionViewAtBeginning()" in code
+    assert "if (!more)\n                Qt.callLater(page.showTop)" in code  # "Show more" never jumps back to the top
+    assert "onHeightChanged: page.keepTop()" in code[code.index("header: ColumnLayout {"):][:400]  # the header changing height is what pushes the message out of sight

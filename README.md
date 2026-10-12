@@ -5,7 +5,7 @@ lives (for example SSD or HDD). Cygnus resolves runtimes and dependencies, finds
 components an application needs, checks that everything works, and can always finish or undo what
 it started.
 
-> **Public beta.** Cygnus works and is used daily by its author, but it has **not had an independent human security review**,
+> **Public beta, version 0.2.0** ([what is new](CHANGELOG.md)). Cygnus works and is used daily by its author, but it has **not had an independent human security review**,
 > it has been tested on one setup (CachyOS, KDE Plasma, x86_64), and it contains a small program that runs as
 > administrator (the helper) to install and remove packages. Every change to your system shows exactly what it will do
 > and asks for your approval first, but treat it as a beta: read the confirmations, keep backups of what matters, and
@@ -25,6 +25,22 @@ it started.
 
 ## Screenshots
 
+**Discover: one place to browse everything you can get.** Flathub, your repositories, the makers' own downloads, a search of the AUR and, once you have said yes to downloading them, AppImageHub, Debian and Fedora. Programs from lists that nobody here has checked wear a badge ("Not checked", "May not work").
+
+![Discover, searching for "notes"](docs/screenshots/discover.png)
+
+**The first time you open it,** Discover asks once before it downloads any list (about 50 MB, again each week). "Not now" switches them all off.
+
+![The first-run question in Discover](docs/screenshots/discover-question.png)
+
+**A program from another system** (here a Debian package): the card says it may not work, names the other packages Debian says it needs, and hands the file to the Install page, which analyses it and asks before anything is converted.
+
+![A Debian program in Discover](docs/screenshots/discover-program.png)
+
+**A community AppImage** is marked as not checked: GitHub only vouches for who uploaded the file.
+
+![A community AppImage in Discover](docs/screenshots/discover-appimage.png)
+
 **Installing from Flathub:** what it is, how big, what access it asks for, where it goes, and a confirmation before anything happens.
 
 ![Installing OBS Studio from Flathub](docs/screenshots/install-flathub.png)
@@ -37,7 +53,7 @@ it started.
 
 ![The applications Cygnus manages](docs/screenshots/applications.png)
 
-**Settings:** background checks, opening Flathub links and software files with Cygnus, and optional tools.
+**Settings:** background checks, opening Flathub links and software files with Cygnus, an optional update icon, and optional tools.
 
 ![Settings](docs/screenshots/settings.png)
 
@@ -91,8 +107,8 @@ it started.
 On CachyOS or Arch Linux with KDE Plasma (x86_64):
 
 * **From the AUR** (once published): `yay -S cygnus` (or any AUR helper).
-* **Ready-made package:** download `cygnus-0.1.1-1-any.pkg.tar.zst` from [Gumroad](https://azizomran.gumroad.com/l/jtudib)
-  (free during the beta), then `sudo pacman -U cygnus-0.1.1-1-any.pkg.tar.zst`.
+* **Ready-made package:** download `cygnus-0.2.0-1-any.pkg.tar.zst` from [Gumroad](https://azizomran.gumroad.com/l/jtudib)
+  (free during the beta), then `sudo pacman -U cygnus-0.2.0-1-any.pkg.tar.zst`.
 * **From source:** `git clone https://github.com/AbdulazizOmran/Cygnus && cd Cygnus/packaging/arch && makepkg -si`
   (the build runs the test suite).
 

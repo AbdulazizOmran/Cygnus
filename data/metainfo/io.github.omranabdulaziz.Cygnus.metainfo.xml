@@ -31,6 +31,11 @@
     <binary>cygnus-gui</binary>
   </provides>
   <releases>
+    <release version="0.2.0" date="2026-10-13" type="development">
+      <description>
+        <p>A store: Discover lists programs from Flathub, your repositories, the AUR (search), AppImageHub, Debian and Fedora, and hands each choice to the page that installs it. Also a Packages page, a default-browser fix for AppImage browsers, Flatpak permissions in plain words, an optional update icon, and install scripts you can choose to run.</p>
+      </description>
+    </release>
     <release version="0.1.2" date="2026-10-10" type="development">
       <description>
         <p>Programs that come as a plain archive (such as Discord's .tar.gz) can be installed onto the drive you choose, and Cygnus tells you when a newer version of itself exists.</p>

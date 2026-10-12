@@ -121,6 +121,8 @@ Kirigami.ScrollablePage {
                 return;
             }
             results = more ? results.concat(r.result.entries) : r.result.entries;
+            if (!more)
+                Qt.callLater(page.showTop); // a new first page starts at the top
             resultQuery = asked.query;
             resultGroup = asked.group;
             resultKind = asked.kind;
@@ -220,10 +222,22 @@ Kirigami.ScrollablePage {
                 return;
             }
             overview = r.result;
+            Qt.callLater(page.keepTop); // a message above the list (the first-run question) must not push itself out of sight
             page.search(false);
             if (withCatalogues && overview.catalogues_decided && overview.catalogues.some(c => c.on && c.stale))
                 page.refreshCatalogues(false);
         });
+    }
+
+    function showTop() {
+        list.positionViewAtBeginning();
+    }
+
+    // The header above the list grows when a message appears; the list then keeps the first program where it was and the message ends up above the
+    // visible part. Near the top, stay at the top.
+    function keepTop() {
+        if (list.contentY < list.originY + Kirigami.Units.gridUnit * 12)
+            list.positionViewAtBeginning();
     }
 
     function setGroup(id) {
@@ -346,6 +360,7 @@ Kirigami.ScrollablePage {
         header: ColumnLayout {
             width: list.width
             spacing: Kirigami.Units.smallSpacing
+            onHeightChanged: page.keepTop() // a message appeared or went away above the list: stay at the top if that is where it was
             Kirigami.InlineMessage {
                 Layout.fillWidth: true
                 type: Kirigami.MessageType.Error

@@ -1,6 +1,9 @@
 # Changelog
 
-## Next (planned 0.2.0, in progress) — what other package managers have
+## 0.2.0 (2026-10-13, public beta) — a store, a Packages page and what other package managers have
+
+The headlines: **Discover**, a store that lists Flathub, your repositories, the AUR (a search button), AppImageHub, Debian and Fedora and the makers' own downloads, with every way to get a program explained and each choice handed to the page that installs it; a **Packages** page; the default-browser fix for AppImage browsers such as Helium; Flatpak permissions in plain words; an optional update icon; Arch news and a snapshot note before system updates; older versions; cache cleaning; install scripts you can choose to run; and screens that can be translated. The details are below.
+
 
 - **Translations, ready for translators.** The text on the screens is now translatable (435 texts, about seven in ten of the pieces of text on the screens; the rest is
   built from pieces at run time and stays English for now), with a template (`cygnus/gui/i18n/cygnus.ts`), tools (`packaging/translations.sh`) and a loader
@@ -87,7 +90,7 @@
   read only from `archlinux.org` over HTTPS, size-capped, parsed with document-type and entity declarations refused, shown as plain
   text, with only `archlinux.org` links. `archlinux.org` is added to the privacy list; nothing is fetched until you start an update.
 
-## Unreleased — install scripts you can choose to run
+### Also new in 0.2.0: install scripts you can choose to run, and a way to support the project
 
 - **A way to support the project.** Settings, About has a **Support Cygnus** button that opens the Gumroad page in your browser
   (Cygnus sends nothing); the repository has a Sponsor button (`.github/FUNDING.yml`), the README a short "Support Cygnus" section,

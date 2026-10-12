@@ -29,7 +29,8 @@ sed -e "s/^pkgver=.*/pkgver=$version/" -e "s/^pkgrel=.*/pkgrel=1/" \
     -e "s/^sha256sums=.*/sha256sums=('$sha')/" packaging/arch/release/PKGBUILD > "$out/PKGBUILD"
 (cd "$out" && makepkg --printsrcinfo > .SRCINFO)
 # The finished build is made from the very same tarball AUR users will download (found locally here).
-(cd "$out" && makepkg -f --noconfirm)
+# (MAKEPKG_EXTRA=--nodeps builds on a machine that does not have every dependency installed; the tests still run in check())
+(cd "$out" && makepkg -f --noconfirm ${MAKEPKG_EXTRA:-})
 
 cat <<DONE
 
