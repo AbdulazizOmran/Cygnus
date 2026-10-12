@@ -215,40 +215,69 @@ entry and a launcher that keep working when its drive is unplugged. The file sta
 
 ## Discover: browsing what you can get
 
-**Discover** is the page to browse when you do not know yet which program you want. It lists the programs on Flathub (and on any
-other Flatpak remote you have), the ones in your own repositories, and the ones their makers publish as a `.deb` or `.rpm` (Chrome, Edge,
-Vivaldi, Brave, Opera, Signal, 1Password, TeamViewer, Slack, Visual Studio Code, Google Earth and any source you added with
-`cygnus feed add`), and the downloads their makers put on their GitHub release page: an AppImage, a `.deb`, an `.rpm`, an archive or an Arch
-package, for 24 programs (Helium, Zen Browser, Obsidian, Heroic, LocalSend, RustDesk, Zettlr, Logseq, Joplin, Ferdium, Mailspring, Beekeeper
-Studio, DBeaver, Anytype, Cryptomator, balenaEtcher, Tabby, Cherry Studio, AppFlowy, Cemu, LosslessCut, Vesktop, UltiMaker Cura and
-FreeCAD). Type in the search box (every word must appear in the name, what it does, its keywords, its maker or its id; the best
-matches come first), pick a kind of program, or only the programs that can be got one way. Opening a program shows **every way to
-get it**, in plain words: the Flatpak (sandboxed, updated by Flatpak), the repository package (part of your system) and the maker's own
-package (converted by Cygnus when that is safe; not sandboxed; it does not update itself) and, where there is one, the maker's own download
-from its release page (one button for each kind of file it publishes). The same program from several places is one
-entry, but only when the data says it is the same program (the same AppStream id, or a maker's package whose Flathub id was checked by
-hand), never because the names look alike.
+**Discover** is the page to browse when you do not know yet which program you want. It lists, in one place:
+
+- the programs on **Flathub** (and on any other Flatpak remote you have);
+- the programs in **your own repositories** (the Arch repositories; the data package `archlinux-appstream-data` that holds their descriptions
+  and icons is installed with Cygnus, and Settings → Optional parts installs it for a Cygnus put in place some other way);
+- the ones their makers publish as a `.deb` or `.rpm` (Chrome, Edge, Vivaldi, Brave, Opera, Signal, 1Password, TeamViewer, Slack, Visual Studio
+  Code, Google Earth and any source you added with `cygnus feed add`);
+- the downloads their makers put on their GitHub release page: an AppImage, a `.deb`, an `.rpm`, an archive or an Arch package, for 24 programs
+  (Helium, Zen Browser, Obsidian, Heroic, LocalSend, RustDesk, Zettlr, Logseq, Joplin, Ferdium, Mailspring, Beekeeper Studio, DBeaver, Anytype,
+  Cryptomator, balenaEtcher, Tabby, Cherry Studio, AppFlowy, Cemu, LosslessCut, Vesktop, UltiMaker Cura and FreeCAD);
+- three **online catalogues**, once you have said yes to downloading them (below): **AppImageHub** (a few thousand community AppImages), **Debian**'s
+  applications and **Fedora**'s (a few hundred each that nothing else here already lists; the number depends on what your machine already has, because
+  a program is left out when the Arch repositories, the AUR or Flathub have it);
+- and, when you ask, the **AUR** (below).
+
+Type in the search box (every word must appear in the name, what it does, its keywords, its maker or its id; the best matches come first), pick a
+kind of program, or only the programs that can be got one way. Opening a program shows **every way to get it**, in plain words: the Flatpak
+(sandboxed, updated by Flatpak), the repository package (part of your system), the maker's own package (converted by Cygnus when that is safe; not
+sandboxed; it does not update itself) and, where there is one, the maker's own download from its release page (one button for each kind of file it
+publishes). The same program from several places is one entry, but only when the data says it is the same program (the same AppStream id, or a
+maker's package whose Flathub id was checked by hand), never because the names look alike. The online catalogues' programs are never attached to another program's entry either: one whose name is already a listed program's is simply left out.
 
 Nothing is installed from Discover. Each way opens the page that already does that job and asks the usual questions: a Flatpak goes to the
-Install page (what it needs and where it goes), a repository package to its page in Packages, a maker's file is first downloaded over
-HTTPS and checked against the checksum the maker publishes (the `.deb` has one; the maker's `.rpm` address has none, and the page says so),
-then opened on the Install page for the full look before anything is converted. A **maker's own download** works the same way: when you press
-its button Cygnus asks GitHub for the newest release (nothing is asked while you only browse), picks the one file of that kind (if the maker
-renamed its files so that none, or more than one, fits, Cygnus says so and does not guess), downloads it from GitHub's own servers, checks it
-against the SHA-256 GitHub publishes for it (should a file have none, the page says that nothing vouches for it but the secure
-connection), and opens it on the Install page, where an AppImage is copied to the drive you choose, a `.deb` or `.rpm` is converted, an
-archive is unpacked and an Arch package goes through pacman, each with its usual look and confirmation. GitHub vouches for who uploaded a file to
-the project, not for what is in it. Cygnus **does not watch these downloads for updates**: a `.deb`, `.rpm` or archive from a release page has
-no update information, and an AppImage is only checked for updates once installed, and only when its maker put update information inside; come back to
-Discover for the newest file. If Cygnus cannot choose a file (the maker renamed its files), the card's **Open the release page** button takes you to the page. When Cygnus
+Install page (what it needs and where it goes), a repository package to its page in Packages, and a file is first downloaded over HTTPS and
+checked, then opened on the Install page for the full look before anything is converted or installed.
+
+**A maker's own download.** When you press its button Cygnus asks GitHub for the newest release (nothing is asked while you only browse), picks
+the one file of that kind (if the maker renamed its files so that none, or more than one, fits, Cygnus says so and does not guess), downloads it
+from GitHub's own servers, checks it against the SHA-256 GitHub publishes for it (should a file have none, the page says that nothing vouches for it
+but the secure connection), and opens it on the Install page, where an AppImage is copied to the drive you choose, a `.deb` or `.rpm` is converted,
+an archive is unpacked and an Arch package goes through pacman, each with its usual look and confirmation. GitHub vouches for who uploaded a file to
+the project, not for what is in it. Cygnus **does not watch these downloads for updates**: a `.deb`, `.rpm` or archive from a release page has no update
+information, and an AppImage is only checked for updates once installed, and only when its maker put update information inside; come back to
+Discover for the newest file. If Cygnus cannot choose a file, the card's **Open the release page** button takes you to the page. When Cygnus
 already manages a program with the same name, the card is marked installed and says that installing the file as well would add a second copy and
-replace the first one's menu entry: update the installed one from the Updates page instead. Only programs
-whose releases were checked by hand are listed (no community wrappers, and none whose releases publish no checksums), and nothing from other distributions'
-whole archives (Debian, Fedora): their dependencies would not resolve on Arch. Programs from your own repositories are listed only when
-AppStream data for them is installed: the package `archlinux-appstream-data` (Settings → Optional parts; it holds data only) puts it in
-`/usr/share/swcatalog`, and Discover also reads the other standard catalogue folders (`/var/lib/swcatalog`, `/usr/share/app-info`); a program
-listed from there is opened on its page in Packages, which says so if no repository has it. Screenshots are not fetched.
-Terminal: `cygnus discover search [WORDS] [--group G] [--source flatpak|repo|vendor|release] [--page N]` and `cygnus discover info ID`.
+replace the first one's menu entry: update the installed one from the Updates page instead.
+
+**The online catalogues.** The first time you open Discover it asks one question: may it download lists of programs from AppImageHub, Debian and
+Fedora (about 50 MB, again each week, from `appimage.github.io`, `deb.debian.org`, `dl.fedoraproject.org` and `aur.archlinux.org`)? A yes switches nothing back on that you had switched off. **Not now**
+switches them all off and nothing is downloaded; **Download and list them** does it. At the bottom of the page each catalogue has a switch (off:
+not listed and not downloaded), how many programs it holds and how old the copy is, and **Update the online catalogues now** downloads them again.
+Searching and browsing only read the copies on your computer. and `cygnus discover update [--all]` (typing `update` is the answer yes). Once answered, opening Discover downloads a catalogue that is on and more than a week old; before that, nothing is downloaded.
+
+- **AppImageHub** is a community directory: anyone can list an AppImage there and nobody has checked the programs, Cygnus included. Only entries that
+  name a GitHub project are listed. The button looks up the project's newest release on GitHub (the directory's own links are never followed), takes
+  the one AppImage for your processor (none or several is said in words, with the release page one click away), checks GitHub's SHA-256 and
+  hands the file to the Install page. An AppImage runs with all of your user's rights: install only what you trust.
+- **Debian and Fedora** list the applications of their repositories as `.deb` and `.rpm` files, which Cygnus tries to **convert**. They are built for
+  Debian or Fedora, with those systems' libraries and other packages, so **they may not work here**, and every card says so. The card also
+  names the other packages the maker's list says it needs and that no package of that name in your repositories provides (Cygnus does not fetch
+  them), and the Install page then checks the libraries the program loads and refuses to convert when one is missing. **The Arch version is always
+  preferred**: a program is not listed from Debian or Fedora when the Arch repositories or the AUR have a package of that name, when Flathub or a
+  list above it has the same id, or when a program of the same name is already listed (a community AppImage of that name counts: it carries its own libraries, so it is the one shown); a Debian or Fedora package that holds several programs is one entry named after the package ("Installs 3 programs: …"), left out only when every one of those programs is already listed. The file is checked against the checksum and size in the
+  distribution's own package list, fetched over HTTPS from the same host; the distribution's signature is not checked (the keys are not on an
+  Arch system). Nothing from them is watched for updates.
+
+**The AUR.** The AUR has no program lists, so it is not browsed. When you have typed at least two characters, **Also search the AUR for …** asks
+`aur.archlinux.org` (your words are sent there, which a search of the local lists never does) and lists the 30 most popular packages with votes, who
+looks after them, and whether they are flagged out of date. **Review and install…** opens the Install page, which shows the build script and what it
+needs before anything is built. Anyone can upload to the AUR; votes do not make a package safe.
+
+Programs from your own repositories are opened on their page in Packages. Screenshots are not fetched.
+Terminal: `cygnus discover search [WORDS] [--group G] [--source flatpak|repo|vendor|release|appimage|debian|fedora] [--page N]` and `cygnus discover info ID`.
 
 ## Packages from your repositories
 
@@ -511,7 +540,7 @@ something can be updated, and that includes a newer Cygnus.
 The packages Cygnus needs to run are installed with it by pacman. A few extra tools are only suggested, and Cygnus uses them
 when they are there: `fuse3` and `fuse2` (start AppImages the normal way), `zsync` (download only what changed when an
 AppImage is updated), `base-devel` (build AUR packages), `kservice` (refresh the Plasma menu at once) and `archlinux-appstream-data`
-(the descriptions and icons Discover needs to list programs from your repositories). **Settings →
+(the descriptions and icons Discover needs to list programs from your repositories; Cygnus's own package already brings it, so it only shows here for a Cygnus put in place some other way). **Settings →
 Optional parts** lists the ones that are missing and installs any of them on request: it shows the helper's plan (exactly what
 pacman will install) and asks for your password, like every other installation. Cygnus never installs them by itself.
 What an application needs (Flatpak runtimes, build dependencies of an AUR package, libraries of a converted program) is

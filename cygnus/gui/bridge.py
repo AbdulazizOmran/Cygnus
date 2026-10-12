@@ -269,6 +269,34 @@ class Backend(QObject):
     def discoverApp(self, key: str) -> str:
         return self._submit(lambda: service.discover_app(key), long=True)
 
+    @Slot(str, result=str)
+    def fetchAppimageDownload(self, repo: str) -> str:
+        return self._submit(lambda progress: service.fetch_appimage_download(repo, progress), wants_progress=True)
+
+    @Slot(str, result=str)
+    def fetchDebianDownload(self, package: str) -> str:
+        return self._submit(lambda progress: service.fetch_debian_download(package, progress), wants_progress=True)
+
+    @Slot(str, result=str)
+    def fetchFedoraDownload(self, package: str) -> str:
+        return self._submit(lambda progress: service.fetch_fedora_download(package, progress), wants_progress=True)
+
+    @Slot(bool, result=str)
+    def catalogueRefresh(self, force: bool) -> str:
+        return self._submit(lambda progress: service.catalogue_refresh(force, progress, wait=0), wants_progress=True)  # busy at once: the page asks again
+
+    @Slot(bool, result=str)
+    def catalogueDecide(self, accept: bool) -> str:
+        return self._submit(lambda: service.catalogue_decide(accept))
+
+    @Slot(str, bool, result=str)
+    def catalogueSetOn(self, cat_id: str, on: bool) -> str:
+        return self._submit(lambda: service.catalogue_set_on(cat_id, on))
+
+    @Slot(str, result=str)
+    def discoverAur(self, query: str) -> str:
+        return self._submit(lambda: service.discover_aur(query), long=True)  # a network question
+
     @Slot(str, str, result=str)
     def fetchVendorPackage(self, package: str, fmt: str) -> str:
         return self._submit(lambda progress: service.fetch_vendor_package(package, fmt, progress), wants_progress=True)

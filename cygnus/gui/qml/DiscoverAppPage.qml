@@ -117,6 +117,77 @@ Kirigami.ScrollablePage {
         });
     }
 
+    // A program from AppImageHub's community list: the project is looked up on GitHub when you press the button (nothing in the list is followed as a
+    // link), the one AppImage of its newest release is fetched over HTTPS, and the Install page opens it like any file you chose.
+    function fetchAppimage(source) {
+        if (busyText !== "")
+            return;
+        errorText = "";
+        progressValue = -1;
+        busyText = qsTr("Looking for the newest version…");
+        page.ask(backend.fetchAppimageDownload(source.repo), function (r) {
+            busyText = "";
+            if (!r.ok || !r.result.ok) {
+                errorText = root.plain(root.why(r));
+                return;
+            }
+            root.openPage("install", {
+                "fileUrl": r.result.file_url,
+                "launchNotice": root.fill(qsTr("Cygnus downloaded the AppImage from the GitHub release page of %1 (version %2) and %3. It comes from a community list that Cygnus has not checked. Look at what it would do below; nothing is installed until you confirm."), [root.flat(source.repo), root.flat(r.result.version), r.result.checked ? qsTr("checked it against the checksum GitHub publishes for it") : qsTr("could not check it against a checksum, because GitHub has none for this file (the connection was secure, and that is all that vouches for it)")])
+            });
+        }, function (line) {
+            if (line !== "")
+                page.busyText = line;
+        });
+    }
+
+    // A program from Debian's repository: the .deb is fetched from deb.debian.org over HTTPS and checked against the checksum and size in Debian's own
+    // package list, then opened on the Install page, which analyses it and says what it found. Debian built it for Debian: it may not work here.
+    function fetchDebian(source) {
+        if (busyText !== "")
+            return;
+        errorText = "";
+        progressValue = -1;
+        busyText = qsTr("Downloading…");
+        page.ask(backend.fetchDebianDownload(source.package), function (r) {
+            busyText = "";
+            if (!r.ok || !r.result.ok) {
+                errorText = root.plain(root.why(r));
+                return;
+            }
+            root.openPage("install", {
+                "fileUrl": r.result.file_url,
+                "launchNotice": root.fill(qsTr("Cygnus downloaded Debian's package %1 (version %2) and checked it against the checksum in Debian's package list (Debian's own signature is not checked). Debian built it for Debian, so converting it for this system may fail or leave something out: read what the analysis below found. Nothing is installed until you confirm."), [root.flat(source.package), root.flat(r.result.version)])
+            });
+        }, function (line) {
+            if (line !== "")
+                page.busyText = line;
+        });
+    }
+
+    // A program from Fedora's repository: the same, with an .rpm from dl.fedoraproject.org and Fedora's package list.
+    function fetchFedora(source) {
+        if (busyText !== "")
+            return;
+        errorText = "";
+        progressValue = -1;
+        busyText = qsTr("Downloading…");
+        page.ask(backend.fetchFedoraDownload(source.package), function (r) {
+            busyText = "";
+            if (!r.ok || !r.result.ok) {
+                errorText = root.plain(root.why(r));
+                return;
+            }
+            root.openPage("install", {
+                "fileUrl": r.result.file_url,
+                "launchNotice": root.fill(qsTr("Cygnus downloaded Fedora's package %1 (version %2) and checked it against the checksum in Fedora's package list (Fedora's own signature is not checked). Fedora built it for Fedora, so converting it for this system may fail or leave something out: read what the analysis below found. Nothing is installed until you confirm."), [root.flat(source.package), root.flat(r.result.version)])
+            });
+        }, function (line) {
+            if (line !== "")
+                page.busyText = line;
+        });
+    }
+
     function releaseButtonText(format) {
         switch (format) {
         case "appimage":
@@ -140,6 +211,12 @@ Kirigami.ScrollablePage {
             return qsTr("Part of your system: installed and updated by pacman together with everything else, and it uses the libraries your system already has.");
         case "release":
             return qsTr("The file its makers put on their GitHub release page. Cygnus looks up the newest one when you press a button, checks the checksum GitHub publishes for it, and shows you what installing it would do. It is not sandboxed. Cygnus does not watch it for updates: come back here for the newest file (an AppImage that carries its own update information is the exception).");
+        case "debian":
+            return qsTr("A package from Debian's repository. Debian builds it for Debian, with Debian's libraries and other packages, so it may not work on this system even when Cygnus converts it. Cygnus checks the file against Debian's package list, converts it when that is safe, and shows you what it found. It is not sandboxed, it is not updated by anything, and Cygnus does not watch it for updates. When the Arch repositories, the AUR or Flathub have the same program, it is not listed from here.");
+        case "fedora":
+            return qsTr("A package from Fedora's repository. Fedora builds it for Fedora, with Fedora's libraries and other packages, so it may not work on this system even when Cygnus converts it. Cygnus checks the file against Fedora's package list, converts it when that is safe, and shows you what it found. It is not sandboxed, it is not updated by anything, and Cygnus does not watch it for updates. When the Arch repositories, the AUR, Flathub or another list here has the same program, it is not listed from here.");
+        case "appimage":
+            return qsTr("An AppImage that someone listed in AppImageHub, a community directory. Nobody has checked the program, and Cygnus has not either: GitHub only vouches for who uploaded the file. An AppImage runs with all of your user's rights, so install only what you trust. Cygnus looks up the newest release when you press the button and shows you what installing would do. It does not watch it for updates (an AppImage that carries its own update information is the exception).");
         default:
             return qsTr("The maker's own package, which Cygnus converts into a pacman package when that is safe (it shows you what the vendor's install scripts would have done). It is not sandboxed, and it does not update itself: Cygnus tells you about newer versions and you download and review them.");
         }
@@ -236,7 +313,7 @@ Kirigami.ScrollablePage {
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
                         font.bold: true
-                        text: modelData.label + (modelData.installed ? qsTr("  ·  installed") : "")
+                        text: modelData.label + (modelData.installed ? (modelData.hint ? qsTr("  ·  a program of this name is installed") : qsTr("  ·  installed")) : "")
                     }
                     QQC2.Label {
                         textFormat: Text.PlainText
@@ -273,6 +350,30 @@ Kirigami.ScrollablePage {
                             onClicked: page.openPackage(modelData)
                         }
                         QQC2.Button {
+                            objectName: "appimageButton"
+                            visible: modelData.kind === "appimage"
+                            enabled: page.busyText === ""
+                            text: qsTr("Download the AppImage and review…")
+                            icon.name: "download"
+                            onClicked: page.fetchAppimage(modelData)
+                        }
+                        QQC2.Button {
+                            objectName: "debianButton"
+                            visible: modelData.kind === "debian"
+                            enabled: page.busyText === ""
+                            text: qsTr("Download the .deb and review…")
+                            icon.name: "download"
+                            onClicked: page.fetchDebian(modelData)
+                        }
+                        QQC2.Button {
+                            objectName: "fedoraButton"
+                            visible: modelData.kind === "fedora"
+                            enabled: page.busyText === ""
+                            text: qsTr("Download the .rpm and review…")
+                            icon.name: "download"
+                            onClicked: page.fetchFedora(modelData)
+                        }
+                        QQC2.Button {
                             objectName: "debButton"
                             visible: modelData.kind === "vendor" && modelData.formats.indexOf("deb") >= 0
                             enabled: page.busyText === ""
@@ -297,18 +398,27 @@ Kirigami.ScrollablePage {
                         }
                     }
                     QQC2.Label {
+                        objectName: "foreignWarning"
+                        textFormat: Text.PlainText
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        visible: modelData.kind === "debian" || modelData.kind === "fedora"
+                        font.bold: true
+                        text: modelData.kind === "fedora" ? (qsTr("This may not work: it was built for Fedora.") + " " + (modelData.needs && modelData.needs.length > 0 ? qsTr("Fedora lists these other packages as needed, and no package of that name is in your repositories: %1. Cygnus does not fetch them, so the program may start with parts missing, or not at all.").arg(modelData.needs.join(", ")) + (modelData.needs_more > 0 ? " " + qsTr("%1 more are not listed here.").arg(modelData.needs_more) : "") : qsTr("Besides libraries (which the Install page checks), Fedora lists no other package as needed that is missing here."))) : (qsTr("This may not work: it was built for Debian.") + " " + (modelData.needs && modelData.needs.length > 0 ? qsTr("Debian lists these other packages as needed, and no package of that name is in your repositories: %1. Cygnus does not fetch them, so the program may start with parts missing, or not at all.").arg(modelData.needs.join(", ")) + (modelData.needs_more > 0 ? " " + qsTr("%1 more are not listed here.").arg(modelData.needs_more) : "") : qsTr("Besides libraries (which the Install page checks), Debian lists no other package as needed that is missing here.")))
+                    }
+                    QQC2.Label {
                         objectName: "releaseInstalledNote"
                         textFormat: Text.PlainText
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
-                        visible: modelData.kind === "release" && modelData.installed
+                        visible: (modelData.kind === "release" || modelData.kind === "appimage" || modelData.kind === "debian" || modelData.kind === "fedora") && modelData.installed
                         font.bold: true
-                        text: qsTr("Cygnus already manages a program with this name. Installing this file as well would add a second copy and replace the first one's menu entry. To get a newer version of the one you have, use the Updates page.")
+                        text: qsTr("Cygnus already manages a program with this name. Installing this as well would add a second copy and replace the first one's menu entry. Newer versions of the one you have are looked for on the Updates page, when that kind of program has update information.")
                     }
                     Flow {
                         Layout.fillWidth: true
                         spacing: Kirigami.Units.smallSpacing
-                        visible: modelData.kind === "release"
+                        visible: modelData.kind === "release" || modelData.kind === "appimage"
                         Repeater {
                             model: card.modelData.kind === "release" ? card.modelData.formats : []
                             QQC2.Button {

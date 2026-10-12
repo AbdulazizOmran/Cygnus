@@ -60,8 +60,11 @@ it started.
 * **Flatpak permissions** in plain words: what an installed Flatpak may do outside its sandbox, with what lets it leave the sandbox marked and
   your own overrides shown (read-only).
 * **An optional update icon** in the system tray while updates are waiting (off until you switch it on; the icon only reads stored results and never goes to the network).
-* **Discover**: browse what you can get from Flathub, your repositories, the makers' own `.deb`/`.rpm` packages and the AppImage, `.deb`, `.rpm`,
-  archive or Arch package 24 well-known programs publish on GitHub, with every way to get a program explained in plain words. It only lists: each choice goes to the page that already installs it, with its own confirmation.
+* **Discover**: browse what you can get in one place, with every way to get a program explained in plain words: Flathub, your repositories, the makers'
+  own `.deb`/`.rpm` packages, the AppImage, `.deb`, `.rpm`, archive or Arch package that 24 well-known programs publish on GitHub, and, once you have
+  said yes to downloading them, the online catalogues: **AppImageHub** (a few thousand community AppImages), **Debian**'s applications and **Fedora**'s
+  (converted by Cygnus, and marked "may not work"; the Arch version is always preferred). A button searches the **AUR** when you ask. It only lists:
+  each choice goes to the page that already installs it, with its own confirmation.
 * **Your default browser**: a browser Cygnus manages (Helium, for example) can be made the one links open with, in one click
   or with `cygnus default-browser set`. Cygnus reads the result back from every place the desktop looks, undoes it with a plain
   message if it did not take, and remembers what was set before so you can put it back. Only your own settings change.
@@ -110,10 +113,10 @@ Other ways to help cost nothing: star the repository, tell someone who uses Arch
 Cygnus has no telemetry, no account and no crash reporting. It talks to the network only to do what you asked or to check
 for updates of what you installed: your distribution's package mirrors (through pacman), `flathub.org` and
 `dl.flathub.org`, `aur.archlinux.org`, `archlinux.org` (the news feed, read when you start a system update), `api.github.com` / `github.com` (AppImage update information, and a check whether a newer Cygnus exists: GitHub sees your address
-and `Cygnus/<version>`, nothing else),
+and `Cygnus/<version>`, nothing else), and, only after you said yes to Discover's online catalogues, `appimage.github.io`, `deb.debian.org` and `dl.fedoraproject.org` (their lists of programs, about once a week; `aur.archlinux.org` for the names of AUR packages, and for the AUR search when you press its button),
 and the vendor
-package lists of programs you converted (for example `dl.google.com`, `packages.microsoft.com`), and a vendor's own server (or GitHub, for a program's own release download) only when you press
-a download button on a program's page in Discover (or "Download and review" on the Updates page). Browsing Discover itself contacts nothing: it reads files already on your computer. Everything it stores is in
+package lists of programs you converted (for example `dl.google.com`, `packages.microsoft.com`), and a vendor's own server (or GitHub, or Debian's or Fedora's mirror, for a program's own download) only when you press
+a download button on a program's page in Discover (or "Download and review" on the Updates page). Browsing and searching Discover contacts nothing: it reads files already on your computer (the catalogues' copies included). Opening Discover downloads an online catalogue only after you said yes to that, when its copy is more than a week old. Everything it stores is in
 `~/.local/share/cygnus`, `~/.config/cygnus`, `~/.cache/cygnus` and `~/.local/state/cygnus`, plus the helper's own
 record of administrator actions in `/var/lib/cygnus`.
 
@@ -150,8 +153,9 @@ ordinary pacman packages, Flatpaks and AppImages); Cygnus only forgets them. Its
     `fakeroot` (makepkg, the system-update check and the package file lists), `xdg-utils` (opening store
     pages, and the switch that makes Cygnus the default program for software files) and `glib2` (`gio`,
     which reads that default).
+  * Also installed with it: `archlinux-appstream-data` (the descriptions and icons Discover needs to list your repositories' programs).
   * Optional: `base-devel` (the compilers and build tools AUR packages need to build from source),
-    `kservice` (refresh the Plasma menu at once), `archlinux-appstream-data` (lets Discover list your repositories' programs), `fuse2` / `fuse3` (run AppImages that need them),
+    `kservice` (refresh the Plasma menu at once), `fuse2` / `fuse3` (run AppImages that need them),
     `zsync` (delta downloads for AppImage updates).
 * **Build:** `python-build`, `python-installer`, `python-setuptools`, `python-wheel`.
 * **Tests:** `python-pytest`.

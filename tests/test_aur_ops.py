@@ -291,3 +291,26 @@ def test_a_missing_install_script_still_makes_the_review_incomplete(aur):
     _publish_files(url, {"PKGBUILD": body.encode()})
     r = aur_ops.review(aur_ops.fetch("hello-cygnus", base_url=url))
     assert not r.complete and any("hello-cygnus.install" in p for p in r.problems)
+
+
+# -- the search call itself ------------------------------------------------------------------------------------------------------------------------
+def test_a_search_term_is_quoted_completely_so_a_slash_in_it_cannot_change_the_address():
+    from cygnus.core.backends import aur as aur_backend
+
+    seen = []
+    aur_backend.search("a/../../info b?x=1#y", by="name-desc", fetch_json=lambda url: (seen.append(url), {"type": "search", "results": []})[1])
+    assert seen == ["https://aur.archlinux.org/rpc/v5/search/a%2F..%2F..%2Finfo%20b%3Fx%3D1%23y?by=name-desc"]
+
+
+def test_an_error_or_an_odd_answer_is_nothing_found_unless_the_caller_wants_it_said():
+    from cygnus.core.backends import aur as aur_backend
+    from cygnus.core.util import http
+
+    for answer in ({"type": "error", "error": "Too many package results."}, ["list"], None, {"results": "text"}, {"type": "search", "results": None}):
+        assert aur_backend.search("vlc", fetch_json=lambda url, a=answer: a) == []
+    with pytest.raises(http.HttpError, match="Too many package results"):
+        aur_backend.search("vlc", fetch_json=lambda url: {"type": "error", "error": "Too many package results."}, strict=True)
+    for answer in (["list"], None, "text"):
+        with pytest.raises(http.HttpError, match="not in a form Cygnus understands"):
+            aur_backend.search("vlc", fetch_json=lambda url, a=answer: a, strict=True)
+    assert aur_backend.search("vlc", fetch_json=lambda url: {"type": "search", "results": [{"Name": "vlc"}]}, strict=True) == [{"Name": "vlc"}]

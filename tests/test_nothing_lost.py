@@ -216,3 +216,94 @@ def test_a_link_whose_name_holds_the_separator_is_refused_not_cut_in_the_wrong_p
 def test_only_a_newline_ends_a_listing_line():
     odd = "-rw-r--r--  0 root   root        5 Oct  8 22:19 ./a\x0cb\x85c"  # form feed and NEL are part of the name
     assert foreign.parse_listing(odd) == [("-", 5, "./a\x0cb\x85c")]
+
+
+# -- the second and later names of a hard-linked file in an .rpm's cpio payload --------------------------------------------------------------------
+def test_a_cpio_hard_link_listed_as_a_regular_file_with_link_to_is_unpacked_when_its_file_is_there(tmp_path):
+    """Found on real Fedora packages: a cpio archive lists the later names of a hard-linked file as ordinary files with " link to <first name>" after
+    the name (the type letter is "-", not "h"), and the guard took the whole text for the file's name and refused the package as incomplete."""
+    (tmp_path / "usr/share/icons").mkdir(parents=True)
+    (tmp_path / "usr/share/icons/first.svg").write_bytes(b"x")
+    os.link(tmp_path / "usr/share/icons/first.svg", tmp_path / "usr/share/icons/second.svg")
+    listing = "\n".join([
+        "-rw-r--r--  2 0      0           1 May 29  2024 ./usr/share/icons/second.svg link to ./usr/share/icons/first.svg",
+        "-rw-r--r--  2 0      0           1 May 29  2024 ./usr/share/icons/first.svg"])
+    assert foreign.not_unpacked(listing, tmp_path) == []
+
+
+def test_a_cpio_hard_link_whose_file_did_not_come_out_is_still_reported(tmp_path):
+    (tmp_path / "usr/share/icons").mkdir(parents=True)
+    (tmp_path / "usr/share/icons/first.svg").write_bytes(b"x")
+    listing = "-rw-r--r--  2 0      0           1 May 29  2024 ./usr/share/icons/second.svg link to ./usr/share/icons/first.svg"
+    assert foreign.not_unpacked(listing, tmp_path) == ["/usr/share/icons/second.svg"]  # named without the " link to …", as a person knows the file
+
+
+def test_a_file_that_really_has_link_to_in_its_name_is_found_by_its_whole_name(tmp_path):
+    (tmp_path / "usr/share").mkdir(parents=True)
+    (tmp_path / "usr/share/notes link to others.txt").write_bytes(b"x")
+    assert foreign.not_unpacked("-rw-r--r--  1 0      0           1 May 29  2024 ./usr/share/notes link to others.txt", tmp_path) == []
+    assert foreign.not_unpacked("-rw-r--r--  1 0      0           1 May 29  2024 ./usr/share/missing link to others.txt", tmp_path) == ["/usr/share/missing"]
+
+
+def test_a_regular_entry_whose_name_holds_the_separator_twice_is_refused_not_cut_in_the_wrong_place():
+    with pytest.raises(foreign.PayloadError, match="link Cygnus cannot read reliably"):
+        foreign.parse_listing("-rw-r--r--  2 0      0           1 May 29  2024 ./a link to b link to c")
+
+
+def test_a_cpio_hard_link_that_escapes_is_still_a_lost_entry(tmp_path):
+    (tmp_path / "usr").mkdir()
+    assert foreign.not_unpacked("-rw-r--r--  2 0      0           1 May 29  2024 ../etc/passwd link to ./usr/x", tmp_path) == ["/../etc/passwd"]
+
+
+@pytest.mark.needs_tool("bsdtar")
+def test_a_real_cpio_archive_with_hard_links_unpacks_and_passes_the_guard(tmp_path):
+    """The real tool's listing, not a typed-in one: build a cpio payload like an .rpm's, list it and unpack it as extract_payload does."""
+    import subprocess
+
+    src = tmp_path / "src"
+    (src / "usr/share/icons").mkdir(parents=True)
+    (src / "usr/share/icons/first.svg").write_bytes(b"<svg/>")
+    os.link(src / "usr/share/icons/first.svg", src / "usr/share/icons/second.svg")
+    os.link(src / "usr/share/icons/first.svg", src / "usr/share/icons/third.svg")
+    archive = tmp_path / "payload.cpio"
+    names = subprocess.run(["find", ".", "-mindepth", "1"], cwd=src, capture_output=True, text=True, check=True).stdout
+    subprocess.run(["bsdtar", "-cf", str(archive), "--format=newc", "-C", str(src), "-T", "-"], input=names, text=True, check=True, capture_output=True)
+    listing = subprocess.run(["bsdtar", "-tvf", str(archive)], capture_output=True, text=True, check=True).stdout
+    assert " link to " in listing  # the real tool does print the second and later names this way
+    dest = tmp_path / "dest"
+    dest.mkdir()
+    subprocess.run(["bsdtar", "-x", "--no-same-owner", "--no-same-permissions", "-f", str(archive), "-C", str(dest)], check=True, capture_output=True)
+    assert foreign.not_unpacked(listing, dest) == []
+    assert sorted(p.name for p in (dest / "usr/share/icons").iterdir()) == ["first.svg", "second.svg", "third.svg"]
+
+
+def test_a_name_that_leaves_the_folder_is_lost_even_when_something_of_that_name_exists(tmp_path):
+    """Found by mutation review: the existing escape tests named files that did not exist, so removing the escape checks changed nothing."""
+    dest = tmp_path / "dest"
+    (dest / "usr").mkdir(parents=True)
+    (dest / "x").write_bytes(b"x")
+    (tmp_path / "outside").write_bytes(b"o")
+    assert foreign.not_unpacked("-rw-r--r--  1 0      0           1 May 29  2024 ./usr/../x", dest) == ["/usr/../x"]
+    assert foreign.not_unpacked("-rw-r--r--  1 0      0           1 May 29  2024 ../outside", dest) == ["/../outside"]
+    assert foreign.not_unpacked("-rw-r--r--  1 0      0           1 May 29  2024 ./x/..", dest) == ["/x/.."]
+
+
+def test_a_cpio_hard_link_counts_only_when_both_names_are_the_same_file_and_inside_the_folder(tmp_path):
+    dest = tmp_path / "dest"
+    (dest / "usr").mkdir(parents=True)
+    (dest / "usr/a").write_bytes(b"a")
+    (dest / "usr/b").write_bytes(b"b")  # exists, but is another file than the one the listing says it is linked to
+    os.link(dest / "usr/a", dest / "usr/c")
+    (tmp_path / "scratch").write_bytes(b"s")
+    listing = "\n".join([
+        "-rw-r--r--  2 0      0           1 May 29  2024 ./usr/c link to ./usr/a",
+        "-rw-r--r--  2 0      0           1 May 29  2024 ./usr/b link to ./usr/a",
+        "-rw-r--r--  2 0      0           1 May 29  2024 ./usr/a link to ../../scratch",
+        "-rw-r--r--  2 0      0           1 May 29  2024 ./usr/a link to ./usr/missing"])
+    assert foreign.not_unpacked(listing, dest) == ["/usr/b", "/usr/a", "/usr/a"]  # only the first line is a real hard link
+
+
+def test_a_package_list_hard_link_that_escapes_is_stopped_by_the_unpacker_and_the_guard_agrees(tmp_path):
+    (tmp_path / "usr").mkdir()
+    (tmp_path / "usr/a").write_bytes(b"a")
+    assert foreign.not_unpacked("-rw-r--r--  2 0      0           1 May 29  2024 ./usr/a link to ../../../etc/passwd", tmp_path) == ["/usr/a"]

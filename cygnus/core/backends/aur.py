@@ -32,9 +32,20 @@ def info(names: list[str], fetch_json: Callable[..., Any] = http.get_json) -> di
     return out
 
 
-def search(term: str, by: str = "name", fetch_json: Callable[..., Any] = http.get_json) -> list[dict[str, Any]]:
-    data = fetch_json(f"{RPC}/search/{quote(term)}?by={by}")
-    return data.get("results", []) if data.get("type") != "error" else []
+def search(term: str, by: str = "name", fetch_json: Callable[..., Any] = http.get_json, *, strict: bool = False) -> list[dict[str, Any]]:
+    """The AUR's answer to a search. The term is quoted completely (a "/" in it must not become part of the address). By default an error or an answer
+    of another shape is "nothing found"; with `strict` it is an error in words, so the person is not told that nothing matches when the AUR refused."""
+    data = fetch_json(f"{RPC}/search/{quote(term, safe='')}?by={by}")
+    if not isinstance(data, dict):
+        if strict:
+            raise http.HttpError("AUR error: the answer was not in a form Cygnus understands")
+        return []
+    if data.get("type") == "error":
+        if strict:
+            raise http.HttpError(f"AUR error: {str(data.get('error'))[:200]}")
+        return []
+    results = data.get("results", [])
+    return results if isinstance(results, list) else []
 
 
 def provider(name: str, fetch_json: Callable[..., Any] = http.get_json) -> str | None:

@@ -45,6 +45,15 @@ Kirigami.ScrollablePage {
     property string resultQuery: "" // what the list on screen was asked with: "Show more" continues THAT search, not whatever is typed since
     property string resultGroup: ""
     property string resultKind: ""
+    property var aurResult: null // the AUR's answer for the words in the box, when the person asked for it
+    property bool aurBusy: false
+    property int aurSeq: 0 // an answer for words that were changed since is dropped
+    property string aurError: "" // already made safe with root.plain()
+    property bool refreshing: false // the online catalogues are being downloaded
+    property string refreshText: ""
+    property string refreshError: "" // already made safe with root.plain()
+    property bool refreshAgain: false
+    property int loadSeq: 0 // an overview that arrives after a newer one was asked for is dropped
 
     readonly property var kinds: [
         {
@@ -66,12 +75,30 @@ Kirigami.ScrollablePage {
         {
             label: qsTr("The maker's own download (AppImage, .deb, .rpm, archive, Arch package)"),
             value: "release"
+        },
+        {
+            label: qsTr("Community AppImages (AppImageHub)"),
+            value: "appimage"
+        },
+        {
+            label: qsTr("Debian packages (converted, may not work)"),
+            value: "debian"
+        },
+        {
+            label: qsTr("Fedora packages (converted, may not work)"),
+            value: "fedora"
         }
     ]
 
     function search(more) {
         const seq = ++searchSeq;
         const offset = more ? results.length : 0;
+        if (!more) {
+            aurSeq++; // the AUR answer on screen (or on its way) belongs to the words that were typed before
+            aurResult = null;
+            aurError = "";
+            aurBusy = false;
+        }
         const asked = more ? {
             query: resultQuery,
             group: resultGroup,
@@ -102,9 +129,91 @@ Kirigami.ScrollablePage {
         });
     }
 
-    function load() {
+    // The AUR is not listed (it has no program lists): it is asked when you press the button, with the words in the box, and each answer is a package
+    // that the Install page reviews and builds.
+    function searchAur() {
+        const words = searchField.text.trim();
+        if (aurBusy || words.length < 2)
+            return;
+        const seq = ++aurSeq;
+        aurBusy = true;
+        aurError = "";
+        aurResult = null;
+        page.ask(backend.discoverAur(words), function (r) {
+            if (seq !== aurSeq)
+                return;
+            aurBusy = false;
+            if (!r.ok) {
+                aurError = root.plain(r.error);
+                return;
+            }
+            aurResult = r.result;
+        });
+    }
+
+    // The online catalogues (AppImageHub...) are downloaded when they are switched on and missing or a week old: once for each opening of this page,
+    // and again only when you press the button. Searching and browsing only read what was downloaded.
+    function refreshCatalogues(force) {
+        if (refreshing) {
+            refreshAgain = true; // a catalogue switched on, or the button pressed, while one is downloading: asked again when that one is done
+            return;
+        }
+        refreshing = true;
+        refreshText = "";
+        refreshError = "";
+        page.ask(backend.catalogueRefresh(force), function (r) {
+            refreshing = false;
+            refreshText = "";
+            if (!r.ok) {
+                refreshError = root.plain(r.error);
+                return;
+            }
+            refreshError = root.plain(Object.values(r.result.errors).join(" "));
+            if (r.result.refreshed.length > 0 || r.result.busy)
+                page.load(false); // the lists have more in them now
+            if (r.result.busy)
+                retryRefresh.restart(); // another download is still running (an earlier page's): ask again in a moment
+            if (refreshAgain) {
+                refreshAgain = false;
+                page.refreshCatalogues(false);
+            }
+        }, function (line) {
+            if (line !== "")
+                page.refreshText = line;
+        });
+    }
+
+    // The one question asked before anything is downloaded by itself: yes downloads the catalogues now; not now switches them all off (they can be switched on
+    // one by one below).
+    function decideCatalogues(accept) {
+        page.ask(backend.catalogueDecide(accept), function (r) {
+            if (!r.ok) {
+                refreshError = root.plain(r.error);
+                return;
+            }
+            page.load(accept);
+        });
+    }
+
+    function setCatalogue(id, on) {
+        page.ask(backend.catalogueSetOn(id, on), function (r) {
+            if (!r.ok) {
+                refreshError = root.plain(r.error);
+                page.load(false); // the switch shows what is saved, not the position it was clicked to
+                return;
+            }
+            page.load(false);
+            if (on)
+                page.refreshCatalogues(false);
+        });
+    }
+
+    function load(withCatalogues) {
         reading = true;
+        const seq = ++loadSeq;
         page.ask(backend.discoverOverview(), function (r) {
+            if (seq !== loadSeq)
+                return;
             reading = false;
             if (!r.ok) {
                 errorText = root.plain(r.error);
@@ -112,6 +221,8 @@ Kirigami.ScrollablePage {
             }
             overview = r.result;
             page.search(false);
+            if (withCatalogues && overview.catalogues_decided && overview.catalogues.some(c => c.on && c.stale))
+                page.refreshCatalogues(false);
         });
     }
 
@@ -131,9 +242,23 @@ Kirigami.ScrollablePage {
             flatpak: qsTr("Flatpak"),
             repo: qsTr("Your repositories"),
             vendor: qsTr("Vendor's own package"),
-            release: qsTr("Maker's own download")
+            release: qsTr("Maker's own download"),
+            appimage: qsTr("Community AppImage"),
+            debian: qsTr("Debian package (may not work)"),
+            fedora: qsTr("Fedora package (may not work)")
         };
         return entry.sources.map(s => names[s.kind] || s.kind).filter((n, i, all) => all.indexOf(n) === i).join(" · ");
+    }
+
+    // A program that is only in a list somebody else keeps says so next to its name, not only in the small grey line: nobody has checked a community
+    // AppImage, and a package built for another system may not work here.
+    function badgeText(entry) {
+        const kinds = entry.sources.map(s => s.kind);
+        if (kinds.every(k => k === "appimage"))
+            return qsTr("Not checked");
+        if (kinds.every(k => k === "debian" || k === "fedora"))
+            return qsTr("May not work");
+        return "";
     }
 
     function ageText(seconds) {
@@ -146,7 +271,13 @@ Kirigami.ScrollablePage {
     function dataNote() {
         if (!overview || !overview.sources.length)
             return "";
-        return "Read from: " + overview.sources.map(s => s.label + (s.updated ? " (" + ageText(s.updated) + ")" : "")).join(", ") + ". Flathub's list is refreshed by Flatpak, not by Cygnus.";
+        return root.fill(qsTr("Read from: %1. Flathub's list is refreshed by Flatpak, not by Cygnus."), [overview.sources.map(s => s.label + (s.updated ? " (" + ageText(s.updated) + ")" : "")).join(", ")]);
+    }
+
+    Timer {
+        id: retryRefresh
+        interval: 5000
+        onTriggered: page.refreshCatalogues(false)
     }
 
     Timer {
@@ -228,11 +359,45 @@ Kirigami.ScrollablePage {
                 text: !page.overview || !page.overview.problems.length ? "" : root.plain("Some application lists could not be read and are left out: " + page.overview.problems.join(" "))
             }
             Kirigami.InlineMessage {
+                objectName: "cataloguesQuestion"
+                Layout.fillWidth: true
+                type: Kirigami.MessageType.Information
+                visible: !!page.overview && !page.overview.catalogues_decided
+                text: qsTr("Discover can also list programs from other places: AppImageHub (community AppImages), Debian and Fedora (their packages, which Cygnus tries to convert and which may not work). That downloads about 50 MB now and again each week, from appimage.github.io, deb.debian.org, dl.fedoraproject.org and aur.archlinux.org. Nothing is installed by it. Debian's and Fedora's programs are left out when the Arch repositories, the AUR or Flathub already have them, and AppImageHub's when the Arch repositories, Flathub or a maker's own download already have them.")
+                actions: [
+                    Kirigami.Action {
+                        objectName: "cataloguesYes"
+                        text: qsTr("Download and list them")
+                        icon.name: "download"
+                        onTriggered: page.decideCatalogues(true)
+                    },
+                    Kirigami.Action {
+                        objectName: "cataloguesNo"
+                        text: qsTr("Not now")
+                        onTriggered: page.decideCatalogues(false)
+                    }
+                ]
+            }
+            Kirigami.InlineMessage {
+                objectName: "refreshingMessage"
+                Layout.fillWidth: true
+                type: Kirigami.MessageType.Information
+                visible: page.refreshing
+                text: page.refreshText !== "" ? root.plain(page.refreshText) : qsTr("Updating the online catalogues…")
+            }
+            Kirigami.InlineMessage {
+                objectName: "refreshError"
+                Layout.fillWidth: true
+                type: Kirigami.MessageType.Warning
+                visible: page.refreshError !== ""
+                text: page.refreshError
+            }
+            Kirigami.InlineMessage {
                 objectName: "repoMissing"
                 Layout.fillWidth: true
                 type: Kirigami.MessageType.Information
                 visible: !!page.overview && page.overview.repo_missing
-                text: qsTr("Programs from your own repositories are not listed, because the data package archlinux-appstream-data is not installed (it holds no program, only the lists). Settings → Optional parts installs it.")
+                text: qsTr("Programs from your own repositories are not listed, because the data package archlinux-appstream-data is not installed (it holds no program, only the lists, and Cygnus's own package normally brings it). Settings → Optional parts installs it.")
                 actions: [
                     Kirigami.Action {
                         text: qsTr("Open Settings")
@@ -261,6 +426,151 @@ Kirigami.ScrollablePage {
                 text: qsTr("Show more (%1 left)").arg(page.total - page.results.length)
                 onClicked: page.search(true)
             }
+            QQC2.Button {
+                objectName: "aurSearchButton"
+                Layout.alignment: Qt.AlignHCenter
+                visible: !page.reading && searchField.text.trim().length >= 2
+                enabled: !page.aurBusy
+                icon.name: "edit-find"
+                text: qsTr("Also search the AUR for “%1”").arg(searchField.text.trim())
+                QQC2.ToolTip.visible: hovered
+                QQC2.ToolTip.text: qsTr("The AUR is the Arch User Repository: packages that volunteers write, built on your computer. Your words are sent to aur.archlinux.org.")
+                onClicked: page.searchAur()
+            }
+            QQC2.BusyIndicator {
+                Layout.alignment: Qt.AlignHCenter
+                running: page.aurBusy
+                visible: page.aurBusy
+            }
+            Kirigami.InlineMessage {
+                objectName: "aurError"
+                Layout.fillWidth: true
+                type: Kirigami.MessageType.Error
+                visible: page.aurError !== ""
+                text: page.aurError
+            }
+            Kirigami.Heading {
+                objectName: "aurHeading"
+                textFormat: Text.PlainText
+                Layout.fillWidth: true
+                Layout.margins: Kirigami.Units.largeSpacing
+                wrapMode: Text.Wrap
+                level: 3
+                visible: !!page.aurResult
+                text: !page.aurResult ? "" : page.aurResult.total === 0 ? qsTr("Nothing in the AUR matches these words") : page.aurResult.total > page.aurResult.entries.length ? qsTr("From the AUR: the %1 most popular of %2 packages").arg(page.aurResult.entries.length).arg(page.aurResult.total) : qsTr("From the AUR: %1 packages").arg(page.aurResult.total)
+            }
+            Kirigami.InlineMessage {
+                objectName: "aurWarning"
+                Layout.fillWidth: true
+                type: Kirigami.MessageType.Warning
+                visible: !!page.aurResult && page.aurResult.entries.length > 0
+                text: qsTr("Anyone can upload to the AUR, and a package is a set of instructions that is run on your computer to build it. Votes and popularity do not make one safe. Cygnus shows you the build script and what it needs before anything is built.")
+            }
+            Repeater {
+                model: page.aurResult ? page.aurResult.entries : []
+                Kirigami.AbstractCard {
+                    id: aurCard
+                    required property var modelData
+                    Layout.fillWidth: true
+                    contentItem: ColumnLayout {
+                        spacing: Kirigami.Units.smallSpacing
+                        QQC2.Label {
+                            textFormat: Text.PlainText
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            font.bold: true
+                            text: aurCard.modelData.name + (aurCard.modelData.version !== "" ? "  " + aurCard.modelData.version : "") + (aurCard.modelData.installed ? qsTr("  ·  installed") : "")
+                        }
+                        QQC2.Label {
+                            textFormat: Text.PlainText
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            visible: aurCard.modelData.summary !== ""
+                            text: aurCard.modelData.summary
+                        }
+                        QQC2.Label {
+                            textFormat: Text.PlainText
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            opacity: 0.7
+                            text: qsTr("%1 votes").arg(aurCard.modelData.votes) + "  ·  " + (aurCard.modelData.maintainer !== "" ? qsTr("looked after by %1").arg(aurCard.modelData.maintainer) : qsTr("nobody looks after it (orphaned)")) + (aurCard.modelData.out_of_date ? "  ·  " + qsTr("flagged out of date") : "")
+                        }
+                        RowLayout {
+                            spacing: Kirigami.Units.smallSpacing
+                            QQC2.Button {
+                                objectName: "aurInstallButton"
+                                icon.name: "package-x-generic"
+                                text: aurCard.modelData.installed ? qsTr("Look at it again…") : qsTr("Review and install…")
+                                onClicked: root.openPage("install", {
+                                    "appSpec": `aur:${aurCard.modelData.name}`
+                                })
+                            }
+                            QQC2.Button {
+                                objectName: "aurWebsiteButton"
+                                visible: aurCard.modelData.url !== ""
+                                icon.name: "internet-services"
+                                text: qsTr("Website")
+                                onClicked: Qt.openUrlExternally(aurCard.modelData.url)
+                            }
+                            Item {
+                                Layout.fillWidth: true
+                            }
+                        }
+                    }
+                }
+            }
+            Kirigami.Heading {
+                textFormat: Text.PlainText
+                Layout.fillWidth: true
+                Layout.margins: Kirigami.Units.largeSpacing
+                level: 4
+                visible: !!page.overview && page.overview.catalogues_decided && page.overview.catalogues.length > 0
+                text: qsTr("Online catalogues")
+            }
+            Repeater {
+                model: page.overview && page.overview.catalogues_decided ? page.overview.catalogues : []
+                RowLayout {
+                    id: catalogueRow
+                    required property var modelData
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Kirigami.Units.largeSpacing
+                    Layout.rightMargin: Kirigami.Units.largeSpacing
+                    spacing: Kirigami.Units.largeSpacing
+                    QQC2.Switch {
+                        objectName: "catalogueSwitch"
+                        checked: catalogueRow.modelData.on
+                        onToggled: page.setCatalogue(catalogueRow.modelData.id, checked)
+                    }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 0
+                        QQC2.Label {
+                            textFormat: Text.PlainText
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            font.bold: true
+                            text: catalogueRow.modelData.label
+                        }
+                        QQC2.Label {
+                            objectName: "catalogueState"
+                            textFormat: Text.PlainText
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            opacity: 0.7
+                            text: catalogueRow.modelData.what + " " + (catalogueRow.modelData.count > 0 ? qsTr("%1 programs, downloaded %2.").arg(catalogueRow.modelData.count).arg(page.ageText(catalogueRow.modelData.fetched)) : qsTr("Not downloaded yet (%1).").arg(catalogueRow.modelData.size)) + (catalogueRow.modelData.on ? "" : " " + qsTr("Switched off: it is not listed and not downloaded."))
+                        }
+                    }
+                }
+            }
+            QQC2.Button {
+                objectName: "catalogueUpdateButton"
+                Layout.alignment: Qt.AlignHCenter
+                visible: !!page.overview && page.overview.catalogues_decided && page.overview.catalogues.some(c => c.on)
+                enabled: !page.refreshing
+                icon.name: "view-refresh"
+                text: qsTr("Update the online catalogues now")
+                onClicked: page.refreshCatalogues(true)
+            }
             QQC2.Label {
                 textFormat: Text.PlainText
                 Layout.fillWidth: true
@@ -283,7 +593,7 @@ Kirigami.ScrollablePage {
             visible: list.count === 0 && !page.searching && !page.reading
             icon.name: "system-search"
             text: searchField.text.trim() === "" && page.group === "" && page.kind === "" ? qsTr("Nothing to show") : qsTr("No program matches")
-            explanation: searchField.text.trim() === "" && page.group === "" && page.kind === "" ? qsTr("The application lists could not be read.") : qsTr("Check the spelling, try fewer words, or clear the filters. A program that is only in the AUR, or that comes as a file you download yourself, is installed from the Install page.")
+            explanation: searchField.text.trim() === "" && page.group === "" && page.kind === "" ? qsTr("The application lists could not be read.") : qsTr("Check the spelling, try fewer words, or clear the filters. A program that is only in the AUR can be searched for with the button below; one that comes as a file you download yourself is installed from the Install page.")
         }
 
         delegate: QQC2.ItemDelegate {
@@ -324,10 +634,19 @@ Kirigami.ScrollablePage {
                     }
                 }
                 QQC2.Label {
+                    objectName: "listBadge"
+                    textFormat: Text.PlainText
+                    visible: page.badgeText(modelData) !== ""
+                    font.bold: true
+                    color: Kirigami.Theme.neutralTextColor
+                    text: page.badgeText(modelData)
+                }
+                QQC2.Label {
+                    objectName: "listInstalled"
                     textFormat: Text.PlainText
                     visible: modelData.installed
                     opacity: 0.8
-                    text: qsTr("Installed")
+                    text: modelData.installed_hint ? qsTr("Same name installed") : qsTr("Installed")
                 }
             }
         }
@@ -338,9 +657,9 @@ Kirigami.ScrollablePage {
             text: qsTr("Reload")
             icon.name: "view-refresh"
             enabled: !page.reading
-            onTriggered: page.load()
+            onTriggered: page.load(false)
         }
     ]
 
-    Component.onCompleted: load()
+    Component.onCompleted: load(true)
 }

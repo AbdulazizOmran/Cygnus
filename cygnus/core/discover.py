@@ -32,6 +32,7 @@ from xml.parsers import expat
 
 from cygnus.core import news, paths
 from cygnus.core.errors import CygnusError
+from cygnus.core.util.text import plain
 
 SCHEMA = 3
 MAX_COMPONENTS = 60_000  # applications per AppStream file
@@ -94,9 +95,7 @@ def groups_of(categories: list[str]) -> list[str]:
 
 # -- reading one AppStream file ------------------------------------------------------------------------------------------------------
 
-def _cut(text: str, limit: int) -> str:
-    text = " ".join(("".join(c if c.isprintable() else " " for c in text)).split())
-    return text if len(text) <= limit else text[:limit - 1].rstrip() + "…"
+_cut = plain
 
 
 def cur_has_description(cur: dict[str, Any] | None) -> bool:
@@ -344,7 +343,7 @@ def _stamp(path: Path) -> list[Any]:
     return [str(path), st.st_size, st.st_mtime_ns, st.st_ino]
 
 
-def signature(sources: list[Source], vendors: list[dict[str, Any]], releases: list[dict[str, Any]] = ()) -> str:
+def signature(sources: list[Source], vendors: list[dict[str, Any]], releases: list[dict[str, Any]] = (), catalogues: Any = ()) -> str:
     """What the merged catalogue is made of: each data file as it is now (a file that vanished is left out) and the vendors' entries. A
     change in any of them is a different signature, so the catalogue is built again."""
     parts: list[Any] = []
@@ -353,7 +352,7 @@ def signature(sources: list[Source], vendors: list[dict[str, Any]], releases: li
             parts.append([source.kind, source.label, _stamp(source.xml)])
         except OSError:
             continue
-    return hashlib.sha256(json.dumps([parts, vendors, list(releases)], sort_keys=True, default=str).encode()).hexdigest()
+    return hashlib.sha256(json.dumps([parts, vendors, list(releases), list(catalogues)], sort_keys=True, default=str).encode()).hexdigest()
 
 
 _MEMORY: dict[str, tuple[list[Any], dict[str, Any]]] = {}
@@ -429,11 +428,55 @@ def _app_key(app_id: str) -> str:
     return app_id[:-len(".desktop")] if app_id.endswith(".desktop") else app_id
 
 
+def _same_name(name: str) -> str:
+    """A name as it is compared when deciding that two lists describe one program: letters and digits only, capitals ignored."""
+    return re.sub(r"[^a-z0-9]+", "", name.casefold())
+
+
+_DEBIAN_OWN = frozenset({"debconf", "dpkg", "adduser", "lsb-base", "init-system-helpers", "ucf", "sensible-utils", "debianutils", "dpkg-dev", "passwd", "login",
+                         "base-files", "base-passwd", "dpkg-query", "libc-bin", "perl-base", "coreutils", "util-linux", "sysvinit-utils"})
+_DEBIAN_LIBRARY = re.compile(r"(?:lib[a-z0-9+._-]*[0-9](?:t64|-turbo|v[0-9])?|zlib1g.*)\Z")  # a library package ("libgtk-3-0t64", "libc6"): Cygnus checks libraries itself, by what the program loads; "libxml2-utils" is not one
+
+
+SHOWN_NEEDS = 10
+
+
+def debian_needs(depends: list[str], arch_names: Any, limit: int | None = SHOWN_NEEDS) -> list[str]:
+    """What a Debian package says it needs that is neither a library (those are resolved by name of the library file, on the Install page), nor something
+    every Debian system has, nor a package of the same name in the repositories here."""
+    out = []
+    for name in depends:
+        bare = name.partition(":")[0]
+        if bare not in _DEBIAN_OWN and not _DEBIAN_LIBRARY.fullmatch(bare) and bare not in arch_names and bare not in out:
+            out.append(bare)
+    return out[:limit]
+
+
+_FEDORA_OWN = frozenset({"shadow-utils", "rpm", "rpm-libs", "setup", "fedora-release", "fedora-release-common", "fedora-logos", "system-release", "redhat-rpm-config",
+                         "glibc-common", "glibc-minimal-langpack", "glibc-all-langpacks", "systemd-libs", "basesystem", "util-linux-core", "coreutils-common"})
+
+
+def rpm_needs(depends: list[str], arch_names: Any, limit: int | None = SHOWN_NEEDS) -> list[str]:
+    """What a Fedora package says it needs (other packages by name; library files, other files and rpm's own conditions were left out when the list was
+    read) that is not something every Fedora system has and not a package of the same name in the repositories here."""
+    out = []
+    for name in depends:
+        if name not in _FEDORA_OWN and name not in arch_names and name not in out:
+            out.append(name)
+    return out[:limit]
+
+
 def build_entries(sources: list[Source], vendors: list[dict[str, Any]], *, loader: Callable[[Source], dict[str, Any]] = load_index,
-                  releases: list[dict[str, Any]] = ()) -> list[dict[str, Any]]:
+                  releases: list[dict[str, Any]] = (), appimages: list[dict[str, Any]] = (), debs: list[dict[str, Any]] = (),
+                  rpms: list[dict[str, Any]] = (), arch_names: Any = frozenset()) -> list[dict[str, Any]]:
     """One entry per application: what the Flatpak remotes and the repositories say, merged by the exact AppStream id, plus the vendors'
     .deb/.rpm programs and the makers' own release downloads (AppImage, .deb, .rpm, archive; merged into a Flatpak entry only where the exact
     Flathub id written for them is in that data; otherwise listed on their own).
+    Programs from an online catalogue (`appimages`: AppImageHub's, `debs`: Debian's, `rpms`: Fedora's) come last, in that order, and give way: an AppImage
+    whose GitHub project is already one of the makers' own downloads or whose repository is named like a package the repositories here have, a Debian or
+    Fedora package that the repositories here have under its name
+    (`arch_names`) or whose AppStream id is already an entry, and any of them whose name is the name of a program that is already listed, is left out,
+    so the version a system's own lists carry is the one that is shown. A program is never attached to another program's entry by a similar name: it is left out or it stands alone.
     Each entry: key, name, summary, developer, groups, categories, icon (a file path or ""), icon_name (a theme icon for the fallback),
     url, description, sources: [{kind, label, ...}]."""
     entries: dict[str, dict[str, Any]] = {}
@@ -487,6 +530,40 @@ def build_entries(sources: list[Source], vendors: list[dict[str, Any]], *, loade
         entries[key] = {"key": key, "name": release["name"], "summary": release["summary"], "developer": release.get("developer", ""),
                         "categories": list(release["categories"]), "keywords": [], "url": release.get("url", ""), "description": "",
                         "icon": "", "icon_name": release.get("icon_name", "package-x-generic"), "sources": [source]}
+    taken_names = {_same_name(e["name"]) for e in entries.values()}
+    taken_repos = {str(r.get("repo", "")).lower() for r in releases}
+    for record in appimages:
+        repo = record["repo"]
+        name = _same_name(record["name"])
+        if repo.lower() in taken_repos or repo.partition("/")[2].lower() in arch_names or (name and name in taken_names):
+            continue  # (the project's repository name is compared with the repositories' package names: "anki" in anki/anki is the Arch package "anki")
+        key = f"appimage:{repo}"
+        if key in entries:
+            continue
+        entries[key] = {"key": key, "name": record["name"], "summary": record["summary"], "developer": record["developer"], "categories": list(record["categories"]),
+                        "keywords": [], "url": f"https://github.com/{repo}", "description": "", "icon": "", "icon_name": "application-x-executable",
+                        "sources": [{"kind": "appimage", "repo": repo, "formats": ["appimage"], "page": f"https://github.com/{repo}/releases",
+                                     "label": "A community listing (AppImageHub), not checked by Cygnus"}]}
+        taken_names.add(name)
+    for kind, records, prefix in (("debian", debs, "debian"), ("fedora", rpms, "fedora")):
+        for rec in records:
+            key = f"{prefix}:{rec['package']}"
+            name = _same_name(rec["name"])
+            if rec["package"] in arch_names or all(i in entries for i in rec.get("ids") or [rec["id"]]) or key in entries or (name and name in taken_names):
+                continue  # (a package of several programs is left out only when every one of them is already listed)
+            if kind == "debian":
+                source = {"kind": "debian", "package": rec["package"], "version": rec["version"], "size": rec["size"], "filename": rec["filename"],
+                          "sha256": rec["sha256"], "formats": ["deb"], "needs": debian_needs(rec["depends"], arch_names),
+                          "needs_more": max(0, len(debian_needs(rec["depends"], arch_names, None)) - SHOWN_NEEDS),
+                          "label": "Debian's own package, converted by Cygnus (it may not work)"}
+            else:
+                source = {"kind": "fedora", "package": rec["package"], "version": rec["version"], "size": rec["size"], "release": rec["release"],
+                          "location": rec["location"], "sha256": rec["sha256"], "formats": ["rpm"], "needs": rpm_needs(rec["depends"], arch_names),
+                          "needs_more": max(0, len(rpm_needs(rec["depends"], arch_names, None)) - SHOWN_NEEDS),
+                          "label": "Fedora's own package, converted by Cygnus (it may not work)"}
+            entries[key] = {"key": key, "name": rec["name"], "summary": rec["summary"], "developer": "", "categories": list(rec["categories"]), "keywords": [],
+                            "url": rec["url"], "description": "", "icon": "", "icon_name": "package-x-generic", "sources": [source]}
+            taken_names.add(name)
     out = []
     for entry in entries.values():
         if not entry["sources"]:
@@ -502,7 +579,7 @@ def build_entries(sources: list[Source], vendors: list[dict[str, Any]], *, loade
 def _rank(entry: dict[str, Any], terms: list[str]) -> int | None:
     name, summary = entry["name"].lower(), entry["summary"].lower()
     keywords = " ".join(entry["keywords"]).lower()
-    other = f"{entry['developer']} {entry['key'].removeprefix('release:').removeprefix('vendor:')}".lower()  # the kind in a key is not something to search for
+    other = f"{entry['developer']} {entry['key'].removeprefix('release:').removeprefix('vendor:').removeprefix('appimage:').removeprefix('debian:').removeprefix('fedora:')}".lower()  # the kind in a key is not something to search for
     for term in terms:
         if not (term in name or term in summary or term in keywords or term in other):
             return None
@@ -535,3 +612,38 @@ def search(entries: list[dict[str, Any]], query: str = "", group: str = "", kind
     page = chosen[max(0, offset):max(0, offset) + max(1, min(limit, 200))]
     return {"total": len(chosen), "offset": max(0, offset), "entries": [e for _r, e in page],
             "groups": [{"id": gid, "name": GROUP_NAMES[gid], "count": counts[gid]} for gid in GROUP_IDS if counts[gid] or gid == group]}
+
+
+# -- the AUR (searched on request, never listed) -------------------------------------------------------------------------------------------
+
+AUR_MIN_QUERY = 2  # shorter words match thousands of packages, and the AUR's answer would not fit
+AUR_RESULTS = 30
+_AUR_FIELD_LIMIT = 60
+
+
+def aur_results(raw: Any, installed: Any = frozenset()) -> dict[str, Any]:
+    """The AUR's answer to a search, as the page shows it: {"total", "entries"}, the most popular first, at most AUR_RESULTS of them. The answer
+    is written by strangers (anyone can upload a package), so nothing in it is trusted: a name that is not a package name is dropped, text is
+    reduced to plain printable text, numbers must be numbers, and an address must be an https one. Nothing here installs or downloads anything:
+    a package is reviewed and built on the Install page, which shows its build script first."""
+    entries = []
+    for item in raw if isinstance(raw, list) else []:
+        if not isinstance(item, dict):
+            continue
+        name = item.get("Name")
+        if not isinstance(name, str) or not _PKG.match(name):
+            continue
+        votes, popularity = item.get("NumVotes"), item.get("Popularity")
+        votes = votes if isinstance(votes, int) and not isinstance(votes, bool) and 0 <= votes <= 10**9 else 0
+        popularity = float(popularity) if isinstance(popularity, (int, float)) and not isinstance(popularity, bool) and 0 <= popularity < 1e9 else 0.0
+        maintainer, url = item.get("Maintainer"), item.get("URL")
+        out_of_date = item.get("OutOfDate")
+        entries.append({"name": name, "version": _cut(item["Version"], _AUR_FIELD_LIMIT) if isinstance(item.get("Version"), str) else "",
+                        "summary": _cut(item["Description"], MAX_SUMMARY) if isinstance(item.get("Description"), str) else "",
+                        "votes": votes, "popularity": round(popularity, 4),
+                        "maintainer": _cut(maintainer, 40) if isinstance(maintainer, str) and maintainer else "",  # "" = nobody looks after it
+                        "out_of_date": isinstance(out_of_date, int) and not isinstance(out_of_date, bool) and out_of_date > 0,
+                        "url": url if isinstance(url, str) and len(url) <= MAX_URL and _HTTPS.match(url) else "",
+                        "installed": name in installed})
+    entries.sort(key=lambda e: (-e["popularity"], -e["votes"], e["name"]))
+    return {"total": len(entries), "entries": entries[:AUR_RESULTS]}

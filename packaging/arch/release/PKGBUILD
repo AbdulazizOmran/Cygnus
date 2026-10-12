@@ -18,6 +18,7 @@ depends=(
   'flatpak' 'ostree' 'squashfs-tools' 'libarchive' 'binutils' 'gnupg' 'util-linux' 'polkit' 'systemd'
   'pacman' 'desktop-file-utils' 'libnotify'
   'git' 'fakeroot' 'xdg-utils' 'glib2' 'libsecret'
+  'archlinux-appstream-data'
 )
 optdepends=(
   'kservice: refresh the Plasma menu immediately after changes (kbuildsycoca6)'
@@ -25,7 +26,6 @@ optdepends=(
   'fuse2: run type-2 AppImages that need libfuse2'
   'fuse3: run AppImages built with the static runtime'
   'zsync: delta downloads for AppImage updates'
-  'archlinux-appstream-data: descriptions and icons, so Discover can list programs from your repositories'
 )
 makedepends=('python-build' 'python-installer' 'python-setuptools' 'python-wheel')
 checkdepends=('python-pytest')

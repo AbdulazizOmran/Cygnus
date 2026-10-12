@@ -32,6 +32,14 @@ def test_the_installed_versions_are_a_name_to_version_map():
     assert w.op_installed_versions(h, {}) == {"ok": True, "versions": {"a": "1-1", "b": "1:2-3"}}
 
 
+def test_the_repository_names_are_every_name_in_every_list_once_and_sorted():
+    core = SimpleNamespace(pkgcache=[SimpleNamespace(name="zsh"), SimpleNamespace(name="bash")])
+    extra = SimpleNamespace(pkgcache=[SimpleNamespace(name="bash"), SimpleNamespace(name="alpha")])
+    h = SimpleNamespace(get_syncdbs=lambda: [core, extra])
+    assert w.op_repo_names(h, {}) == {"ok": True, "names": ["alpha", "bash", "zsh"]}
+    assert w.op_repo_names(SimpleNamespace(get_syncdbs=lambda: []), {}) == {"ok": True, "names": []}
+
+
 @pytest.mark.needs_tool("bsdtar", "zstd", "repo-add")
 def test_the_real_worker_answers_both(tmp_path):
     base = _scratch(tmp_path)
@@ -72,3 +80,8 @@ def test_the_real_worker_answers_removal_facts(tmp_path):
     got = _run(base, op="removal_facts", names=["libbeta", "alpha", "leftover", "nothing"])["packages"]
     assert got["libbeta"] == {"installed": True, "reason": "dependency", "required_by": ["alpha"], "required_by_more": 0}
     assert got["alpha"]["required_by"] == [] and got["leftover"]["reason"] == "dependency" and got["nothing"] == {"installed": False}
+
+
+@pytest.mark.needs_tool("bsdtar", "zstd", "repo-add")
+def test_the_real_worker_lists_the_repositories_names(tmp_path):
+    assert _run(_scratch(tmp_path), op="repo_names")["names"] == ["alpha", "collide", "delta", "gamma", "libbeta"]  # "collide" is in two lists and named once

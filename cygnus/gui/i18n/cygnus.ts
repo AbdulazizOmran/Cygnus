@@ -518,6 +518,7 @@ You will need to log out and back in afterwards.</source>
     <message>
         <location filename="../qml/DiscoverAppPage.qml" line="79"/>
         <location filename="../qml/DiscoverAppPage.qml" line="103"/>
+        <location filename="../qml/DiscoverAppPage.qml" line="127"/>
         <source>Looking for the newest version…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -543,113 +544,195 @@ You will need to log out and back in afterwards.</source>
     </message>
     <message>
         <location filename="../qml/DiscoverAppPage.qml" line="112"/>
+        <location filename="../qml/DiscoverAppPage.qml" line="136"/>
         <source>checked it against the checksum GitHub publishes for it</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../qml/DiscoverAppPage.qml" line="112"/>
+        <location filename="../qml/DiscoverAppPage.qml" line="136"/>
         <source>could not check it against a checksum, because GitHub has none for this file (the connection was secure, and that is all that vouches for it)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverAppPage.qml" line="123"/>
+        <location filename="../qml/DiscoverAppPage.qml" line="136"/>
+        <source>Cygnus downloaded the AppImage from the GitHub release page of %1 (version %2) and %3. It comes from a community list that Cygnus has not checked. Look at what it would do below; nothing is installed until you confirm.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverAppPage.qml" line="151"/>
+        <location filename="../qml/DiscoverAppPage.qml" line="174"/>
+        <source>Downloading…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverAppPage.qml" line="160"/>
+        <source>Cygnus downloaded Debian&apos;s package %1 (version %2) and checked it against the checksum in Debian&apos;s package list (Debian&apos;s own signature is not checked). Debian built it for Debian, so converting it for this system may fail or leave something out: read what the analysis below found. Nothing is installed until you confirm.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverAppPage.qml" line="183"/>
+        <source>Cygnus downloaded Fedora&apos;s package %1 (version %2) and checked it against the checksum in Fedora&apos;s package list (Fedora&apos;s own signature is not checked). Fedora built it for Fedora, so converting it for this system may fail or leave something out: read what the analysis below found. Nothing is installed until you confirm.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverAppPage.qml" line="194"/>
+        <location filename="../qml/DiscoverAppPage.qml" line="356"/>
         <source>Download the AppImage and review…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverAppPage.qml" line="129"/>
+        <location filename="../qml/DiscoverAppPage.qml" line="200"/>
         <source>Download the archive and review…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverAppPage.qml" line="131"/>
+        <location filename="../qml/DiscoverAppPage.qml" line="202"/>
         <source>Download the Arch package and review…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverAppPage.qml" line="138"/>
+        <location filename="../qml/DiscoverAppPage.qml" line="209"/>
         <source>Runs in a sandbox of its own and updates through Flatpak. Cygnus looks at what it needs and where it will go before it installs anything.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverAppPage.qml" line="140"/>
+        <location filename="../qml/DiscoverAppPage.qml" line="211"/>
         <source>Part of your system: installed and updated by pacman together with everything else, and it uses the libraries your system already has.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverAppPage.qml" line="142"/>
+        <location filename="../qml/DiscoverAppPage.qml" line="213"/>
         <source>The file its makers put on their GitHub release page. Cygnus looks up the newest one when you press a button, checks the checksum GitHub publishes for it, and shows you what installing it would do. It is not sandboxed. Cygnus does not watch it for updates: come back here for the newest file (an AppImage that carries its own update information is the exception).</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverAppPage.qml" line="144"/>
+        <location filename="../qml/DiscoverAppPage.qml" line="215"/>
+        <source>A package from Debian&apos;s repository. Debian builds it for Debian, with Debian&apos;s libraries and other packages, so it may not work on this system even when Cygnus converts it. Cygnus checks the file against Debian&apos;s package list, converts it when that is safe, and shows you what it found. It is not sandboxed, it is not updated by anything, and Cygnus does not watch it for updates. When the Arch repositories, the AUR or Flathub have the same program, it is not listed from here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverAppPage.qml" line="217"/>
+        <source>A package from Fedora&apos;s repository. Fedora builds it for Fedora, with Fedora&apos;s libraries and other packages, so it may not work on this system even when Cygnus converts it. Cygnus checks the file against Fedora&apos;s package list, converts it when that is safe, and shows you what it found. It is not sandboxed, it is not updated by anything, and Cygnus does not watch it for updates. When the Arch repositories, the AUR, Flathub or another list here has the same program, it is not listed from here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverAppPage.qml" line="219"/>
+        <source>An AppImage that someone listed in AppImageHub, a community directory. Nobody has checked the program, and Cygnus has not either: GitHub only vouches for who uploaded the file. An AppImage runs with all of your user&apos;s rights, so install only what you trust. Cygnus looks up the newest release when you press the button and shows you what installing would do. It does not watch it for updates (an AppImage that carries its own update information is the exception).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverAppPage.qml" line="221"/>
         <source>The maker&apos;s own package, which Cygnus converts into a pacman package when that is safe (it shows you what the vendor&apos;s install scripts would have done). It is not sandboxed, and it does not update itself: Cygnus tells you about newer versions and you download and review them.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverAppPage.qml" line="215"/>
+        <location filename="../qml/DiscoverAppPage.qml" line="292"/>
         <source>Website</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverAppPage.qml" line="224"/>
+        <location filename="../qml/DiscoverAppPage.qml" line="301"/>
         <source>Ways to get it</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverAppPage.qml" line="224"/>
+        <location filename="../qml/DiscoverAppPage.qml" line="301"/>
         <source>How to get it</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverAppPage.qml" line="239"/>
+        <location filename="../qml/DiscoverAppPage.qml" line="316"/>
         <source>  ·  installed</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverAppPage.qml" line="263"/>
+        <location filename="../qml/DiscoverAppPage.qml" line="316"/>
+        <source>  ·  a program of this name is installed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverAppPage.qml" line="340"/>
         <source>Look at it again…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverAppPage.qml" line="263"/>
+        <location filename="../qml/DiscoverAppPage.qml" line="340"/>
         <source>Install…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverAppPage.qml" line="271"/>
+        <location filename="../qml/DiscoverAppPage.qml" line="348"/>
         <source>Show the package…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverAppPage.qml" line="306"/>
-        <source>Cygnus already manages a program with this name. Installing this file as well would add a second copy and replace the first one&apos;s menu entry. To get a newer version of the one you have, use the Updates page.</source>
+        <location filename="../qml/DiscoverAppPage.qml" line="407"/>
+        <source>This may not work: it was built for Fedora.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverAppPage.qml" line="326"/>
+        <location filename="../qml/DiscoverAppPage.qml" line="407"/>
+        <source>Fedora lists these other packages as needed, and no package of that name is in your repositories: %1. Cygnus does not fetch them, so the program may start with parts missing, or not at all.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverAppPage.qml" line="407"/>
+        <source>Besides libraries (which the Install page checks), Fedora lists no other package as needed that is missing here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverAppPage.qml" line="407"/>
+        <source>This may not work: it was built for Debian.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverAppPage.qml" line="407"/>
+        <source>Debian lists these other packages as needed, and no package of that name is in your repositories: %1. Cygnus does not fetch them, so the program may start with parts missing, or not at all.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverAppPage.qml" line="407"/>
+        <source>Besides libraries (which the Install page checks), Debian lists no other package as needed that is missing here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverAppPage.qml" line="407"/>
+        <location filename="../qml/DiscoverAppPage.qml" line="407"/>
+        <source>%1 more are not listed here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverAppPage.qml" line="416"/>
+        <source>Cygnus already manages a program with this name. Installing this as well would add a second copy and replace the first one&apos;s menu entry. Newer versions of the one you have are looked for on the Updates page, when that kind of program has update information.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverAppPage.qml" line="436"/>
         <source>Open the release page</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverAppPage.qml" line="125"/>
-        <location filename="../qml/DiscoverAppPage.qml" line="279"/>
+        <location filename="../qml/DiscoverAppPage.qml" line="196"/>
+        <location filename="../qml/DiscoverAppPage.qml" line="364"/>
+        <location filename="../qml/DiscoverAppPage.qml" line="380"/>
         <source>Download the .deb and review…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverAppPage.qml" line="282"/>
+        <location filename="../qml/DiscoverAppPage.qml" line="383"/>
         <source>The vendor publishes a checksum for this file, and Cygnus checks it.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverAppPage.qml" line="127"/>
-        <location filename="../qml/DiscoverAppPage.qml" line="289"/>
+        <location filename="../qml/DiscoverAppPage.qml" line="198"/>
+        <location filename="../qml/DiscoverAppPage.qml" line="372"/>
+        <location filename="../qml/DiscoverAppPage.qml" line="390"/>
         <source>Download the .rpm and review…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverAppPage.qml" line="292"/>
+        <location filename="../qml/DiscoverAppPage.qml" line="393"/>
         <source>The vendor publishes no checksum for this file: only the secure connection vouches for it. Prefer the .deb when there is one.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -662,126 +745,291 @@ You will need to log out and back in afterwards.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverPage.qml" line="51"/>
+        <location filename="../qml/DiscoverPage.qml" line="60"/>
         <source>From anywhere</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverPage.qml" line="55"/>
-        <location filename="../qml/DiscoverPage.qml" line="131"/>
+        <location filename="../qml/DiscoverPage.qml" line="64"/>
+        <location filename="../qml/DiscoverPage.qml" line="242"/>
         <source>Flatpak</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverPage.qml" line="59"/>
-        <location filename="../qml/DiscoverPage.qml" line="132"/>
+        <location filename="../qml/DiscoverPage.qml" line="68"/>
+        <location filename="../qml/DiscoverPage.qml" line="243"/>
         <source>Your repositories</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverPage.qml" line="63"/>
+        <location filename="../qml/DiscoverPage.qml" line="72"/>
         <source>A vendor&apos;s own package (.deb / .rpm)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverPage.qml" line="67"/>
+        <location filename="../qml/DiscoverPage.qml" line="76"/>
         <source>The maker&apos;s own download (AppImage, .deb, .rpm, archive, Arch package)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverPage.qml" line="133"/>
+        <location filename="../qml/DiscoverPage.qml" line="80"/>
+        <source>Community AppImages (AppImageHub)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="84"/>
+        <source>Debian packages (converted, may not work)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="88"/>
+        <source>Fedora packages (converted, may not work)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="244"/>
         <source>Vendor&apos;s own package</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverPage.qml" line="134"/>
+        <location filename="../qml/DiscoverPage.qml" line="245"/>
         <source>Maker&apos;s own download</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverPage.qml" line="143"/>
+        <location filename="../qml/DiscoverPage.qml" line="246"/>
+        <source>Community AppImage</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="247"/>
+        <source>Debian package (may not work)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="248"/>
+        <source>Fedora package (may not work)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="258"/>
+        <source>Not checked</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="260"/>
+        <source>May not work</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="268"/>
         <source>today</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverPage.qml" line="143"/>
+        <location filename="../qml/DiscoverPage.qml" line="268"/>
         <source>yesterday</source>
         <translation type="unfinished"></translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/DiscoverPage.qml" line="143"/>
+        <location filename="../qml/DiscoverPage.qml" line="268"/>
         <source>%n days ago</source>
         <translation type="unfinished">
             <numerusform></numerusform>
         </translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverPage.qml" line="164"/>
+        <location filename="../qml/DiscoverPage.qml" line="274"/>
+        <source>Read from: %1. Flathub&apos;s list is refreshed by Flatpak, not by Cygnus.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="295"/>
         <source>Search programs (name, what it does…)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverPage.qml" line="192"/>
+        <location filename="../qml/DiscoverPage.qml" line="323"/>
         <source>Get it:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverPage.qml" line="235"/>
-        <source>Programs from your own repositories are not listed, because the data package archlinux-appstream-data is not installed (it holds no program, only the lists). Settings → Optional parts installs it.</source>
+        <location filename="../qml/DiscoverPage.qml" line="366"/>
+        <source>Discover can also list programs from other places: AppImageHub (community AppImages), Debian and Fedora (their packages, which Cygnus tries to convert and which may not work). That downloads about 50 MB now and again each week, from appimage.github.io, deb.debian.org, dl.fedoraproject.org and aur.archlinux.org. Nothing is installed by it. Debian&apos;s and Fedora&apos;s programs are left out when the Arch repositories, the AUR or Flathub already have them, and AppImageHub&apos;s when the Arch repositories, Flathub or a maker&apos;s own download already have them.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverPage.qml" line="238"/>
+        <location filename="../qml/DiscoverPage.qml" line="370"/>
+        <source>Download and list them</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="376"/>
+        <source>Not now</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="386"/>
+        <source>Updating the online catalogues…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="400"/>
+        <source>Programs from your own repositories are not listed, because the data package archlinux-appstream-data is not installed (it holds no program, only the lists, and Cygnus&apos;s own package normally brings it). Settings → Optional parts installs it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="403"/>
         <source>Open Settings</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverPage.qml" line="251"/>
+        <location filename="../qml/DiscoverPage.qml" line="416"/>
         <source> · searching…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverPage.qml" line="251"/>
+        <location filename="../qml/DiscoverPage.qml" line="416"/>
         <source>%1 program</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverPage.qml" line="251"/>
+        <location filename="../qml/DiscoverPage.qml" line="416"/>
         <source>%1 programs</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverPage.qml" line="261"/>
+        <location filename="../qml/DiscoverPage.qml" line="426"/>
         <source>Show more (%1 left)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverPage.qml" line="285"/>
+        <location filename="../qml/DiscoverPage.qml" line="435"/>
+        <source>Also search the AUR for “%1”</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="437"/>
+        <source>The AUR is the Arch User Repository: packages that volunteers write, built on your computer. Your words are sent to aur.archlinux.org.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="460"/>
+        <source>Nothing in the AUR matches these words</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="460"/>
+        <source>From the AUR: the %1 most popular of %2 packages</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="460"/>
+        <source>From the AUR: %1 packages</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="467"/>
+        <source>Anyone can upload to the AUR, and a package is a set of instructions that is run on your computer to build it. Votes and popularity do not make one safe. Cygnus shows you the build script and what it needs before anything is built.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="482"/>
+        <source>  ·  installed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="496"/>
+        <source>%1 votes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="496"/>
+        <source>looked after by %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="496"/>
+        <source>nobody looks after it (orphaned)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="496"/>
+        <source>flagged out of date</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="503"/>
+        <source>Look at it again…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="503"/>
+        <source>Review and install…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="512"/>
+        <source>Website</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="528"/>
+        <source>Online catalogues</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="560"/>
+        <source>%1 programs, downloaded %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="560"/>
+        <source>Not downloaded yet (%1).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="560"/>
+        <source>Switched off: it is not listed and not downloaded.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="571"/>
+        <source>Update the online catalogues now</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="595"/>
         <source>Nothing to show</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverPage.qml" line="285"/>
+        <location filename="../qml/DiscoverPage.qml" line="595"/>
         <source>No program matches</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverPage.qml" line="286"/>
+        <location filename="../qml/DiscoverPage.qml" line="596"/>
         <source>The application lists could not be read.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverPage.qml" line="286"/>
-        <source>Check the spelling, try fewer words, or clear the filters. A program that is only in the AUR, or that comes as a file you download yourself, is installed from the Install page.</source>
+        <location filename="../qml/DiscoverPage.qml" line="596"/>
+        <source>Check the spelling, try fewer words, or clear the filters. A program that is only in the AUR can be searched for with the button below; one that comes as a file you download yourself is installed from the Install page.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverPage.qml" line="330"/>
+        <location filename="../qml/DiscoverPage.qml" line="649"/>
         <source>Installed</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/DiscoverPage.qml" line="338"/>
+        <location filename="../qml/DiscoverPage.qml" line="649"/>
+        <source>Same name installed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/DiscoverPage.qml" line="657"/>
         <source>Reload</source>
         <translation type="unfinished"></translation>
     </message>

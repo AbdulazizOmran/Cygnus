@@ -21,10 +21,13 @@ def test_each_part_is_present_only_when_all_its_programs_and_files_are_there():
 def test_the_parts_are_the_ones_the_package_suggests():
     from pathlib import Path
 
-    text = (Path(__file__).resolve().parent.parent / "packaging/arch/PKGBUILD").read_text()
-    block = text.split("optdepends=(\n")[1].split("\n)")[0]  # up to the line that closes the list (a description may hold a ")")
-    suggested = {line.strip().strip("'").split(":")[0] for line in block.splitlines() if line.strip()}
-    assert optional_parts.PACKAGES == suggested
+    for relative in ("packaging/arch/PKGBUILD", "packaging/arch/release/PKGBUILD"):  # the one that builds the working tree and the one for a release
+        text = (Path(__file__).resolve().parent.parent / relative).read_text()
+        block = text.split("optdepends=(\n")[1].split("\n)")[0]  # up to the line that closes the list (a description may hold a ")")
+        suggested = {line.strip().strip("'").split(":")[0] for line in block.splitlines() if line.strip()}
+        # the list of programs' data is a hard dependency now (the Arch half of Discover is empty without it); it stays here for a Cygnus installed before that
+        assert optional_parts.PACKAGES == suggested | {"archlinux-appstream-data"}, relative
+        assert "'archlinux-appstream-data'" in text.split("depends=(\n")[1].split("\n)")[0], relative
 
 
 class FakeClient:

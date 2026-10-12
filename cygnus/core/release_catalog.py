@@ -72,5 +72,5 @@ def releases() -> list[dict[str, Any]]:
         name, summary, categories, developer, url, flathub_id, icon = _KNOWN[key]
         out.append({"key": key, "formats": release_feeds.formats_of(project), "name": name, "summary": summary, "categories": list(categories),
                     "developer": developer, "url": url, "flathub_id": flathub_id, "icon_name": icon,
-                    "page": f"https://github.com/{project.owner}/{project.repo}/releases"})
+                    "repo": f"{project.owner}/{project.repo}", "page": f"https://github.com/{project.owner}/{project.repo}/releases"})
     return out

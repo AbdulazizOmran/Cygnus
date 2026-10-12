@@ -28,7 +28,8 @@ PARTS = (
     Part("build", "base-devel", "Compilers and build tools, needed to build AUR packages from source.", tools=("gcc", "make")),
     Part("kservice", "kservice", "Refreshes the Plasma application menu at once after changes.", tools=("kbuildsycoca6",)),
     Part("appstream", "archlinux-appstream-data", "Lets Discover list programs from your own repositories, with their descriptions and icons "
-         "(it holds only data, no program).", paths=("/usr/share/swcatalog/xml",)),
+         "(it holds only data, no program). Cygnus's package installs it; this is for a Cygnus that was put in place some other way.",
+         paths=("/usr/share/swcatalog/xml",)),
 )
 PACKAGES = frozenset(p.package for p in PARTS)
 

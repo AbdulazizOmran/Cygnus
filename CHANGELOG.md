@@ -2,7 +2,7 @@
 
 ## Next (planned 0.2.0, in progress) — what other package managers have
 
-- **Translations, ready for translators.** The text on the screens is now translatable (387 texts, about seven in ten of the pieces of text on the screens; the rest is
+- **Translations, ready for translators.** The text on the screens is now translatable (435 texts, about seven in ten of the pieces of text on the screens; the rest is
   built from pieces at run time and stays English for now), with a template (`cygnus/gui/i18n/cygnus.ts`), tools (`packaging/translations.sh`) and a loader
   that picks the language of your desktop (or `CYGNUS_LANGUAGE`). Cygnus ships no translation and nothing is machine-translated: add a language
   by following `docs/translating.md`. Errors, plans and the terminal are produced in Python and stay in English. A test keeps the template equal to
@@ -13,8 +13,18 @@
 - **An update icon in the system tray (optional).** **Settings → Update icon** (or `cygnus tray on`) starts a small separate program at login
   that shows an icon while updates are waiting and says how many. The icon reads only the stored results of the last checks (no network, no installs,
   no root helper; its menu's "Look for updates now" runs the normal background check). Clicking it opens Cygnus; switching it off removes it.
+- **Discover lists programs from every place there is one.** On top of Flathub, your repositories (the Arch app list `archlinux-appstream-data` now comes
+  with Cygnus's package, so the repository half is no longer empty on a fresh install), the makers' own packages and downloads: **AppImageHub**
+  (a few thousand community AppImages; Cygnus looks the project up on GitHub when you press the button and takes the one AppImage for your processor),
+  **Debian**'s and **Fedora**'s applications (a few hundred each that nothing else here already has; the number depends on what your machine already lists) as `.deb` and `.rpm` files that Cygnus tries to convert, each marked "may not work" with
+  the other packages it says it needs named; a program is not listed from Debian or Fedora when the Arch repositories, the AUR or Flathub have it (the
+  Arch version is always preferred; a package that holds several programs is one entry named after the package). A search button asks the **AUR** (your words go to `aur.archlinux.org` only when you press it) and each
+  result opens the Install page's build-script review. The online catalogues are downloaded only after Discover's one question is answered yes
+  (about 50 MB, again each week; pressing the update button or typing `cygnus discover update` is also a yes, and a yes never switches back on what you had switched off), can be switched on and off one by one, and are managed from the terminal with `cygnus discover catalogues | catalogue ID on|off | update`.
+  Every list is read as hostile data (decompressed with a limit, every field checked), the files are checked against the distribution's own checksum and size,
+  and nothing is installed from Discover. Found by trying real Fedora packages: an `.rpm` with hard-linked files (icons, mostly) was refused as incomplete; it is now unpacked and converted.
 - **Discover: browse what you can get.** A new **Discover** page (and `cygnus discover search | info`) lists the programs on Flathub
-  and your other Flatpak remotes, in your repositories (when the data package `archlinux-appstream-data` is installed: a new optional part)
+  and your other Flatpak remotes, in your repositories (their data package `archlinux-appstream-data` comes with Cygnus's own package)
   and the ones their makers publish as a `.deb` or `.rpm` (14 known programs from nine makers, plus your own sources, including stable Visual Studio Code),
   and **the makers' own downloads from GitHub**: an AppImage, `.deb`, `.rpm`, archive or Arch package for 24 hand-checked programs (Helium, Zen Browser,
   Obsidian, Heroic, RustDesk, Joplin, DBeaver, FreeCAD and others; 21 of them are merged with their Flathub entry by exact id). A download button asks GitHub

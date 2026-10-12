@@ -24,6 +24,8 @@ def catalogue(tmp_path, monkeypatch):
     monkeypatch.setattr(discover, "flatpak_sources", lambda *a, **k: [discover.Source("flatpak", "flathub", xml, tmp_path / "icons", "flathub")])
     monkeypatch.setattr(discover, "repo_sources", lambda *a, **k: [discover.Source("repo", "extra", extra, tmp_path / "icons", "")])
     monkeypatch.setattr(service, "_installed_marks", lambda: {"flatpak": set(), "pacman": {"firefox"}, "vendor": set()})
+    monkeypatch.setattr(service, "_repository_names", lambda: frozenset())  # no test asks the real pacman databases
+    monkeypatch.setattr(service, "_repository_lists_stamp", lambda: 1.0)
 
 
 def test_search_lists_the_matches_with_the_ways_to_get_each_and_what_is_installed(capsys):
@@ -128,3 +130,119 @@ def test_info_for_a_makers_download_names_the_kinds_and_the_page_and_downloads_n
     assert "cygnus install FILE" in out and "[installed]" not in out
     assert cli.main(["discover", "info", "release:helium", "--json"]) == 0
     assert json.loads(capsys.readouterr().out)["sources"][0]["kind"] == "release"
+
+
+# -- the online catalogues ----------------------------------------------------------------------------------------------------------------
+IMAGE = {"repo": "acme/tool", "name": "Tool", "summary": "Does tool things.", "categories": ["Utility"], "developer": "Acme"}
+
+
+@pytest.fixture(autouse=True)
+def only_the_hub(monkeypatch):
+    from cygnus.core import online_catalogues as oc
+
+    hub = oc.BY_ID["appimagehub"]  # these commands are tested on one catalogue: the real list grows
+    monkeypatch.setattr(oc, "CATALOGUES", (hub,))
+    monkeypatch.setattr(oc, "BY_ID", {hub.id: hub})
+
+
+def _download(*records):
+    from cygnus.core import online_catalogues as oc
+
+    oc.refresh("appimagehub", fetch=lambda progress: list(records or [IMAGE]))
+
+
+def test_the_search_can_ask_for_the_community_appimages_and_info_says_nobody_checked_them(capsys, monkeypatch):
+    from cygnus.core.util import http
+
+    _download()
+    monkeypatch.setattr(http, "get", lambda *a, **k: pytest.fail("the terminal command must not ask the network"))
+    assert cli.main(["discover", "search", "--source", "appimage"]) == 0
+    out = capsys.readouterr().out
+    assert "appimage:acme/tool" in out and "[appimage]" in out and "Firefox" not in out
+    assert cli.main(["discover", "info", "appimage:acme/tool"]) == 0
+    out = capsys.readouterr().out
+    assert "A community listing (AppImageHub), not checked by Cygnus" in out and "https://github.com/acme/tool/releases" in out and "cygnus install FILE" in out
+
+
+def test_the_catalogues_are_listed_with_their_state_and_age(capsys):
+    assert cli.main(["discover", "catalogues"]) == 0
+    out = capsys.readouterr().out
+    assert "appimagehub" in out and "off" not in out.split("appimagehub")[1][:12] and "not downloaded yet" in out and "about 2 MB" in out
+    _download()
+    assert cli.main(["discover", "catalogues"]) == 0
+    assert "1 programs  downloaded today" in capsys.readouterr().out
+    assert cli.main(["discover", "catalogues", "--json"]) == 0
+    row = json.loads(capsys.readouterr().out)[0]
+    assert row["id"] == "appimagehub" and row["count"] == 1 and row["on"] is True
+
+
+def test_a_catalogue_is_switched_off_and_on_from_the_terminal(capsys):
+    assert cli.main(["discover", "catalogue", "appimagehub", "off"]) == 0
+    assert "appimagehub is now off" in capsys.readouterr().out
+    assert cli.main(["discover", "catalogues"]) == 0
+    assert " off " in capsys.readouterr().out
+    assert cli.main(["discover", "catalogue", "appimagehub", "on"]) == 0
+    assert "now on" in capsys.readouterr().out
+    assert cli.main(["discover", "catalogue", "evil", "on"]) == 2
+    assert "not one of the online catalogues" in capsys.readouterr().err
+
+
+def test_update_downloads_what_is_missing_and_says_so_and_a_recent_one_is_left_alone(capsys, monkeypatch):
+    from cygnus.core import online_catalogues as oc
+
+    service._CATALOGUE_TRIED.clear()
+    asked = []
+    real = oc.refresh
+    monkeypatch.setattr(oc, "refresh", lambda cat_id, progress=None, **k: (asked.append(cat_id), real(cat_id, fetch=lambda p: [IMAGE]))[1])
+    assert cli.main(["discover", "update"]) == 0
+    out = capsys.readouterr().out
+    assert asked == ["appimagehub"] and "appimagehub: 1 programs" in out
+    assert cli.main(["discover", "update"]) == 0
+    assert asked == ["appimagehub"] and "are recent" in capsys.readouterr().out
+    assert cli.main(["discover", "update", "--all"]) == 0
+    assert asked == ["appimagehub", "appimagehub"]
+
+
+def test_a_failed_update_says_why_and_exits_with_an_error(capsys, monkeypatch):
+    from cygnus.core import online_catalogues as oc
+    from cygnus.core.errors import CygnusError
+
+    service._CATALOGUE_TRIED.clear()
+    monkeypatch.setattr(oc, "refresh", lambda *a, **k: (_ for _ in ()).throw(CygnusError("The connection failed.")))
+    assert cli.main(["discover", "update"]) == 1
+    assert "AppImageHub: The connection failed." in capsys.readouterr().err
+
+
+def test_info_for_a_debian_program_says_it_may_not_work_and_names_what_debian_also_needs(capsys, monkeypatch):
+    from cygnus.core import online_catalogues as oc
+    from cygnus.core.backends import debian_index
+    from cygnus.core.util import http
+
+    both = {"appimagehub": oc.BY_ID["appimagehub"], "debian": oc.Catalogue("debian", "Debian", "Programs from Debian.", "1 MB", debian_index)}
+    monkeypatch.setattr(oc, "CATALOGUES", tuple(both.values()))
+    monkeypatch.setattr(oc, "BY_ID", both)
+    monkeypatch.setattr(service, "_repository_names", lambda: frozenset())
+    monkeypatch.setattr(service, "_repository_lists_stamp", lambda: 1.0)
+    monkeypatch.setattr(http, "get", lambda *a, **k: pytest.fail("the terminal command must not ask the network"))
+    deb = {"package": "demo", "id": "demo", "name": "Demo", "summary": "Does demos.", "categories": ["Office"], "url": "", "version": "1.0-1",
+           "filename": "pool/main/d/demo/demo_1.0-1_amd64.deb", "sha256": "ab" * 32, "size": 10, "depends": ["libc6", "demo-data"]}
+    oc.refresh("debian", fetch=lambda progress: [deb])
+    assert cli.main(["discover", "search", "--source", "debian"]) == 0
+    assert "debian:demo" in capsys.readouterr().out
+    assert cli.main(["discover", "info", "debian:demo"]) == 0
+    out = capsys.readouterr().out
+    assert "Debian's own package, converted by Cygnus (it may not work: it was built for Debian; Debian also lists as needed: demo-data)" in out and "cygnus install FILE" in out
+
+
+def test_the_listing_says_nothing_is_downloaded_until_you_say_so_and_update_is_the_answer_yes(capsys, monkeypatch):
+    from cygnus.core import online_catalogues as oc
+
+    assert cli.main(["discover", "catalogues"]) == 0
+    assert "Nothing is downloaded until you say so" in capsys.readouterr().out
+    service._CATALOGUE_TRIED.clear()
+    real = oc.refresh
+    monkeypatch.setattr(oc, "refresh", lambda cat_id, progress=None, **k: real(cat_id, fetch=lambda p: [IMAGE]))
+    assert oc.decided() is False and cli.main(["discover", "update"]) == 0
+    assert oc.decided() is True and "appimagehub: 1 programs" in capsys.readouterr().out
+    assert cli.main(["discover", "catalogues"]) == 0
+    assert "Nothing is downloaded until you say so" not in capsys.readouterr().out

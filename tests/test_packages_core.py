@@ -441,3 +441,33 @@ def test_any_other_refusal_of_a_removal_is_raised_as_it_is(helper):
     helper.refuse = actions.PlanRefused("protected system packages cannot be removed with Cygnus: ok")
     with pytest.raises(actions.PlanRefused, match="protected"):
         fixes.plan_remove_by_name(["ok"])
+
+
+# -- the names of every package the repositories have ---------------------------------------------------------------------------------------------
+def test_the_repositories_names_are_asked_of_the_worker_once_and_returned_as_a_set():
+    asked = []
+
+    def worker(config, request):
+        asked.append(request)
+        return {"ok": True, "names": ["bash", "zsh", "bash"]}
+
+    assert packages.repo_names(config=CONFIG, worker=worker) == frozenset({"bash", "zsh"})
+    assert asked == [{"op": "repo_names"}]
+
+
+@pytest.mark.parametrize("answer", [{"ok": True, "names": "bash"}, {"ok": True, "names": [1, 2]}, {"ok": True, "names": ["bash", None]}, {"ok": True, "names": {"bash": 1}},
+                                    {"ok": True, "names": None}])
+def test_an_answer_that_is_not_a_list_of_names_is_refused_in_words(answer):
+    with pytest.raises(packages.PackagesError, match="did not expect"):
+        packages.repo_names(config=CONFIG, worker=lambda c, r: answer)
+
+
+def test_a_worker_that_fails_or_dies_is_said_in_words():
+    with pytest.raises(packages.PackagesError, match="no good"):
+        packages.repo_names(config=CONFIG, worker=lambda c, r: {"ok": False, "error": {"message": "no good"}})
+
+    def died(config, request):
+        raise pm.WorkerCrash("it died")
+
+    with pytest.raises(packages.PackagesError, match="could not be read"):
+        packages.repo_names(config=CONFIG, worker=died)

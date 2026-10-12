@@ -131,6 +131,14 @@ def installed_versions(*, config: pm.PacmanConfig | None = None, worker: Callabl
     return {str(k): str(v) for k, v in versions.items()}
 
 
+def repo_names(*, config: pm.PacmanConfig | None = None, worker: Callable | None = None) -> frozenset[str]:
+    """The name of every package in the repositories' lists (one cheap question; for a page that only needs to know what Arch already has)."""
+    names = _ask(config or pm.read_config(), {"op": "repo_names"}, worker)["names"]
+    if not isinstance(names, list) or not all(isinstance(n, str) for n in names):
+        raise PackagesError("the package databases gave an answer Cygnus did not expect")
+    return frozenset(names)
+
+
 def installed(*, config: pm.PacmanConfig | None = None, worker: Callable | None = None) -> dict[str, Any]:
     """Every installed package: {"packages", "updates", "lists"}; each says whether it is protected and whether Cygnus manages it as an
     application. `updates` is how many have a newer version in the repositories."""

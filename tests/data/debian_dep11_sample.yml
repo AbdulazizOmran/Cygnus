@@ -1,0 +1,82 @@
+---
+File: DEP-11
+Version: '1.0'
+Origin: debian-trixie-main
+MediaBaseUrl: https://appstream.debian.org/media/trixie
+Time: 20250808T201448
+---
+Type: desktop-application
+ID: abiword.desktop
+Package: abiword
+Name:
+  C: AbiWord
+Summary:
+  C: Compose, edit, and view documents
+Categories:
+- Office
+- WordProcessor
+---
+Type: desktop-application
+ID: org.gnome.gitg
+Package: gitg
+Name:
+  C: gitg
+Summary:
+  C: Graphical user interface for git
+Categories:
+- Development
+- RevisionControl
+Url:
+  homepage: https://wiki.gnome.org/Apps/Gitg
+  bugtracker: https://gitlab.gnome.org/GNOME/gitg/issues
+  translate: https://wiki.gnome.org/TranslationProject
+  donation: https://www.gnome.org/friends/
+---
+Type: desktop-application
+ID: starfighter.desktop
+Package: starfighter
+Name:
+  C: 'Project: Starfighter'
+Summary:
+  C: Liberate the universe from the evil company WEAPCO
+Categories:
+- Game
+- ActionGame
+- ArcadeGame
+---
+Type: desktop-application
+ID: io.github.lxi-tools.lxi-gui
+Package: lxi-tools
+Name:
+  C: LXI-Tools
+Summary:
+  C: "LXI-Tools is a collection of open source tools for managing network\n    connected LXI compatible test instruments."
+Categories:
+- Utility
+- Network
+- Science
+Url:
+  homepage: https://lxi-tools.github.io
+---
+Type: addon
+ID: org.fcitx.Fcitx5.Addon.Chewing
+Package: fcitx5-chewing
+Name:
+  C: Chewing for Fcitx 5
+Summary:
+  C: Chewing input method
+Url:
+  homepage: https://fcitx-im.org
+  bugtracker: https://github.com/fcitx/fcitx5-chewing/issues
+  vcs-browser: https://github.com/fcitx/fcitx5-chewing
+---
+Type: font
+ID: io.pagure.lohit.tamil.classicalfont
+Package: fonts-lohit-taml-classical
+Name:
+  C: Lohit Tamil Classical
+Summary:
+  C: Lohit family font for the Tamil language
+Url:
+  homepage: https://pagure.io/lohit
+  bugtracker: https://github.com/pravins/lohit/issues

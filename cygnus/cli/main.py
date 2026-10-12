@@ -365,11 +365,61 @@ def cmd_feed(args: argparse.Namespace) -> int:
     return 0
 
 
+def _age_words(fetched: float) -> str:
+    import time
+
+    if not fetched:
+        return "not downloaded yet"
+    days = int((time.time() - fetched) // 86400)
+    return "downloaded today" if days < 1 else "downloaded yesterday" if days == 1 else f"downloaded {days} days ago"
+
+
+def cmd_discover_catalogues(args: argparse.Namespace) -> int:
+    """The online catalogues (AppImageHub...): which are on, how many programs each holds, and downloading them. Only `update` uses the network."""
+    from cygnus.core import online_catalogues as oc
+    from cygnus.gui import service
+
+    if args.sub == "catalogues":
+        rows = oc.status()
+        if args.json:
+            _emit(rows)
+            return 0
+        for row in rows:
+            print(f"{row['id']:<14} {'on ' if row['on'] else 'off'}  {row['count']:>6} programs  {_age_words(row['fetched'])}  ({row['size']})")
+            print(f"{'':<14} {row['what']}")
+        if not oc.decided():
+            print("\nNothing is downloaded until you say so: `cygnus discover update` downloads the catalogues that are on, or open Discover in the Cygnus window.")
+        return 0
+    if args.sub == "catalogue":
+        rows = service.catalogue_set_on(args.id, args.state == "on")["status"]
+        print(f"{args.id} is now {args.state}" + ("" if args.state == "off" else "; `cygnus discover update` downloads it if it is missing or old"))
+        return 0
+    if not oc.decided():
+        oc.decide(True)  # typing `cygnus discover update` is the answer to the question the window asks
+    out = service.catalogue_refresh(bool(args.all), lambda line: print(line, file=sys.stderr))
+    if out["busy"]:
+        print("another update of the catalogues is still running; try again when it has finished", file=sys.stderr)
+        return 1
+    for cat_id in out["refreshed"]:
+        row = next(r for r in out["status"] if r["id"] == cat_id)
+        print(f"{cat_id}: {row['count']} programs")
+    for message in out["errors"].values():
+        print(message, file=sys.stderr)
+    if not out["refreshed"] and not out["errors"]:
+        if not any(r["on"] for r in out["status"]):
+            print("no catalogue is switched on; `cygnus discover catalogue ID on` switches one on (`cygnus discover catalogues` lists them)")
+        else:
+            print("the catalogues that are on are recent; --all downloads them again")
+    return 1 if out["errors"] else 0
+
+
 def cmd_discover(args: argparse.Namespace) -> int:
     """Browse what can be installed (reads the application lists; installs nothing, downloads nothing)."""
     from cygnus.core import discover
     from cygnus.gui import service
 
+    if args.sub in ("catalogues", "catalogue", "update"):
+        return cmd_discover_catalogues(args)
     if args.sub == "info":
         entry = service.discover_app(args.key)
         if args.json:
@@ -394,6 +444,17 @@ def cmd_discover(args: argparse.Namespace) -> int:
                 kinds = " / ".join(release_feeds.LABELS.get(f, f) for f in src["formats"])
                 print(f"  • The maker's own download ({kinds}): Discover in the Cygnus window fetches and checks the newest file; or get it from "
                       f"{src['page']}, then cygnus install FILE{mark}")
+            elif src["kind"] == "appimage":
+                print(f"  • A community listing (AppImageHub), not checked by Cygnus: Discover in the Cygnus window fetches the newest AppImage; or get it from "
+                      f"{src['page']}, then cygnus install FILE{mark}")
+            elif src["kind"] == "debian":
+                needs = f"; Debian also lists as needed: {', '.join(src['needs'])}" if src["needs"] else ""
+                print(f"  • Debian's own package, converted by Cygnus (it may not work: it was built for Debian{needs}): Discover in the Cygnus window downloads "
+                      f"and checks it; then cygnus install FILE{mark}")
+            elif src["kind"] == "fedora":
+                needs = f"; Fedora also lists as needed: {', '.join(src['needs'])}" if src["needs"] else ""
+                print(f"  • Fedora's own package, converted by Cygnus (it may not work: it was built for Fedora{needs}): Discover in the Cygnus window downloads "
+                      f"and checks it; then cygnus install FILE{mark}")
             else:
                 print(f"  • The vendor's own package ({' / '.join(src['formats'])}): download it, then cygnus install FILE{mark}")
         return 0
@@ -1798,13 +1859,23 @@ def build_parser() -> argparse.ArgumentParser:
     s = dc.add_parser("search", help="find programs; every word must appear in the name, what it does, its keywords or its maker (changes nothing)")
     s.add_argument("words", nargs="*", help="what to look for (nothing lists everything)")
     s.add_argument("--group", help="only one kind of program (browsers, chat, development, games, graphics, media, office, learn, system, internet, utility, other)")
-    s.add_argument("--source", choices=["flatpak", "repo", "vendor", "release"], help="only programs that can be got this way")
+    s.add_argument("--source", choices=["flatpak", "repo", "vendor", "release", "appimage", "debian", "fedora"], help="only programs that can be got this way")
     s.add_argument("--page", type=int, default=1, help="which page of results (40 to a page)")
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_discover)
     s = dc.add_parser("info", help="one program and every way to get it (changes nothing)")
     s.add_argument("key", help="the id `cygnus discover search` printed")
     s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_discover)
+    s = dc.add_parser("catalogues", help="the online catalogues (AppImageHub...): on or off, how many programs, how old (changes nothing)")
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_discover)
+    s = dc.add_parser("catalogue", help="switch one online catalogue on or off (an off catalogue is not listed and not downloaded)")
+    s.add_argument("id", help="the catalogue's id, as `cygnus discover catalogues` prints it")
+    s.add_argument("state", choices=["on", "off"])
+    s.set_defaults(func=cmd_discover)
+    s = dc.add_parser("update", help="download the online catalogues that are on and missing or more than a week old (uses the network)")
+    s.add_argument("--all", action="store_true", help="download every catalogue that is on, even a recent one")
     s.set_defaults(func=cmd_discover)
     db_ = sub.add_parser("default-browser", help="choose which web browser links open with (and put the earlier choice back)").add_subparsers(
         dest="sub", required=True)

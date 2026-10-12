@@ -252,3 +252,67 @@ def test_a_release_download_may_only_be_on_githubs_own_hosts():
     for host in ("", "evil.example", "github.com.evil.example", "githubusercontent.com.evil.example", "notgithub.com", "api.github.com.evil.example",
                  "evilgithubusercontent.com", "raw.githubusercontent.com.evil.example"):
         assert not rf.github_host(host)
+
+
+# -- a program from a community directory: no pattern was written for it, so one generic rule -----------------------------------------
+GENERIC = re.compile(rf.GENERIC_APPIMAGE)
+
+
+@pytest.mark.parametrize("name", ["App-1.0-x86_64.AppImage", "App-x86-64.AppImage", "app.AppImage", "App_1.2.3_amd64.AppImage", "App-linux-x64.AppImage",
+                                  "MipsSimulator-x86_64.AppImage", "Alarm.AppImage", "alarm-clock.appimage", "ppcsim.AppImage", "Foo.armadillo.AppImage",
+                                  "Tool-1.0+beta~2.AppImage", "arm64inspector-x86_64.AppImage", "Arm-Tool-x86_64.AppImage", "Mips-Simulator-x86_64.AppImage",
+                                  "APP-X86_64.APPIMAGE", "sparkle.AppImage", "Armory-x86_64.AppImage"])
+def test_a_generic_appimage_name_is_accepted_when_it_is_for_this_processor_or_names_none(name):
+    assert GENERIC.fullmatch(name)
+
+
+@pytest.mark.parametrize("name", ["App-aarch64.AppImage", "App-arm64.AppImage", "App-armhf.AppImage", "App-i386.AppImage", "App-i686.AppImage", "App-x86.AppImage",
+                                  "App.x86.AppImage", "App-ppc64le.AppImage", "App-riscv64.AppImage", "App-armv7l.AppImage", "App_armv7.AppImage", "App-s390x.AppImage",
+                                  "App.AppImage.zsync", "App-x86_64.AppImage.sha256", "App.AppImage ", "bad/name.AppImage", "x" * 160 + ".AppImage", "App.AppImage\n",
+                                  "App.tar.gz", "App.deb", "AppImage", ".AppImage", "App-loong64.AppImage", "App-mipsel.AppImage",
+                                  # the same names in other capitals and spellings, and the short names that are only a processor after a separator
+                                  "Foo-1.0-ARM64.AppImage", "Foo-AARCH64.AppImage", "Foo-ARMHF.AppImage", "Foo-PPC64LE.AppImage", "Foo-IA32.AppImage", "Foo-arm.AppImage",
+                                  "Foo-Armv7.AppImage", "Foo-aarch_64.AppImage", "Foo-mips64.AppImage", "Foo-sparc.AppImage", "Foo.ARM.AppImage", "foo_arm.AppImage",
+                                  "Foo-X86.AppImage", "Foo-I386.AppImage", "Foo-arm_64.AppImage", "Foo-riscv.AppImage", "Foo-S390X.AppImage"])
+def test_a_generic_appimage_name_is_refused_for_another_processor_a_side_file_or_an_odd_name(name):
+    assert not GENERIC.fullmatch(name)
+
+
+def test_the_generic_rule_still_says_exactly_one_or_it_says_so():
+    project = rf.appimage_project("acme/demo-app")
+    assert (project.owner, project.repo, project.key, list(project.assets)) == ("acme", "demo-app", "acme/demo-app", ["appimage"])
+    one = rf.newest(project, "appimage", fetch=_fetcher(_release(_asset("Demo-x86_64.AppImage"), _asset("Demo-aarch64.AppImage"), _asset("Demo.AppImage.zsync"),
+                                                               _asset("Demo-1.2.3.tar.gz"))))
+    assert one.name == "Demo-x86_64.AppImage" and one.version == "v1.2.3" and one.sha256 == "ab" * 32
+    with pytest.raises(CygnusError, match="more than one file that could be the AppImage .2."):
+        rf.newest(project, "appimage", fetch=_fetcher(_release(_asset("Demo-x86_64.AppImage"), _asset("Demo-lite-x86_64.AppImage"))))
+    with pytest.raises(CygnusError, match="no AppImage file Cygnus recognises"):
+        rf.newest(project, "appimage", fetch=_fetcher(_release(_asset("Demo-aarch64.AppImage"), _asset("Demo-armhf.AppImage"))))
+
+
+def test_the_generic_rule_asks_github_about_exactly_the_listed_project():
+    fetch = _fetcher(_release(_asset("Demo.AppImage")))
+    rf.newest(rf.appimage_project("acme/demo-app"), "appimage", fetch=fetch)
+    assert fetch.seen["url"] == "https://api.github.com/repos/acme/demo-app/releases/latest"
+
+
+@pytest.mark.parametrize("repo", ["acme/..", "acme/.", "../demo", "acme/de mo", "a cme/demo", "acme/demo/extra", "-acme/demo", "acme/", "/demo", "acme"])
+def test_an_address_that_is_not_an_owner_and_a_repository_is_never_asked_for(repo):
+    asked = _fetcher(_release(_asset("Demo.AppImage")))
+    with pytest.raises(CygnusError, match="address does not look right"):
+        rf.newest(rf.appimage_project(repo), "appimage", fetch=asked)
+    assert asked.seen == {}  # nothing was sent to GitHub
+
+
+def test_a_repository_named_with_only_dots_is_not_a_repository_name():
+    assert rf._REPO.fullmatch("demo-app") and rf._REPO.fullmatch(".github") and rf._REPO.fullmatch("a.b")
+    assert not rf._REPO.fullmatch(".") and not rf._REPO.fullmatch("..")
+
+
+def test_the_download_address_is_compared_as_ascii_so_a_letter_that_lowercases_to_another_does_not_match():
+    """Found by review: the Kelvin sign lower-cases to "k", so an owner "kool" matched an address written with that sign (the host stayed github.com, but the
+    comparison was not the exact one it claims to be)."""
+    project = rf.Project("kool", "kool", "tool", {"appimage": r"Tool\.AppImage"})
+    good = "https://github.com/kool/tool/releases/download/v1/Tool.AppImage"
+    assert rf._is_own_release_file(good, project, "v1", "Tool.AppImage") and rf._is_own_release_file(good.replace("kool", "KOOL"), project, "v1", "Tool.AppImage")
+    assert not rf._is_own_release_file(good.replace("kool", "\u212aool"), project, "v1", "Tool.AppImage")

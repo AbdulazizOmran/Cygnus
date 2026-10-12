@@ -754,3 +754,237 @@ def test_a_whole_catalogue_goes_through_search_end_to_end(tmp_path):
     assert [e["name"] for e in result["entries"]] == ["Firefox"]
     assert json.dumps(result)  # everything in a result can be sent to the window as JSON
     assert [e["name"] for e in d.search(entries, "", group="browsers")["entries"]] == ["Firefox", "Google Chrome"]
+
+
+# -- the AUR's answer ------------------------------------------------------------------------------------------------------------------
+
+def _aur(name="vlc-git", **over):
+    return {"Name": name, "Version": "4.0-1", "Description": "A player", "NumVotes": 5, "Popularity": 1.5, "Maintainer": "somebody",
+            "URL": "https://example.org/vlc", "OutOfDate": None, **over}
+
+
+def test_an_aur_answer_is_shaped_for_the_page_most_popular_first():
+    out = d.aur_results([_aur("b", Popularity=0.1), _aur("a", Popularity=2.0), _aur("c", Popularity=2.0, NumVotes=9)], {"a"})
+    assert [e["name"] for e in out["entries"]] == ["c", "a", "b"] and out["total"] == 3  # popularity, then votes, then name
+    assert [e["installed"] for e in out["entries"]] == [False, True, False]
+    one = out["entries"][1]
+    assert one == {"name": "a", "version": "4.0-1", "summary": "A player", "votes": 5, "popularity": 2.0, "maintainer": "somebody", "out_of_date": False,
+                   "url": "https://example.org/vlc", "installed": True}
+
+
+def test_an_aur_answer_is_written_by_strangers_and_nothing_in_it_is_trusted():
+    hostile = [_aur("fine"), {"Name": "BAD NAME"}, {"Name": "../x"}, {"Name": 5}, {"Name": "-lead"}, "text", None, {"Description": "no name"},
+               _aur("ctl", Description="a\x1b[31mred‮text\nline", Version="1\x00", Maintainer="x\x07y"),
+               _aur("nums", NumVotes=True, Popularity="high"), _aur("neg", NumVotes=-4, Popularity=-1.0), _aur("inf", Popularity=float("inf")),
+               _aur("url1", URL="http://plain.example"), _aur("url2", URL="https://bad host/x"), _aur("url3", URL="javascript:alert(1)")]
+    out = d.aur_results(hostile)
+    names = [e["name"] for e in out["entries"]]
+    assert "fine" in names and not {"BAD NAME", "../x", "-lead"} & set(names) and out["total"] == len(names)
+    by = {e["name"]: e for e in out["entries"]}
+    assert all(c.isprintable() for e in out["entries"] for c in e["summary"] + e["version"] + e["maintainer"])
+    assert "‮" not in by["ctl"]["summary"] and "\n" not in by["ctl"]["summary"]
+    assert by["nums"]["votes"] == 0 and by["nums"]["popularity"] == 0.0  # a bool is not a number of votes; text is not a popularity
+    assert by["neg"]["votes"] == 0 and by["neg"]["popularity"] == 0.0 and by["inf"]["popularity"] == 0.0
+    assert by["url1"]["url"] == "" and by["url2"]["url"] == "" and by["url3"]["url"] == ""  # only an https address is ever offered as a link
+
+
+def test_an_aur_answer_that_is_not_a_list_is_nothing_and_a_long_one_is_cut_with_the_total_said():
+    assert d.aur_results({"results": []}) == {"total": 0, "entries": []} and d.aur_results(None) == {"total": 0, "entries": []}
+    many = [_aur(f"pkg{i:03}", Popularity=float(i)) for i in range(100)]
+    out = d.aur_results(many)
+    assert out["total"] == 100 and len(out["entries"]) == d.AUR_RESULTS == 30 and out["entries"][0]["name"] == "pkg099"
+
+
+def test_orphaned_and_out_of_date_packages_are_told_apart():
+    out = d.aur_results([_aur("orphan", Maintainer=None), _aur("late", OutOfDate=1700000000), _aur("ok", OutOfDate=None), _aur("odd", OutOfDate=True, Maintainer="")])
+    by = {e["name"]: e for e in out["entries"]}
+    assert by["orphan"]["maintainer"] == "" and by["late"]["out_of_date"] is True and by["ok"]["out_of_date"] is False
+    assert by["odd"]["out_of_date"] is False and by["odd"]["maintainer"] == ""  # a bool is not a date
+
+
+# -- programs from an online catalogue (AppImageHub) -------------------------------------------------------------------------------------
+
+def _image(repo="acme/tool", name="Tool", **over):
+    return {**{"repo": repo, "name": name, "summary": "Does tool things.", "categories": ["Utility"], "developer": "Acme"}, **over}
+
+
+def test_a_community_appimage_is_listed_on_its_own_with_a_source_that_says_nobody_checked_it():
+    [entry] = d.build_entries([], [], loader=_loader(), appimages=[_image()])
+    assert entry["key"] == "appimage:acme/tool" and entry["name"] == "Tool" and entry["groups"] == ["utility"] and entry["developer"] == "Acme"
+    assert entry["url"] == "https://github.com/acme/tool" and entry["icon_name"] == "application-x-executable" and entry["icon"] == ""
+    assert entry["sources"] == [{"kind": "appimage", "repo": "acme/tool", "formats": ["appimage"], "page": "https://github.com/acme/tool/releases",
+                                 "label": "A community listing (AppImageHub), not checked by Cygnus"}]
+
+
+def test_a_community_appimage_gives_way_to_a_program_that_is_already_listed_by_the_same_name():
+    """Prefer what the system's own lists carry: the version from Flathub or the repositories is shown, not a second entry for the same program."""
+    entries = d.build_entries([_src("flatpak", "flathub"), _src("repo", "extra")], [_vendor(name="Vendor App")], loader=_loader(
+        flathub={"apps": [_app("org.mozilla.firefox", "Firefox")]}, extra={"apps": [_app("org.vlc.VLC", "VLC media player", pkgname="vlc")]}),
+        releases=[_release(name="Demo Release")],
+        appimages=[_image("a/firefox", "firefox"), _image("a/vlc", "VLC Media-Player"), _image("a/vendor", "vendor_app"), _image("a/demo", "Demo  Release!"),
+                   _image("a/new", "Brand New")])
+    assert sorted(e["key"] for e in entries) == ["appimage:a/new", "org.mozilla.firefox", "org.vlc.VLC", "release:demo", "vendor:vendor-app"]
+    firefox = next(e for e in entries if e["key"] == "org.mozilla.firefox")
+    assert [s["kind"] for s in firefox["sources"]] == ["flatpak"]  # never attached to the other program's entry by a similar name
+
+
+def test_a_community_appimage_of_a_project_that_is_already_a_makers_own_download_is_left_out_whatever_the_capitals():
+    entries = d.build_entries([], [], loader=_loader(), releases=[_release(repo="Acme/Demo-App", name="Maker's Name")],
+                              appimages=[_image("acme/demo-app", "A Different Name"), _image("other/demo-app", "Another")])
+    assert sorted(e["key"] for e in entries) == ["appimage:other/demo-app", "release:demo"]
+
+
+def test_two_community_appimages_of_one_name_show_the_first_and_the_same_project_twice_shows_once():
+    entries = d.build_entries([], [], loader=_loader(), appimages=[_image("a/one", "Same Name"), _image("b/two", "same-name"), _image("a/one", "Other Name")])
+    assert [e["key"] for e in entries] == ["appimage:a/one"]
+
+
+def test_a_name_with_no_letters_is_never_taken_for_another_programs():
+    entries = d.build_entries([], [], loader=_loader(), appimages=[_image("a/one", "!!!"), _image("b/two", "???")])
+    assert len(entries) == 2  # both reduce to nothing: that is no reason to hide either
+
+
+def test_the_search_finds_a_community_appimage_by_name_developer_and_project_but_not_by_its_kind_prefix():
+    entries = d.build_entries([], [], loader=_loader(), appimages=[_image("zed/widget", "Widget", developer="Zed Corp"), _image("q/other", "Other")])
+    assert [e["name"] for e in d.search(entries, "widget")["entries"]] == ["Widget"]
+    assert [e["name"] for e in d.search(entries, "zed")["entries"]] == ["Widget"]
+    assert d.search(entries, "appimage")["total"] == 0  # "appimage:" is the kind of key, not something written about the program
+    assert d.search(entries, kind="appimage")["total"] == 2 and d.search(entries, kind="flatpak")["total"] == 0
+
+
+def test_the_signature_changes_when_an_online_catalogue_does():
+    one = d.signature([], [], [], [["appimagehub", 10, 1, 5]])
+    assert one != d.signature([], [], [], [["appimagehub", 11, 1, 5]]) != d.signature([], [], [], [["appimagehub", 10, 2, 5]])
+    assert one != d.signature([], [], [], []) and d.signature([], [], []) == d.signature([], [], [], ())
+
+
+# -- Debian's programs ----------------------------------------------------------------------------------------------------------------------------
+
+def _deb(package="demo", name="Demo", **over):
+    return {**{"package": package, "id": package, "name": name, "summary": "Does demo things.", "categories": ["Office"], "url": "https://demo.example", "version": "1.0-1",
+               "filename": f"pool/main/{package[0]}/{package}/{package}_1.0-1_amd64.deb", "sha256": "ab" * 32, "size": 1000, "depends": ["libc6"]}, **over}
+
+
+def test_a_debian_program_is_listed_on_its_own_with_everything_the_download_needs_and_a_warning_in_its_label():
+    [entry] = d.build_entries([], [], loader=_loader(), debs=[_deb(depends=["libc6", "demo-data"])])
+    assert entry["key"] == "debian:demo" and entry["name"] == "Demo" and entry["groups"] == ["office"] and entry["url"] == "https://demo.example"
+    assert entry["icon"] == "" and entry["icon_name"] == "package-x-generic" and entry["developer"] == ""
+    assert entry["sources"] == [{"kind": "debian", "package": "demo", "version": "1.0-1", "size": 1000, "filename": "pool/main/d/demo/demo_1.0-1_amd64.deb",
+                                 "sha256": "ab" * 32, "formats": ["deb"], "needs": ["demo-data"], "needs_more": 0, "label": "Debian's own package, converted by Cygnus (it may not work)"}]
+
+
+def test_a_debian_program_gives_way_to_whatever_the_repositories_flathub_or_the_makers_already_have():
+    """The Arch version is preferred: Debian's is not listed when the repositories have a package of that name, when the id is already an entry, or when the
+    name is already the name of a listed program."""
+    entries = d.build_entries([_src("flatpak", "flathub")], [_vendor(name="Vendor App")], loader=_loader(
+        flathub={"apps": [_app("org.gnome.gitg", "gitg"), _app("org.mozilla.firefox", "Firefox")]}), releases=[_release(name="Demo Release")], appimages=[_image("a/tool", "Some Tool")],
+        arch_names={"firefox", "in-repo"},
+        debs=[_deb("in-repo", "In Repo"), _deb("gitg", "Gitg Under Another Name", id="org.gnome.gitg"), _deb("fire", "FIREFOX"), _deb("vendor", "vendor-app"),
+              _deb("rel", "Demo  Release!"), _deb("img", "Some_Tool"), _deb("fresh", "Fresh Program")])
+    assert sorted(e["key"] for e in entries) == ["appimage:a/tool", "debian:fresh", "org.gnome.gitg", "org.mozilla.firefox", "release:demo", "vendor:vendor-app"]
+    gitg = next(e for e in entries if e["key"] == "org.gnome.gitg")
+    assert [s["kind"] for s in gitg["sources"]] == ["flatpak"]  # a Debian package is never attached to another program's entry
+
+
+def test_two_debian_programs_of_one_name_show_the_first_and_one_package_shows_once():
+    entries = d.build_entries([], [], loader=_loader(), debs=[_deb("one", "Same Name"), _deb("two", "same-name"), _deb("one", "Other"), _deb("three", "Third")])
+    assert [e["key"] for e in entries] == ["debian:one", "debian:three"]
+
+
+def test_what_debian_says_a_program_needs_leaves_out_libraries_debian_basics_and_what_the_repositories_have():
+    needs = d.debian_needs(["abiword-common", "libc6", "libgtk-3-0t64", "libabiword-3.0", "zlib1g", "python3:any", "debconf", "dpkg", "git", "git", "libreoffice-core",
+                            "fonts-urw-base35", "coreutils", "libstdc++6", "lib-nodigit"], {"git"})
+    assert needs == ["abiword-common", "python3", "libreoffice-core", "fonts-urw-base35", "lib-nodigit"]
+    assert d.debian_needs([], set()) == [] and d.debian_needs(["libc6"], set()) == []
+    assert len(d.debian_needs([f"pkg{i:02}-data" for i in range(30)], set())) == 10
+
+
+def test_a_name_with_the_repositories_name_does_not_hide_a_program_by_its_dependencies():
+    entries = d.build_entries([], [], loader=_loader(), arch_names={"demo-data"}, debs=[_deb(depends=["demo-data", "other-data"])])
+    assert entries[0]["sources"][0]["needs"] == ["other-data"]  # the repositories' package of that name satisfies the first
+
+
+def test_the_search_finds_a_debian_program_by_name_and_summary_and_not_by_its_kind_and_can_filter_for_it():
+    entries = d.build_entries([], [], loader=_loader(), debs=[_deb("zeta", "Zeta Editor", summary="Edits zeta files"), _deb("other", "Other")])
+    assert [e["name"] for e in d.search(entries, "zeta")["entries"]] == ["Zeta Editor"]
+    assert d.search(entries, "debian")["total"] == 0
+    assert d.search(entries, kind="debian")["total"] == 2 and d.search(entries, kind="appimage")["total"] == 0
+
+
+def test_an_appimage_is_listed_before_a_debian_package_of_the_same_name_so_the_self_contained_one_wins():
+    entries = d.build_entries([], [], loader=_loader(), appimages=[_image("a/demo", "Demo")], debs=[_deb("demo", "Demo")])
+    assert [e["key"] for e in entries] == ["appimage:a/demo"]
+
+
+# -- Fedora's programs ------------------------------------------------------------------------------------------------------------------------------
+
+def _rpm(package="demo", name="Demo", **over):
+    return {**{"package": package, "id": package, "name": name, "summary": "Does demo things.", "categories": ["Office"], "url": "https://demo.example", "release": 44,
+               "version": "1.0-1.fc44", "location": f"Packages/{package[0]}/{package}-1.0-1.fc44.x86_64.rpm", "sha256": "cd" * 32, "size": 2000, "depends": ["demo-data"]}, **over}
+
+
+def test_a_fedora_program_is_listed_on_its_own_with_everything_the_download_needs():
+    [entry] = d.build_entries([], [], loader=_loader(), rpms=[_rpm(depends=["demo-data", "shadow-utils", "bash"])], arch_names={"bash"})
+    assert entry["key"] == "fedora:demo" and entry["name"] == "Demo" and entry["groups"] == ["office"] and entry["url"] == "https://demo.example"
+    assert entry["sources"] == [{"kind": "fedora", "package": "demo", "version": "1.0-1.fc44", "size": 2000, "release": 44, "location": "Packages/d/demo-1.0-1.fc44.x86_64.rpm",
+                                 "sha256": "cd" * 32, "formats": ["rpm"], "needs": ["demo-data"], "needs_more": 0, "label": "Fedora's own package, converted by Cygnus (it may not work)"}]
+
+
+def test_a_fedora_program_gives_way_to_everything_listed_before_it_including_debian_and_appimages():
+    entries = d.build_entries([_src("flatpak", "flathub")], [], loader=_loader(flathub={"apps": [_app("org.mozilla.firefox", "Firefox")]}), arch_names={"in-repo"},
+                              appimages=[_image("a/tool", "Tool")], debs=[_deb("same", "Shared Name")],
+                              rpms=[_rpm("in-repo", "In Repo"), _rpm("fire", "firefox"), _rpm("tool", "Tool"), _rpm("shared", "Shared Name"), _rpm("only", "Only Fedora"),
+                                    _rpm("byid", "Another Name", id="org.mozilla.firefox")])
+    assert sorted(e["key"] for e in entries) == ["appimage:a/tool", "debian:same", "fedora:only", "org.mozilla.firefox"]
+
+
+def test_what_fedora_says_a_program_needs_leaves_out_fedoras_basics_and_what_the_repositories_have():
+    needs = d.rpm_needs(["demo-libs", "shadow-utils", "bash", "demo-libs", "python3-gobject", "rpm", "fedora-logos", "git"], {"bash", "git"})
+    assert needs == ["demo-libs", "python3-gobject"]
+    assert d.rpm_needs([], set()) == [] and len(d.rpm_needs([f"pkg{i:02}" for i in range(30)], set())) == 10
+
+
+def test_the_search_finds_a_fedora_program_and_can_filter_for_it_but_not_by_its_kind_prefix():
+    entries = d.build_entries([], [], loader=_loader(), rpms=[_rpm("zeta", "Zeta Editor", summary="Edits zeta files"), _rpm("other", "Other")])
+    assert [e["name"] for e in d.search(entries, "zeta")["entries"]] == ["Zeta Editor"]
+    assert d.search(entries, "fedora")["total"] == 0 and d.search(entries, kind="fedora")["total"] == 2 and d.search(entries, kind="debian")["total"] == 0
+
+
+def test_a_community_appimage_whose_repository_is_named_like_a_repository_package_gives_way_to_it():
+    entries = d.build_entries([], [], loader=_loader(), arch_names={"anki", "tool"}, appimages=[_image("ankitects/anki", "Anki Desktop"), _image("a/Tool", "Tool"),
+                                                                                                  _image("a/new", "Brand New"), _image("a/anki-sync", "Anki Sync")])
+    assert sorted(e["key"] for e in entries) == ["appimage:a/anki-sync", "appimage:a/new"]  # only the whole repository name counts, whatever its capitals
+
+
+def test_a_debian_package_of_several_programs_is_left_out_only_when_every_one_of_them_is_already_listed():
+    """Found by review: the id of the first program of a package decided for all of them, so a package of Chess (on Flathub) and Mines (not) showed neither."""
+    flathub = {"flathub": {"apps": [_app("org.gnome.Chess", "Chess"), _app("org.gnome.Mines", "Mines")]}}
+    both = d.build_entries([_src("flatpak", "flathub")], [], loader=_loader(**flathub), debs=[_deb("games", "games", id="org.gnome.Chess", ids=["org.gnome.Chess", "org.gnome.Mines"])])
+    assert [e["key"] for e in both] == ["org.gnome.Chess", "org.gnome.Mines"]
+    one_taken = d.build_entries([_src("flatpak", "flathub")], [], loader=_loader(flathub={"apps": [_app("org.gnome.Chess", "Chess")]}),
+                                debs=[_deb("games", "games", id="org.gnome.Chess", ids=["org.gnome.Chess", "org.gnome.Mines"])])
+    assert sorted(e["key"] for e in one_taken) == ["debian:games", "org.gnome.Chess"]
+    rpm = d.build_entries([], [], loader=_loader(), rpms=[_rpm("games", "games", id="x", ids=["x", "y"])], debs=[])
+    assert [e["key"] for e in rpm] == ["fedora:games"]
+
+
+def test_a_record_from_an_older_copy_without_ids_still_works():
+    assert [e["key"] for e in d.build_entries([], [], loader=_loader(), debs=[_deb()])] == ["debian:demo"]
+
+
+@pytest.mark.parametrize("name, library", [("libc6", True), ("libgtk-3-0t64", True), ("libglib2.0-0t64", True), ("libjpeg62-turbo", True), ("libstdc++6", True), ("zlib1g", True),
+                                           ("libabiword-3.0", True), ("libwmflite-0.2-7", True), ("libssl3t64", True),
+                                           ("libxml2-utils", False), ("libreoffice-core", False), ("libfakeroot", False), ("libgnome-keyring-common", False),
+                                           ("python3-gi", False), ("abiword-common", False)])
+def test_a_debian_package_is_a_library_by_the_shape_of_its_name(name, library):
+    assert bool(d._DEBIAN_LIBRARY.fullmatch(name)) is library
+
+
+def test_the_needs_cut_to_ten_say_how_many_more_there_are():
+    many = [f"pkg{i:02}-data" for i in range(15)]
+    [debian] = d.build_entries([], [], loader=_loader(), debs=[_deb(depends=many)])
+    [fedora] = d.build_entries([], [], loader=_loader(), rpms=[_rpm(depends=many)])
+    for entry in (debian, fedora):
+        [source] = entry["sources"]
+        assert source["needs"] == many[:10] and source["needs_more"] == 5
+    assert d.debian_needs(many, set(), None) == many and d.rpm_needs(many, set(), None) == many

@@ -23,6 +23,7 @@ Operations:
   vercmp     compare pairs of version strings the way libalpm does
   sort_versions       order groups of version strings newest first, the way libalpm does
   installed_versions  name -> version of every installed package
+  repo_names          the sorted names of every package in the repositories' lists
   removal_facts       for named packages: installed or not, why, and what installed packages need them
 """
 
@@ -543,6 +544,10 @@ def op_installed_versions(h, req):
     return {"ok": True, "versions": {p.name: p.version for p in h.get_localdb().pkgcache}}
 
 
+def op_repo_names(h, req):
+    return {"ok": True, "names": sorted({p.name for db in h.get_syncdbs() for p in db.pkgcache})}
+
+
 MAX_FACT_NAMES = 500
 
 
@@ -565,7 +570,7 @@ def op_removal_facts(h, req):
 OPS = {"load": op_load, "resolve": op_resolve, "conflicts": op_conflicts, "satisfy": op_satisfy, "info": op_info,
        "outdated": op_outdated, "local_conflicts": op_local_conflicts, "search": op_search, "installed": op_installed,
        "details": op_details, "vercmp": op_vercmp, "sort_versions": op_sort_versions, "installed_versions": op_installed_versions,
-       "removal_facts": op_removal_facts}
+       "removal_facts": op_removal_facts, "repo_names": op_repo_names}
 
 
 def main():

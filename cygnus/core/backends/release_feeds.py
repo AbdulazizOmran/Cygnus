@@ -29,7 +29,7 @@ MAX_FILE = 3 * 1024**3  # a file declared larger is refused before anything is d
 MAX_NAME = 200
 
 _OWNER = re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})\Z")
-_REPO = re.compile(r"[A-Za-z0-9._-]{1,100}\Z")
+_REPO = re.compile(r"(?!\.{1,2}\Z)[A-Za-z0-9._-]{1,100}\Z")  # never "." or "..": they would turn the address into another one
 _TAG = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]{0,60}\Z")
 _DIGEST = re.compile(r"sha256:([0-9a-f]{64})\Z")
 _KEY = re.compile(r"[a-z0-9][a-z0-9-]{0,40}\Z")
@@ -99,6 +99,21 @@ PROJECTS: dict[str, Project] = {p.key: p for p in (
 )}
 
 
+# For a program that is only in a community directory (AppImageHub), nobody wrote a pattern for its files: any x86_64 (or unmarked) AppImage is a candidate, and
+# the rule stays "exactly one, else say so". A file that names another processor is never one (x86 alone is the 32-bit one; x86_64 and x86-64 are fine).
+_OTHER_PROCESSOR = (r"(?:(?<![A-Za-z0-9])(?:aarch[-_]?64|arm[-_]?64|armv[0-9][a-z0-9]*|armhf|armel|i[3-6]86|ia32|ppc64le|ppc64|riscv64|s390x|loong64|loongarch64"
+                    r"|mips64el|mips64|mipsel|x86(?![A-Za-z0-9]|[-_]64))"
+                    r"|(?<=[-_.])(?:arm|ppc|riscv|mips|sparc64|sparc))(?![A-Za-z0-9])")  # the bare short names count only after a separator ("Arm-Tool-x86_64" is a program called Arm)
+GENERIC_APPIMAGE = rf"(?!.*(?i:{_OTHER_PROCESSOR}))[A-Za-z0-9._+~@-]{{1,150}}\.(?i:appimage)"
+
+
+def appimage_project(repo: str) -> Project:
+    """The project "owner/repo" of a community directory's AppImage, whose only asset kind is the generic AppImage pattern. The caller has checked that
+    the directory lists it; the address parts are checked again by newest()."""
+    owner, _, name = repo.partition("/")
+    return Project(repo, owner, name, {"appimage": GENERIC_APPIMAGE})
+
+
 def github_host(host: str) -> bool:
     """The hosts a release download may be on: GitHub's own, and the ones it redirects release files to (today release-assets.githubusercontent.com,
     earlier objects.githubusercontent.com: any host under githubusercontent.com)."""
@@ -118,8 +133,8 @@ def _is_own_release_file(url: object, project: Project, tag: str, name: str) -> 
     as a whole, not as a start: dot segments, escapes, queries and fragments are never part of what GitHub hands out, and any of them would let an
     address that begins like the project's reach somewhere else. Only the owner and repository may differ in capital letters (GitHub spells
     them as the project does, which is not always how it is written elsewhere)."""
-    if not isinstance(url, str) or not url.startswith("https://github.com/"):
-        return False
+    if not isinstance(url, str) or not url.isascii() or not url.startswith("https://github.com/"):
+        return False  # (ASCII only: a letter that lower-cases to an ordinary one, such as the Kelvin sign, must not make another owner's address match)
     middle = f"{project.owner}/{project.repo}/releases/download/"
     rest = url[len("https://github.com/"):]
     return rest[:len(middle)].lower() == middle.lower() and rest[len(middle):] == f"{tag}/{name}"

@@ -303,8 +303,8 @@ narrowly (`cygnus/core/cacheclean.py`, `plan_cache_clean` / `clean_cache` in `cy
 
 ### Discover (browsing what can be installed)
 
-Discover only LISTS (`cygnus/core/discover.py`, `cygnus/core/vendor_catalog.py`, `cygnus/core/release_catalog.py`, the `discover_*`, `fetch_vendor_package` and `fetch_release_download` functions of
-`cygnus/gui/service.py`). It adds no administrator action and no new way to install: every choice is handed to a flow that has its own
+Discover only LISTS (`cygnus/core/discover.py`, `cygnus/core/vendor_catalog.py`, `cygnus/core/release_catalog.py`, the `discover_*`, `fetch_*_download` and `catalogue_*` functions of
+`cygnus/gui/service.py`, `cygnus/core/online_catalogues.py` and the catalogue readers in `cygnus/core/backends/`). It adds no administrator action and no new way to install: every choice is handed to a flow that has its own
 plan and confirmation. What it reads and how:
 - **AppStream files are hostile input.** Flathub's file and the Arch data package's are read as a stream with `xml.parsers.expat` (never
   as one document in memory): a document type or entity declaration is refused in any encoding (so no entity expansion), at most 60,000
@@ -339,6 +339,34 @@ plan and confirmation. What it reads and how:
   GitHub vouches for who uploaded the file to the project, not for what is in it, and a checksum only proves the file that arrived is the file
   GitHub holds. The downloaded file itself is not checked for newer versions (a `.deb`, `.rpm` or archive from a release page has no update
   information); an installed AppImage that carries its own update information is checked like any other.
+- **The online catalogues are downloaded only after a yes, and read as hostile data.** `cygnus/core/online_catalogues.py` downloads a catalogue only
+  while it is switched on and only after the person answered the one question Discover asks (`catalogues_decided` in `preferences.json`; a no switches all
+  three off; the terminal's `update` and the page's button are a yes). Each catalogue has one module that fetches from its own fixed addresses
+  over HTTPS with a host rule checked on every redirect hop (`appimage.github.io`; `deb.debian.org`; `dl.fedoraproject.org`; `aur.archlinux.org` for
+  the names of AUR packages), a limit on what is downloaded and a limit on what it decompresses to (`catalogue_common.chunks`: xz, gzip and zstd are read in
+  pieces, so a small file cannot become an enormous text; an empty or damaged file is an error in words). What is kept is a few plain fields per program
+  in `~/.cache/cygnus/catalogues/<name>.json` (written atomically; read back without following a link, as a regular file, at most 64 MiB, without
+  blocking on a pipe, and every record is checked again by the same strict patterns as when it was made). A failed or empty download leaves the old copy.
+  Searching and browsing never touch the network. **AppImageHub** (`appimagehub.py`): an entry becomes a record only when it names a GitHub project
+  whose owner and repository pass the patterns (never `.` or `..`, never ending in `.git`); no link in the file is followed. Its download is
+  `fetch_appimage_download`: only a project in the lists on screen can be asked for, GitHub is asked for that project's newest release (the same
+  strict whole-address and size checks as a maker's download), and the file is chosen by one generic rule (an `.AppImage` that names no other processor, exactly one). **Debian**
+  (`debian_index.py`): Debian's AppStream file (DEP-11, a small corner of YAML read line by line: plain, quoted and folded scalars, the default language only) is
+  joined to the package list (`Packages.xz`) for the file's place (`pool/main/…_amd64.deb` or `_all.deb`, matched as a whole), size and SHA-256; **Fedora**
+  (`fedora_index.py`): the release's AppStream file (read with Discover's own hostile-XML reader) is joined to the release's `primary.xml`, whose checksum is
+  checked against the one in the release's `repomd.xml`; the package list is cut at each `</package>` and only the entries of listed programs are parsed
+  (a list that contains a comment, a CDATA section or a document type is not read at all, because a real one never does and one that does could hide an entry of another program inside a description; an entry that never ends is refused at 4 MiB; text is read line by line with a 1 MiB limit per line and 20,000 lines kept per document, so a hostile file cannot make the reading slow or large). A program is left out of both when the AUR has a package of that name (at download time)
+  and, when Discover's lists are built, when the repositories here have one, when its id is already an entry or when its name is already a listed program's:
+  the Arch version is always preferred, and a program is never attached to another program's entry by a similar name. The download (`_fetch_foreign`) is built
+  from the list's checked file name, only for a program in the lists on screen, from the one host, with the checksum and the exact size from the list (a file in another size is thrown away),
+  into `~/.cache/cygnus/downloads/{debian,fedora}/<package>` (mode 0700, the same clean-up as the others) and is handed to the Install page, never converted or installed there.
+  What this cannot promise: **Debian's and Fedora's own signatures are not checked** (their keys are not on an Arch system; the connection is HTTPS and the
+  checksum came from the same host, so the file is what that host lists, no more), a package built for another distribution may not work on this one
+  even when it converts (the card names the non-library packages it says it needs and the Install page refuses a missing library), and AppImageHub vouches for nothing.
+- **The AUR is searched only when a button is pressed.** `discover_aur` sends the typed words (at least two characters, at most 100) to
+  `aur.archlinux.org`'s RPC and `discover.aur_results` treats the answer as written by strangers: a name must be a package name, text is reduced to plain printable
+  text, numbers must be numbers, an address must be `https`, 8 MiB at most, 30 results shown; each result opens the Install page's existing AUR review, which shows the build script
+  first. Nothing is built or installed from the list.
 - **A maker's package is downloaded, not converted, from the page.** `fetch_vendor_package` uses the same vendor package lists as the update
   check (HTTPS only, capped, strictly validated), downloads over HTTPS into a folder of its own (`~/.cache/cygnus/downloads/vendor/<program>`,
   mode 0700; only an earlier download of that program is removed, at most three programs' downloads are kept (a folder younger than an hour is never

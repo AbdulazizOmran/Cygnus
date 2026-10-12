@@ -1,0 +1,297 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata xmlns="http://linux.duke.edu/metadata/common" xmlns:rpm="http://linux.duke.edu/metadata/rpm" packages="4">
+<package type="rpm">
+  <name>0ad</name>
+  <arch>x86_64</arch>
+  <version epoch="0" ver="0.28.0" rel="2.fc44"/>
+  <checksum type="sha256" pkgid="YES">0a43f7968af2f7b1f4cd9a109c695c5d001d92bdd9af5d698243d575e2ccef22</checksum>
+  <summary>Cross-Platform RTS Game of Ancient Warfare</summary>
+  <description>Sample.</description>
+  <packager>Fedora Project</packager>
+  <url>http://play0ad.com</url>
+  <time file="1772819317" build="1772817426"/>
+  <size package="5777659" installed="19216970" archive="19265344"/>
+  <location href="Packages/0/0ad-0.28.0-2.fc44.x86_64.rpm"/>
+  <format>
+    <rpm:license>GPL-2.0-or-later AND LicenseRef-Callaway-BSD AND LicenseRef-Callaway-MIT AND IPL-1.0 AND MPL-2.0</rpm:license>
+    <rpm:vendor>Fedora Project</rpm:vendor>
+    <rpm:group>Unspecified</rpm:group>
+    <rpm:buildhost>buildhw-x86-12.rdu3.fedoraproject.org</rpm:buildhost>
+    <rpm:sourcerpm>0ad-0.28.0-2.fc44.src.rpm</rpm:sourcerpm>
+    <rpm:header-range start="39328" end="88237"/>
+    
+    <rpm:requires>
+      <rpm:entry name="/usr/bin/sh"/>
+      <rpm:entry name="0ad-data" flags="EQ" epoch="0" ver="0.28.0"/>
+      <rpm:entry name="hicolor-icon-theme"/>
+      <rpm:entry name="libSDL2-2.0.so.0()(64bit)"/>
+      <rpm:entry name="libX11.so.6()(64bit)"/>
+      <rpm:entry name="libcurl.so.4()(64bit)"/>
+      <rpm:entry name="libenet.so.7()(64bit)"/>
+      <rpm:entry name="libfmt.so.11()(64bit)"/>
+      <rpm:entry name="libfreetype.so.6()(64bit)"/>
+      <rpm:entry name="libgcc_s.so.1()(64bit)"/>
+      <rpm:entry name="libgcc_s.so.1(GCC_3.0)(64bit)"/>
+      <rpm:entry name="libgcc_s.so.1(GCC_3.4)(64bit)"/>
+      <rpm:entry name="libgloox.so.18()(64bit)"/>
+      <rpm:entry name="libicui18n.so.77()(64bit)"/>
+      <rpm:entry name="libicuuc.so.77()(64bit)"/>
+      <rpm:entry name="libm.so.6()(64bit)"/>
+      <rpm:entry name="libm.so.6(GLIBC_2.2.5)(64bit)"/>
+      <rpm:entry name="libm.so.6(GLIBC_2.23)(64bit)"/>
+      <rpm:entry name="libm.so.6(GLIBC_2.27)(64bit)"/>
+      <rpm:entry name="libm.so.6(GLIBC_2.29)(64bit)"/>
+      <rpm:entry name="libm.so.6(GLIBC_2.38)(64bit)"/>
+      <rpm:entry name="libm.so.6(GLIBC_2.43)(64bit)"/>
+      <rpm:entry name="libminiupnpc.so.21()(64bit)"/>
+      <rpm:entry name="libmozjs-128.so.0()(64bit)"/>
+      <rpm:entry name="libmozjs-128.so.0(mozjs_128)(64bit)"/>
+      <rpm:entry name="libnvtt.so.2.1()(64bit)"/>
+      <rpm:entry name="libopenal.so.1()(64bit)"/>
+      <rpm:entry name="libpng16.so.16()(64bit)"/>
+      <rpm:entry name="libpng16.so.16(PNG16_0)(64bit)"/>
+      <rpm:entry name="libsodium.so.26()(64bit)"/>
+      <rpm:entry name="libstdc++.so.6()(64bit)"/>
+      <rpm:entry name="libstdc++.so.6(CXXABI_1.3)(64bit)"/>
+      <rpm:entry name="libstdc++.so.6(CXXABI_1.3.11)(64bit)"/>
+      <rpm:entry name="libstdc++.so.6(CXXABI_1.3.13)(64bit)"/>
+      <rpm:entry name="libstdc++.so.6(CXXABI_1.3.15)(64bit)"/>
+      <rpm:entry name="libstdc++.so.6(CXXABI_1.3.3)(64bit)"/>
+      <rpm:entry name="libstdc++.so.6(CXXABI_1.3.5)(64bit)"/>
+      <rpm:entry name="libstdc++.so.6(CXXABI_1.3.7)(64bit)"/>
+      <rpm:entry name="libstdc++.so.6(CXXABI_1.3.8)(64bit)"/>
+      <rpm:entry name="libstdc++.so.6(CXXABI_1.3.9)(64bit)"/>
+      <rpm:entry name="libstdc++.so.6(GLIBCXX_3.4)(64bit)"/>
+      <rpm:entry name="libstdc++.so.6(GLIBCXX_3.4.11)(64bit)"/>
+      <rpm:entry name="libstdc++.so.6(GLIBCXX_3.4.14)(64bit)"/>
+      <rpm:entry name="libstdc++.so.6(GLIBCXX_3.4.15)(64bit)"/>
+      <rpm:entry name="libstdc++.so.6(GLIBCXX_3.4.17)(64bit)"/>
+      <rpm:entry name="libstdc++.so.6(GLIBCXX_3.4.18)(64bit)"/>
+      <rpm:entry name="libstdc++.so.6(GLIBCXX_3.4.19)(64bit)"/>
+      <rpm:entry name="libstdc++.so.6(GLIBCXX_3.4.20)(64bit)"/>
+      <rpm:entry name="libstdc++.so.6(GLIBCXX_3.4.21)(64bit)"/>
+      <rpm:entry name="libstdc++.so.6(GLIBCXX_3.4.22)(64bit)"/>
+      <rpm:entry name="libstdc++.so.6(GLIBCXX_3.4.25)(64bit)"/>
+      <rpm:entry name="libstdc++.so.6(GLIBCXX_3.4.26)(64bit)"/>
+      <rpm:entry name="libstdc++.so.6(GLIBCXX_3.4.29)(64bit)"/>
+      <rpm:entry name="libstdc++.so.6(GLIBCXX_3.4.30)(64bit)"/>
+      <rpm:entry name="libstdc++.so.6(GLIBCXX_3.4.32)(64bit)"/>
+      <rpm:entry name="libstdc++.so.6(GLIBCXX_3.4.9)(64bit)"/>
+      <rpm:entry name="libvorbis.so.0()(64bit)"/>
+      <rpm:entry name="libvorbisfile.so.3()(64bit)"/>
+      <rpm:entry name="libwx_baseu-3.2.so.0()(64bit)"/>
+      <rpm:entry name="libwx_baseu-3.2.so.0(WXU_3.2)(64bit)"/>
+      <rpm:entry name="libwx_baseu_xml-3.2.so.0()(64bit)"/>
+      <rpm:entry name="libwx_baseu_xml-3.2.so.0(WXU_3.2)(64bit)"/>
+      <rpm:entry name="libwx_gtk3u_core-3.2.so.0()(64bit)"/>
+      <rpm:entry name="libwx_gtk3u_core-3.2.so.0(WXU_3.2)(64bit)"/>
+      <rpm:entry name="libwx_gtk3u_gl-3.2.so.0()(64bit)"/>
+      <rpm:entry name="libwx_gtk3u_gl-3.2.so.0(WXU_3.2)(64bit)"/>
+      <rpm:entry name="libxml2.so.2()(64bit)"/>
+      <rpm:entry name="libxml2.so.2(LIBXML2_2.4.30)(64bit)"/>
+      <rpm:entry name="libxml2.so.2(LIBXML2_2.5.2)(64bit)"/>
+      <rpm:entry name="libxml2.so.2(LIBXML2_2.6.0)(64bit)"/>
+      <rpm:entry name="libxml2.so.2(LIBXML2_2.6.21)(64bit)"/>
+      <rpm:entry name="libxml2.so.2(LIBXML2_2.9.0)(64bit)"/>
+      <rpm:entry name="libz.so.1()(64bit)"/>
+      <rpm:entry name="libz.so.1(ZLIB_1.2.0)(64bit)"/>
+      <rpm:entry name="rtld(GNU_HASH)"/>
+      <rpm:entry name="libc.so.6(GLIBC_2.38)(64bit)"/>
+    </rpm:requires>
+    </format>
+</package>
+<package type="rpm">
+  <name>gimp</name>
+  <arch>x86_64</arch>
+  <version epoch="2" ver="3.2.0" rel="1.fc44"/>
+  <checksum type="sha256" pkgid="YES">5124a202602854b06b9142530a9c41de446b264923f94870400aee2a3354a5ba</checksum>
+  <summary>GNU Image Manipulation Program</summary>
+  <description>Sample.</description>
+  <packager>Fedora Project</packager>
+  <url>https://www.gimp.org</url>
+  <time file="1773699811" build="1773698136"/>
+  <size package="23029487" installed="113840226" archive="114367788"/>
+  <location href="Packages/g/gimp-3.2.0-1.fc44.x86_64.rpm"/>
+  <format>
+    <rpm:license>LGPL-3.0-or-later AND GPL-2.0-or-later AND GPL-3.0-or-later AND BSD-3-Clause AND CC-BY-SA-3.0 AND CC-BY-SA-4.0 AND CC0-1.0</rpm:license>
+    <rpm:vendor>Fedora Project</rpm:vendor>
+    <rpm:group>Unspecified</rpm:group>
+    <rpm:buildhost>buildhw-x86-08.rdu3.fedoraproject.org</rpm:buildhost>
+    <rpm:sourcerpm>gimp-3.2.0-1.fc44.src.rpm</rpm:sourcerpm>
+    <rpm:header-range start="389760" end="885369"/>
+    
+    <rpm:requires>
+      <rpm:entry name="/usr/bin/python3"/>
+      <rpm:entry name="babl(x86-64)" flags="GE" epoch="0" ver="0.1.118"/>
+      <rpm:entry name="fontconfig(x86-64)" flags="GE" epoch="0" ver="2.12.4"/>
+      <rpm:entry name="freetype(x86-64)" flags="GE" epoch="0" ver="2.1.7"/>
+      <rpm:entry name="gdk-pixbuf2(x86-64)" flags="GE" epoch="0" ver="2.30.8"/>
+      <rpm:entry name="gegl04(x86-64)" flags="GE" epoch="0" ver="0.4.64"/>
+      <rpm:entry name="gimp-libs(x86-64)" flags="EQ" epoch="2" ver="3.2.0" rel="1.fc44"/>
+      <rpm:entry name="gjs"/>
+      <rpm:entry name="glib2(x86-64)" flags="GE" epoch="0" ver="2.70.0"/>
+      <rpm:entry name="hicolor-icon-theme"/>
+      <rpm:entry name="lcms2(x86-64)" flags="GE" epoch="0" ver="2.8"/>
+      <rpm:entry name="libIex-3_2.so.31()(64bit)"/>
+      <rpm:entry name="libOpenEXR-3_2.so.31()(64bit)"/>
+      <rpm:entry name="libX11.so.6()(64bit)"/>
+      <rpm:entry name="libXcursor.so.1()(64bit)"/>
+      <rpm:entry name="libXext.so.6()(64bit)"/>
+      <rpm:entry name="libXfixes.so.3()(64bit)"/>
+      <rpm:entry name="libXmu.so.6()(64bit)"/>
+      <rpm:entry name="libXpm.so.4()(64bit)"/>
+      <rpm:entry name="libaa.so.1()(64bit)"/>
+      <rpm:entry name="libappstream.so.5()(64bit)"/>
+      <rpm:entry name="libarchive.so.13()(64bit)"/>
+      <rpm:entry name="libasound.so.2()(64bit)"/>
+      <rpm:entry name="libasound.so.2(ALSA_0.9)(64bit)"/>
+      <rpm:entry name="libbabl-0.1.so.0()(64bit)"/>
+      <rpm:entry name="libbabl-0.1.so.0(V0_1_0)(64bit)"/>
+      <rpm:entry name="libbz2.so.1()(64bit)"/>
+      <rpm:entry name="libcairo.so.2()(64bit)"/>
+      <rpm:entry name="libcfitsio.so.10()(64bit)"/>
+      <rpm:entry name="libfontconfig.so.1()(64bit)"/>
+      <rpm:entry name="libfreetype.so.6()(64bit)"/>
+      <rpm:entry name="libgcc_s.so.1()(64bit)"/>
+      <rpm:entry name="libgcc_s.so.1(GCC_3.0)(64bit)"/>
+      <rpm:entry name="libgcc_s.so.1(GCC_3.3.1)(64bit)"/>
+      <rpm:entry name="libgdk-3.so.0()(64bit)"/>
+      <rpm:entry name="libgdk_pixbuf-2.0.so.0()(64bit)"/>
+      <rpm:entry name="libgegl-0.4.so.0()(64bit)"/>
+      <rpm:entry name="libgegl-npd-0.4.so()(64bit)"/>
+      <rpm:entry name="libgexiv2.so.2()(64bit)"/>
+      <rpm:entry name="libgimp-3.0.so.0()(64bit)"/>
+      <rpm:entry name="libgimp-scriptfu-3.0.so.0()(64bit)"/>
+      <rpm:entry name="libgimpbase-3.0.so.0()(64bit)"/>
+      <rpm:entry name="libgimpcolor-3.0.so.0()(64bit)"/>
+      <rpm:entry name="libgimpconfig-3.0.so.0()(64bit)"/>
+      <rpm:entry name="libgimpmath-3.0.so.0()(64bit)"/>
+      <rpm:entry name="libgimpmodule-3.0.so.0()(64bit)"/>
+      <rpm:entry name="libgimpthumb-3.0.so.0()(64bit)"/>
+      <rpm:entry name="libgimpui-3.0.so.0()(64bit)"/>
+      <rpm:entry name="libgimpwidgets-3.0.so.0()(64bit)"/>
+      <rpm:entry name="libgio-2.0.so.0()(64bit)"/>
+      <rpm:entry name="libglib-2.0.so.0()(64bit)"/>
+      <rpm:entry name="libgobject-2.0.so.0()(64bit)"/>
+      <rpm:entry name="libgomp.so.1()(64bit)"/>
+      <rpm:entry name="libgomp.so.1(GOMP_1.0)(64bit)"/>
+      <rpm:entry name="libgomp.so.1(GOMP_4.0)(64bit)"/>
+      <rpm:entry name="libgomp.so.1(GOMP_4.5)(64bit)"/>
+      <rpm:entry name="libgomp.so.1(OMP_1.0)(64bit)"/>
+      <rpm:entry name="libgs.so.10()(64bit)"/>
+      <rpm:entry name="libgtk-3.so.0()(64bit)"/>
+      <rpm:entry name="libgudev-1.0.so.0()(64bit)"/>
+      <rpm:entry name="libharfbuzz.so.0()(64bit)"/>
+      <rpm:entry name="libheif.so.1()(64bit)"/>
+      <rpm:entry name="libjpeg.so.62()(64bit)"/>
+      <rpm:entry name="libjpeg.so.62(LIBJPEG_6.2)(64bit)"/>
+      <rpm:entry name="libjson-glib-1.0.so.0()(64bit)"/>
+      <rpm:entry name="libjson-glib-1.0.so.0(libjson-glib-1.0.so.0)(64bit)"/>
+      <rpm:entry name="libjxl.so.0.11()(64bit)"/>
+      <rpm:entry name="libjxl.so.0.11(JXL_0)(64bit)"/>
+      <rpm:entry name="libjxl_threads.so.0.11()(64bit)"/>
+      <rpm:entry name="libjxl_threads.so.0.11(JXL_0)(64bit)"/>
+      <rpm:entry name="liblcms2.so.2()(64bit)"/>
+      <rpm:entry name="liblzma.so.5()(64bit)"/>
+      <rpm:entry name="liblzma.so.5(XZ_5.0)(64bit)"/>
+      <rpm:entry name="libm.so.6()(64bit)"/>
+      <rpm:entry name="libm.so.6(GLIBC_2.2.5)(64bit)"/>
+      <rpm:entry name="libm.so.6(GLIBC_2.27)(64bit)"/>
+      <rpm:entry name="libm.so.6(GLIBC_2.29)(64bit)"/>
+      <rpm:entry name="libm.so.6(GLIBC_2.35)(64bit)"/>
+      <rpm:entry name="libm.so.6(GLIBC_2.38)(64bit)"/>
+      <rpm:entry name="libm.so.6(GLIBC_2.43)(64bit)"/>
+      <rpm:entry name="libmng.so.2()(64bit)"/>
+      <rpm:entry name="libmypaint.so.0()(64bit)"/>
+      <rpm:entry name="libopenjp2.so.7()(64bit)"/>
+      <rpm:entry name="libpango-1.0.so.0()(64bit)"/>
+      <rpm:entry name="libpangocairo-1.0.so.0()(64bit)"/>
+      <rpm:entry name="libpangoft2-1.0.so.0()(64bit)"/>
+      <rpm:entry name="libpng16.so.16()(64bit)"/>
+      <rpm:entry name="libpng16.so.16(PNG16_0)(64bit)"/>
+      <rpm:entry name="libpoppler-glib.so.8()(64bit)"/>
+      <rpm:entry name="librsvg-2.so.2()(64bit)"/>
+      <rpm:entry name="libstdc++.so.6()(64bit)"/>
+      <rpm:entry name="libstdc++.so.6(CXXABI_1.3)(64bit)"/>
+      <rpm:entry name="libstdc++.so.6(CXXABI_1.3.8)(64bit)"/>
+      <rpm:entry name="libstdc++.so.6(CXXABI_1.3.9)(64bit)"/>
+      <rpm:entry name="libstdc++.so.6(GLIBCXX_3.4)(64bit)"/>
+      <rpm:entry name="libstdc++.so.6(GLIBCXX_3.4.32)(64bit)"/>
+      <rpm:entry name="libtiff.so.6()(64bit)"/>
+      <rpm:entry name="libtiff.so.6(LIBTIFF_4.0)(64bit)"/>
+      <rpm:entry name="libunwind.so.8()(64bit)"/>
+      <rpm:entry name="libwebp.so.7()(64bit)"/>
+      <rpm:entry name="libwebpdemux.so.2()(64bit)"/>
+      <rpm:entry name="libwebpmux.so.3()(64bit)"/>
+      <rpm:entry name="libwmf-0.2.so.7()(64bit)"/>
+      <rpm:entry name="libwmflite-0.2.so.7()(64bit)"/>
+      <rpm:entry name="libz.so.1()(64bit)"/>
+      <rpm:entry name="lua-lgi-compat"/>
+      <rpm:entry name="luajit"/>
+      <rpm:entry name="pango(x86-64)" flags="GE" epoch="0" ver="1.50.0"/>
+      <rpm:entry name="python3dist(pygobject)" flags="GE" epoch="0" ver="3.0"/>
+      <rpm:entry name="rtld(GNU_HASH)"/>
+      <rpm:entry name="xdg-utils"/>
+      <rpm:entry name="libc.so.6(GLIBC_2.38)(64bit)"/>
+    </rpm:requires>
+    
+    <rpm:recommends>
+      <rpm:entry name="mypaint2-brushes"/>
+    </rpm:recommends>
+    <file type="dir">/etc/gimp</file>
+    <file type="dir">/etc/gimp/3.0</file>
+    </format>
+</package>
+<package type="rpm">
+  <name>0ad-data</name>
+  <arch>noarch</arch>
+  <version epoch="0" ver="0.28.0" rel="2.fc44"/>
+  <checksum type="sha256" pkgid="YES">eecc2b97bfe8b038dac9b553b0c6387f0c13da83cd1ec3d2037323fdff38100e</checksum>
+  <summary>The Data Files for 0 AD</summary>
+  <description>Sample.</description>
+  <packager>Fedora Project</packager>
+  <url>http://play0ad.com</url>
+  <time file="1772819305" build="1772817615"/>
+  <size package="1572416469" installed="3602351322" archive="3602359256"/>
+  <location href="Packages/0/0ad-data-0.28.0-2.fc44.noarch.rpm"/>
+  <format>
+    <rpm:license>LicenseRef-Callaway-CC-BY-SA</rpm:license>
+    <rpm:vendor>Fedora Project</rpm:vendor>
+    <rpm:group>Unspecified</rpm:group>
+    <rpm:buildhost>buildvm-x86-20.rdu3.fedoraproject.org</rpm:buildhost>
+    <rpm:sourcerpm>0ad-data-0.28.0-2.fc44.src.rpm</rpm:sourcerpm>
+    <rpm:header-range start="11400" end="21553"/>
+    
+    <rpm:requires>
+      <rpm:entry name="dejavu-sans-fonts"/>
+      <rpm:entry name="dejavu-sans-mono-fonts"/>
+    </rpm:requires>
+  </format>
+</package>
+<package type="rpm">
+  <name>4th</name>
+  <arch>i686</arch>
+  <version epoch="0" ver="3.62.5" rel="23.fc44"/>
+  <checksum type="sha256" pkgid="YES">d23fe597f3fde1a88265c03e6423fb77ce45c428e513369f079c29f3a35f8d95</checksum>
+  <summary>A Forth compiler</summary>
+  <description>Sample.</description>
+  <packager>Fedora Project</packager>
+  <url>https://thebeez.home.xs4all.nl/4tH/</url>
+  <time file="1768877970" build="1768544297"/>
+  <size package="351040" installed="1377666" archive="1380656"/>
+  <location href="Packages/4/4th-3.62.5-23.fc44.i686.rpm"/>
+  <format>
+    <rpm:license>GPL-3.0-or-later</rpm:license>
+    <rpm:vendor>Fedora Project</rpm:vendor>
+    <rpm:group>Unspecified</rpm:group>
+    <rpm:buildhost>buildvm-x86-28.rdu3.fedoraproject.org</rpm:buildhost>
+    <rpm:sourcerpm>4th-3.62.5-23.fc44.src.rpm</rpm:sourcerpm>
+    <rpm:header-range start="4504" end="11997"/>
+    
+    <rpm:requires>
+      <rpm:entry name="rtld(GNU_HASH)"/>
+      <rpm:entry name="libc.so.6(GLIBC_2.34)"/>
+    </rpm:requires>
+    </format>
+</package>
+</metadata>

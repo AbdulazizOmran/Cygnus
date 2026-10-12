@@ -627,7 +627,7 @@ def parse_listing(listing: str) -> list[tuple[str, int, str]]:
         if m is None:
             raise PayloadError("the package's file list has an entry Cygnus cannot read reliably, so it is not converted")
         kind, name = m.group(1), m.group(5)
-        if (kind == "l" and name.count(" -> ") > 1) or (kind == "h" and name.count(" link to ") > 1):
+        if (kind == "l" and name.count(" -> ") > 1) or (kind in ("h", "-") and name.count(" link to ") > 1):
             # the name or the target contains the separator: where one ends and the other begins cannot be told
             raise PayloadError("the package has a link Cygnus cannot read reliably (its name contains \" -> \"), so it is "
                                "not converted")
@@ -645,9 +645,28 @@ def not_unpacked(listing: str, dest: Path) -> list[str]:
             name = name.split(" -> ", 1)[0]
         elif kind == "h":
             name = name.split(" link to ", 1)[0]
-        rel = re.sub(r"^(\./)+", "", name).lstrip("/")
-        if not rel or rel.split("/")[0] == ".." or "/../" in rel or not os.path.lexists(dest / rel):
-            lost.append("/" + rel if rel else name)
+        # An .rpm's payload is a cpio archive, whose second and later names for one file are listed as regular files ("-rw-r--r-- 2 ... a link to b"). The name
+        # is then either the whole text (a file that really has " link to " in its name), or the part before it when that is the very same file as the part after
+        # it (a hard link); a file that is there in either way is there. No part may leave the folder.
+        def clean(text: str) -> str:
+            return re.sub(r"^(\./)+", "", text).lstrip("/")
+
+        def inside(rel: str) -> bool:
+            return bool(rel) and ".." not in rel.split("/")
+
+        whole = clean(name)
+        shown = whole
+        found = inside(whole) and os.path.lexists(dest / whole)
+        if not found and kind == "-" and " link to " in name:
+            first, _, target = name.partition(" link to ")
+            shown, other = clean(first), clean(target)
+            if inside(shown) and inside(other):
+                try:
+                    found = os.path.samefile(dest / shown, dest / other)
+                except OSError:
+                    found = False
+        if not found:
+            lost.append("/" + shown if shown else name)
     return lost
 
 

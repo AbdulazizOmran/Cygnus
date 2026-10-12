@@ -1615,18 +1615,53 @@ _MARKS: dict[str, Any] = {"at": 0.0, "value": None}
 MARKS_SECONDS = 5.0  # how long "what is installed" is trusted: typing in the search box must not ask libflatpak and pacman at every key
 
 
+def _repository_names() -> frozenset[str]:
+    """The names of the packages the repositories here have (what Debian's programs give way to); nothing when the lists cannot be read."""
+    from cygnus.core import packages
+
+    try:
+        return packages.repo_names()
+    except (CygnusError, OSError):
+        return frozenset()
+
+
+_PACMAN_CONFIG: dict[str, Any] = {"at": -1e9, "value": None}
+PACMAN_CONFIG_SECONDS = 60.0  # reading pacman's configuration starts a program: it is not done at every key typed in the search box
+
+
+def _repository_lists_stamp() -> Any:
+    """When pacman last refreshed its package lists (the folder's date), which tells when what the repositories have may have changed."""
+    import time
+
+    from cygnus.core import packages
+    from cygnus.core.backends import pacman as pm
+
+    try:
+        with _DISCOVER_LOCK:
+            if time.monotonic() - _PACMAN_CONFIG["at"] > PACMAN_CONFIG_SECONDS or _PACMAN_CONFIG["value"] is None:
+                _PACMAN_CONFIG.update(at=time.monotonic(), value=pm.read_config())
+            config = _PACMAN_CONFIG["value"]
+        return packages.lists_age(config).get("refreshed")
+    except (CygnusError, OSError):
+        return None
+
+
 def _catalogue() -> dict[str, Any]:
     """The merged catalogue: built once, and again when a data file or a vendor entry has changed. A data file that cannot be read is
     reported and left out; it does not take the others with it."""
-    from cygnus.core import discover, release_catalog, vendor_catalog
+    from cygnus.core import discover, online_catalogues, release_catalog, vendor_catalog
 
     sources = [*discover.flatpak_sources(), *discover.repo_sources()]
     vendors = vendor_catalog.vendors()
     releases = release_catalog.releases()
-    signature = discover.signature(sources, vendors, releases)
+    stamps = online_catalogues.stamps()  # which downloaded catalogues there are and as they are now: their files are only read when the lists are built again
+    if stamps:  # the online catalogues' programs give way to what the repositories here have: the lists are built again when those change
+        stamps = [*stamps, ["repository-lists", _repository_lists_stamp()]]
+    signature = discover.signature(sources, vendors, releases, stamps)
     with _DISCOVER_LOCK:
         if _CATALOGUE["signature"] == signature:
             return _CATALOGUE
+        images, debs, rpms = online_catalogues.records("appimagehub"), online_catalogues.records("debian"), online_catalogues.records("fedora")
         usable, problems, shown, loaded = [], [], [], {}
         for source in sources:
             try:
@@ -1642,7 +1677,9 @@ def _catalogue() -> dict[str, Any]:
             except OSError:
                 updated = 0.0
             shown.append({"kind": source.kind, "label": source.label, "updated": updated})
-        _CATALOGUE.update(signature=signature, entries=discover.build_entries(usable, vendors, loader=lambda source: loaded[source], releases=releases), sources=shown,
+        _CATALOGUE.update(signature=signature, entries=discover.build_entries(usable, vendors, loader=lambda source: loaded[source], releases=releases,
+                                                                 appimages=images, debs=debs, rpms=rpms,
+                                                                 arch_names=_repository_names() if images or debs or rpms else frozenset()), sources=shown,
                           problems=problems,
                           repo_missing=not any(s.kind == "repo" for s in sources))
         return _CATALOGUE
@@ -1698,24 +1735,36 @@ def _shown(entry: dict[str, Any], marks: dict[str, set[str]]) -> dict[str, Any]:
             src["installed"] = src["id"].removesuffix(".desktop") in marks["flatpak"]
         elif src["kind"] == "repo":
             src["installed"] = src["package"] in marks["pacman"]
-        elif src["kind"] == "release":
+        elif src["kind"] in ("debian", "fedora"):
+            src["installed"] = src["package"] in marks["pacman"] or entry["name"].strip().lower() in marks.get("apps", ())
+            src["hint"] = src["package"] not in marks["pacman"]  # a hint (the same name), not a fact, unless pacman has the package
+        elif src["kind"] in ("release", "appimage"):
             # a file from a maker's release page is not tracked, so this is only a hint: Cygnus already manages a program with this very name (installing
             # a second copy would add another row and replace the first one's menu entry)
             src["installed"] = entry["name"].strip().lower() in marks.get("apps", ())
+            src["hint"] = True
         else:  # a vendor's package: installed once Cygnus converted it, or once pacman has a package of that name
             src["installed"] = src["package"] in marks["vendor"] or src["package"] in marks["pacman"]
         sources.append(src)
     out["sources"] = sources
     out["installed"] = any(s["installed"] for s in sources)
+    out["installed_hint"] = out["installed"] and all(s.get("hint") for s in sources if s["installed"])  # installed only by a program of the same name
     return out
 
 
 def discover_overview() -> dict[str, Any]:
-    """What Discover is made of: the data it read (and how old), what could not be read, and whether the repositories' data is missing."""
+    """What Discover is made of: the data it read (and how old), what could not be read, whether the repositories' data is missing, and the
+    online catalogues (on or off, how many programs, how old)."""
+    from cygnus.core import online_catalogues
+
     cat = _catalogue()
     return {"total": len(cat["entries"]), "sources": cat["sources"], "problems": cat["problems"], "repo_missing": cat["repo_missing"],
             "vendors": sum(1 for e in cat["entries"] if any(s["kind"] == "vendor" for s in e["sources"])),
-            "releases": sum(1 for e in cat["entries"] if any(s["kind"] == "release" for s in e["sources"]))}
+            "releases": sum(1 for e in cat["entries"] if any(s["kind"] == "release" for s in e["sources"])),
+            "appimages": sum(1 for e in cat["entries"] if any(s["kind"] == "appimage" for s in e["sources"])),
+            "debian": sum(1 for e in cat["entries"] if any(s["kind"] == "debian" for s in e["sources"])),
+            "fedora": sum(1 for e in cat["entries"] if any(s["kind"] == "fedora" for s in e["sources"])),
+            "catalogues": online_catalogues.status(), "catalogues_decided": online_catalogues.decided()}
 
 
 def discover_search(query: Any = "", group: Any = "", kind: Any = "", offset: Any = 0) -> dict[str, Any]:
@@ -1725,7 +1774,7 @@ def discover_search(query: Any = "", group: Any = "", kind: Any = "", offset: An
 
     text = query if isinstance(query, str) else ""
     wanted_group = group if isinstance(group, str) and group in discover.GROUP_IDS else ""
-    wanted_kind = kind if isinstance(kind, str) and kind in ("flatpak", "repo", "vendor", "release") else ""
+    wanted_kind = kind if isinstance(kind, str) and kind in ("flatpak", "repo", "vendor", "release", "appimage", "debian", "fedora") else ""
     start = offset if isinstance(offset, int) and not isinstance(offset, bool) else 0
     result = discover.search(_catalogue()["entries"], text[:200], wanted_group, wanted_kind, start)
     marks = _installed_marks()
@@ -1739,6 +1788,32 @@ def discover_app(key: Any) -> dict[str, Any]:
     if entry is None:
         raise CygnusError("that application is no longer in the list; search again")
     return _shown(entry, _installed_marks())
+
+
+AUR_ANSWER_LIMIT = 8 * 1024 * 1024  # a two-letter word can match thousands of packages; the AUR's answer for them is large
+
+
+def discover_aur(query: Any) -> dict[str, Any]:
+    """The AUR packages whose name or description has the person's words in it. Asked only when the person presses the button for it (the words
+    are sent to aur.archlinux.org, which a search in the local lists never does), and only listed, never installed: the package is reviewed on
+    the Install page, which shows its build script before anything is built."""
+    from cygnus.core import discover
+    from cygnus.core.backends import aur
+    from cygnus.core.util import http
+
+    words = " ".join(query.split())[:100] if isinstance(query, str) else ""
+    if len(words) < discover.AUR_MIN_QUERY:
+        raise CygnusError("Type at least two characters to search the AUR.")
+    try:
+        raw = aur.search(words, by="name-desc", fetch_json=lambda url: http.get_json(url, limit=AUR_ANSWER_LIMIT), strict=True)
+    except http.HttpError as exc:
+        if "exceeds" in str(exc) or "Too many" in str(exc):
+            raise CygnusError("So many AUR packages match that Cygnus will not list them. Use more or longer words.") from exc
+        raise CygnusError(f"The AUR could not be asked: {exc}") from exc
+    installed = _installed_marks()["pacman"]
+    result = discover.aur_results(raw, installed)
+    result["query"] = words
+    return result
 
 
 KEEP_DOWNLOAD_SECONDS = 3600
@@ -1806,36 +1881,165 @@ def fetch_vendor_package(package: Any, fmt: Any, progress: Callable[[str], None]
         _FETCH_LOCK.release()
 
 
-def fetch_release_download(key: Any, fmt: Any, progress: Callable[[str], None], *, newest=None, download=None) -> dict[str, Any]:
-    """Download the file a program's maker publishes on its GitHub release page (an AppImage, a .deb or .rpm, an archive, an Arch package) for a
-    program Discover lists. It is only fetched (over HTTPS, from GitHub's own hosts, checked against the SHA-256 GitHub publishes for it where
-    there is one), never converted or installed here: the person opens it on the Install page, where it is analysed and confirmed like any
-    file they chose. Which file is "the" file is decided by a pattern written for that program and format; none or several is an error."""
-    from cygnus.core.backends import release_feeds as rf
+def _download_checked(url: str, name: str, sha256: str | None, size: int, host_ok, kind: str, folder_name: str, progress: Callable[[str], None], download,
+                      says: str = "GitHub") -> Path:
+    """Download one file over HTTPS into a folder of its own (`kind`/`folder_name` under Cygnus's download folder), from hosts `host_ok` accepts on every
+    hop, with the checksum where one is known and the size the list says (a shorter or longer file is thrown away)."""
     from cygnus.core.util import http
 
-    project = rf.PROJECTS.get(key) if isinstance(key, str) else None
-    if project is None or not isinstance(fmt, str) or fmt not in project.assets:
-        raise CygnusError("that is not a program and download kind Cygnus knows")
+    folder = _vendor_download_folder(folder_name, kind)
+    progress(f"Downloading {name}…")
+    path = Path((download or http.download)(url, folder, expected_sha256=sha256, limit=size, host_ok=host_ok, progress=_download_progress(progress, name)))
+    if path.stat().st_size != size:  # the list says how big the file is: another size is damaged even when no checksum was published
+        path.unlink(missing_ok=True)
+        raise CygnusError(f"the file that arrived is not the size {says} says it is ({size} bytes), so it was thrown away. Try again.")
+    return path
+
+
+def _fetch_github_file(project, fmt: str, kind: str, folder_name: str, progress: Callable[[str], None], newest, download) -> dict[str, Any]:
+    """Look up the file of `project`'s newest GitHub release for `fmt` (exactly one, else an error in words), download it into a folder of its own
+    over HTTPS from GitHub's hosts, and check it against the SHA-256 GitHub publishes for it where there is one and against the size GitHub says it
+    is. Nothing is converted or installed here."""
+    from cygnus.core.backends import release_feeds as rf
+
     if not _FETCH_LOCK.acquire(blocking=False):
         return {"ok": False, "error": "Another download is still going. Wait for it to finish."}
     try:
         progress("Looking for the newest version…")
         asset = (newest or rf.newest)(project, fmt)
-        folder = _vendor_download_folder(project.key, "release")
-        progress(f"Downloading {asset.name}…")
-        path = (download or http.download)(asset.url, folder, expected_sha256=asset.sha256, limit=asset.size, host_ok=rf.github_host,
-                                           progress=_download_progress(progress, asset.name))
-        if Path(path).stat().st_size != asset.size:  # GitHub says how big the file is: a shorter one is damaged even when no checksum was published
-            Path(path).unlink(missing_ok=True)
-            raise CygnusError(f"the file that arrived is not the size GitHub says it is ({asset.size} bytes), so it was thrown away. Try again.")
-        return {"ok": True, "path": str(path), "file_url": Path(path).as_uri(), "version": asset.version, "format": fmt,
+        path = _download_checked(asset.url, asset.name, asset.sha256, asset.size, rf.github_host, kind, folder_name, progress, download)
+        return {"ok": True, "path": str(path), "file_url": path.as_uri(), "version": asset.version, "format": fmt,
                 "format_label": rf.LABELS[fmt], "checked": bool(asset.sha256), "package": project.key,
                 "late_attention": f"The {rf.LABELS[fmt]} finished downloading: {path}. To review and install it, open the Install page and choose that file."}
     except OSError as exc:  # a full disk, a folder that cannot be written: said in words, not as a raw error
         raise CygnusError(f"the download could not be saved: {exc.strerror or exc}") from exc
     finally:
         _FETCH_LOCK.release()
+
+
+def fetch_release_download(key: Any, fmt: Any, progress: Callable[[str], None], *, newest=None, download=None) -> dict[str, Any]:
+    """Download the file a program's maker publishes on its GitHub release page (an AppImage, a .deb or .rpm, an archive, an Arch package) for a
+    program Discover lists. It is only fetched (over HTTPS, from GitHub's own hosts, checked against the SHA-256 GitHub publishes for it where
+    there is one), never converted or installed here: the person opens it on the Install page, where it is analysed and confirmed like any
+    file they chose. Which file is "the" file is decided by a pattern written for that program and format; none or several is an error."""
+    from cygnus.core.backends import release_feeds as rf
+
+    project = rf.PROJECTS.get(key) if isinstance(key, str) else None
+    if project is None or not isinstance(fmt, str) or fmt not in project.assets:
+        raise CygnusError("that is not a program and download kind Cygnus knows")
+    return _fetch_github_file(project, fmt, "release", project.key, progress, newest, download)
+
+
+def fetch_appimage_download(repo: Any, progress: Callable[[str], None], *, newest=None, download=None) -> dict[str, Any]:
+    """Download the AppImage in the newest GitHub release of a project that AppImageHub lists (and Discover shows). Only a project that is in the
+    lists on screen can be asked for. No file name was written for it, so the one rule is: exactly one AppImage for this processor in the release,
+    otherwise an error in words that points at the release page."""
+    from cygnus.core.backends import release_feeds as rf
+
+    listed = isinstance(repo, str) and any(src["kind"] == "appimage" and src["repo"] == repo for e in _catalogue()["entries"] for src in e["sources"])
+    if not listed:
+        raise CygnusError("that is not a program Cygnus lists from AppImageHub")
+    owner, _, name = repo.partition("/")
+    return _fetch_github_file(rf.appimage_project(repo), "appimage", "appimage", f"{owner}+{name}", progress, newest, download)  # "+" is in neither name: no two projects share a folder
+
+
+def _fetch_foreign(kind: str, package: Any, progress: Callable[[str], None], download, plan) -> dict[str, Any]:
+    """Download the package file of a program from another system's repository (`kind`: "debian" or "fedora") that Discover lists. Only a package that is in
+    the lists on screen can be asked for; `plan(source)` gives (the address built from the list's checked file name, the file's name, the host rule, who
+    says what size it is, the format, its label)."""
+    src = next((s for e in _catalogue()["entries"] for s in e["sources"] if s["kind"] == kind and s["package"] == package), None) if isinstance(package, str) else None
+    if src is None:
+        raise CygnusError(f"that is not a program Cygnus lists from {kind.capitalize()}")
+    url, name, host_ok, says, fmt, label = plan(src)
+    if not _FETCH_LOCK.acquire(blocking=False):
+        return {"ok": False, "error": "Another download is still going. Wait for it to finish."}
+    try:
+        path = _download_checked(url, name, src["sha256"], src["size"], host_ok, kind, package, progress, download, says=says)
+        return {"ok": True, "path": str(path), "file_url": path.as_uri(), "version": src["version"], "format": fmt, "format_label": label, "checked": True,
+                "package": package, "needs": list(src["needs"]),
+                "late_attention": f"{kind.capitalize()}'s package finished downloading: {path}. To review and install it, open the Install page and choose that file."}
+    except OSError as exc:
+        raise CygnusError(f"the download could not be saved: {exc.strerror or exc}") from exc
+    finally:
+        _FETCH_LOCK.release()
+
+
+def fetch_debian_download(package: Any, progress: Callable[[str], None], *, download=None) -> dict[str, Any]:
+    """Download the .deb of a Debian program that Discover lists, from deb.debian.org over HTTPS, checked against the SHA-256 and the size in Debian's
+    package list. The address is built from the list's checked file name, never from text the person or a web page supplied. Nothing is converted or
+    installed here: the Install page analyses the file and asks."""
+    from cygnus.core.backends import debian_index as di
+
+    return _fetch_foreign("debian", package, progress, download, lambda src: (di.file_url(src["filename"]), src["filename"].rsplit("/", 1)[-1], di.host_ok,
+                                                                              "Debian's package list", "deb", ".deb"))
+
+
+def fetch_fedora_download(package: Any, progress: Callable[[str], None], *, download=None) -> dict[str, Any]:
+    """Download the .rpm of a Fedora program that Discover lists, from dl.fedoraproject.org over HTTPS, checked against the SHA-256 and the size in Fedora's
+    package list. Built and handed over like the Debian one."""
+    from cygnus.core.backends import fedora_index as fi
+
+    return _fetch_foreign("fedora", package, progress, download, lambda src: (fi.file_url(src["release"], src["location"]), src["location"].rsplit("/", 1)[-1],
+                                                                              fi.host_ok, "Fedora's package list", "rpm", ".rpm"))
+
+
+_CATALOGUE_LOCK = threading.Lock()
+_CATALOGUE_TRIED: dict[str, float] = {}
+CATALOGUE_WAIT_SECONDS = 900  # how long a second request waits for a download that is running
+CATALOGUE_RETRY_SECONDS = 600  # a catalogue that could not be downloaded is not tried again at every opening of the page
+
+
+def catalogue_refresh(force: Any, progress: Callable[[str], None], *, refresh=None, now=None, wait: float | None = None) -> dict[str, Any]:
+    """Download the online catalogues that are on and missing or more than a week old (all that are on, when `force`). One failing does not stop the
+    others: each failure is reported by name. Nothing is installed and nothing is run: these are lists of programs."""
+    import time
+
+    from cygnus.core import online_catalogues as oc
+
+    clock = time.monotonic() if now is None else now
+    if force is True and not oc.decided():
+        oc.decide(True)  # pressing the button to download them is the answer
+    if not _CATALOGUE_LOCK.acquire(timeout=CATALOGUE_WAIT_SECONDS if wait is None else wait):  # another download is running: wait for it (the terminal does; the window does not, it
+        # would hold one of its few worker threads and asks again by itself), then see what is still missing
+        return {"ok": True, "refreshed": [], "errors": {}, "busy": True, "status": oc.status()}
+    try:
+        wanted = [r["id"] for r in oc.status() if r["on"]] if force is True else oc.needs_download()
+        refreshed: list[str] = []
+        errors: dict[str, str] = {}
+        for cat_id in wanted:
+            if force is not True and clock - _CATALOGUE_TRIED.get(cat_id, -CATALOGUE_RETRY_SECONDS) < CATALOGUE_RETRY_SECONDS:
+                continue
+            _CATALOGUE_TRIED[cat_id] = clock
+            try:
+                (refresh or oc.refresh)(cat_id, progress)
+                refreshed.append(cat_id)
+            except CygnusError as exc:
+                errors[cat_id] = f"{oc.BY_ID[cat_id].label}: {exc}"
+            except Exception as exc:  # noqa: BLE001 - whatever goes wrong with one catalogue (a library error) costs only that catalogue
+                logging.getLogger(__name__).warning("the catalogue %s could not be updated", cat_id, exc_info=True)
+                errors[cat_id] = f"{oc.BY_ID[cat_id].label}: it could not be updated ({type(exc).__name__})"
+        return {"ok": True, "refreshed": refreshed, "errors": errors, "busy": False, "status": oc.status()}
+    finally:
+        _CATALOGUE_LOCK.release()
+
+
+def catalogue_decide(accept: Any) -> dict[str, Any]:
+    """The answer to the one question Discover asks before it downloads the online catalogues: yes, or not now (which switches them all off)."""
+    from cygnus.core import online_catalogues as oc
+
+    if not isinstance(accept, bool):
+        raise CygnusError("that is not an answer to the question")
+    oc.decide(accept)
+    return {"status": oc.status(), "decided": True}
+
+
+def catalogue_set_on(cat_id: Any, on: Any) -> dict[str, Any]:
+    from cygnus.core import online_catalogues as oc
+
+    if not isinstance(cat_id, str) or cat_id not in oc.BY_ID or not isinstance(on, bool):
+        raise CygnusError("that is not one of the online catalogues")
+    oc.set_on(cat_id, on)
+    return {"status": oc.status()}
 
 
 def forget_installation(installation_id: str) -> None:
