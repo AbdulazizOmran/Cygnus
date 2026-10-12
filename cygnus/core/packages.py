@@ -123,6 +123,14 @@ def search(text: str, *, config: pm.PacmanConfig | None = None, worker: Callable
             "lists": lists_age(config)}
 
 
+def installed_versions(*, config: pm.PacmanConfig | None = None, worker: Callable | None = None) -> dict[str, str]:
+    """name -> version of every installed package (one cheap question; for a page that only needs to know what is installed)."""
+    versions = _ask(config or pm.read_config(), {"op": "installed_versions"}, worker)["versions"]
+    if not isinstance(versions, dict):
+        raise PackagesError("the package databases gave an answer Cygnus did not expect")
+    return {str(k): str(v) for k, v in versions.items()}
+
+
 def installed(*, config: pm.PacmanConfig | None = None, worker: Callable | None = None) -> dict[str, Any]:
     """Every installed package: {"packages", "updates", "lists"}; each says whether it is protected and whether Cygnus manages it as an
     application. `updates` is how many have a newer version in the repositories."""

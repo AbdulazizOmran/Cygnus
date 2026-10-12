@@ -33,7 +33,7 @@ Kirigami.ScrollablePage {
     }
     property real progressValue: -1 // how far the running request really is (0..1); -1 = not known, the bar only shows activity
     property string progressLabel: ""
-    title: "Updates"
+    title: qsTr("Updates")
 
     property var updates: []
     property var system: null // last check of your repositories (see cygnus.core.updates)
@@ -62,7 +62,7 @@ Kirigami.ScrollablePage {
         checking = true;
         progressValue = -1;
         progressLabel = "";
-        progressText = "Downloading the current package databases…";
+        progressText = qsTr("Downloading the current package databases…");
         page.ask(backend.planSystemUpgrade(), function (r) {
             checking = false;
             if (!r.ok) {
@@ -87,7 +87,7 @@ Kirigami.ScrollablePage {
         checking = true;
         progressValue = -1;
         progressLabel = "";
-        progressText = "Waiting for authorization…";
+        progressText = qsTr("Waiting for authorization…");
         page.ask(backend.commitFix(upgradePlan.token), function (r) {
             checking = false;
             if (!r.ok || !r.result.ok) {
@@ -170,37 +170,37 @@ Kirigami.ScrollablePage {
     function describe(provider) {
         switch (provider) {
         case "vendor-feed":
-            return "Source: the vendor's package list";
+            return qsTr("Source: the vendor's package list");
         case "zsync":
-            return "Source: the vendor's download server";
+            return qsTr("Source: the vendor's download server");
         case "gh-releases-zsync":
         case "gh-releases-direct":
-            return "Source: the vendor's GitHub releases";
+            return qsTr("Source: the vendor's GitHub releases");
         case "flatpak-remote":
-            return "Source: its Flatpak repository";
+            return qsTr("Source: its Flatpak repository");
         case "pacman":
-            return "Updated with your system";
+            return qsTr("Updated with your system");
         case "aur":
-            return "Rebuilt from the AUR after you review changes";
+            return qsTr("Rebuilt from the AUR after you review changes");
         default:
-            return "Manual updates";
+            return qsTr("Manual updates");
         }
     }
 
     function statusText(u) {
         switch (u.status) {
         case "up-to-date":
-            return "Up to date";
+            return qsTr("Up to date");
         case "update-available":
-            return u.available ? "Update available: " + u.available : "Update available";
+            return u.available ? "Update available: " + u.available : qsTr("Update available");
         case "offline":
-            return "Drive not connected";
+            return qsTr("Drive not connected");
         case "manual":
-            return "Manual updates only";
+            return qsTr("Manual updates only");
         case "system":
-            return "Updated with your system";
+            return qsTr("Updated with your system");
         default:
-            return u.checked_at ? "Could not check" : "Not checked yet";
+            return u.checked_at ? qsTr("Could not check") : qsTr("Not checked yet");
         }
     }
 
@@ -222,7 +222,7 @@ Kirigami.ScrollablePage {
 
     actions: [
         Kirigami.Action {
-            text: page.checking ? "Checking…" : "Check now"
+            text: page.checking ? qsTr("Checking…") : qsTr("Check now")
             icon.name: "view-refresh"
             enabled: !page.checking
             onTriggered: page.checkNow()
@@ -247,7 +247,7 @@ Kirigami.ScrollablePage {
             text: !page.cygnus ? "" : "Cygnus " + root.plain(page.cygnus.latest) + " is available (you have " + root.plain(page.cygnus.current) + "). Cygnus does not update itself: get the new version the way you got this one (a package file you downloaded: sudo pacman -U FILE; or through your AUR helper if you installed it from the AUR). The button opens its release page."
             actions: [
                 Kirigami.Action {
-                    text: "Open the release page"
+                    text: qsTr("Open the release page")
                     icon.name: "internet-services"
                     onTriggered: Qt.openUrlExternally(page.cygnus.url)
                 }
@@ -263,7 +263,7 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
             visible: true
             type: Kirigami.MessageType.Information
-            text: "System packages are updated together with your whole system (never partially). Cygnus checks the applications it manages against the source each one came from."
+            text: qsTr("System packages are updated together with your whole system (never partially). Cygnus checks the applications it manages against the source each one came from.")
         }
         ProgressStrip {
             Layout.fillWidth: true
@@ -294,13 +294,13 @@ Kirigami.ScrollablePage {
                             textFormat: Text.PlainText
                             Layout.fillWidth: true
                             font.bold: true
-                            text: "System packages"
+                            text: qsTr("System packages")
                         }
                         QQC2.Label {
                             textFormat: Text.PlainText
                             Layout.fillWidth: true
                             wrapMode: Text.Wrap
-                            text: !page.system ? "Not checked yet" : page.system.error ? "Could not check: " + page.system.error : page.system.packages.length ? page.system.packages.length + " updates available" + (page.system.kernel ? ", including a new kernel" : "") : "Up to date"
+                            text: !page.system ? qsTr("Not checked yet") : page.system.error ? "Could not check: " + page.system.error : page.system.packages.length ? page.system.packages.length + " updates available" + (page.system.kernel ? qsTr(", including a new kernel") : "") : qsTr("Up to date")
                         }
                         QQC2.Label {
                             textFormat: Text.PlainText
@@ -311,7 +311,7 @@ Kirigami.ScrollablePage {
                         }
                     }
                     QQC2.Button {
-                        text: "Update system…"
+                        text: qsTr("Update system…")
                         icon.name: "system-software-update"
                         enabled: !page.checking
                         onClicked: page.planUpgrade()
@@ -322,7 +322,7 @@ Kirigami.ScrollablePage {
         Kirigami.PlaceholderMessage {
             Layout.fillWidth: true
             visible: page.updates.length === 0
-            text: "No managed applications"
+            text: qsTr("No managed applications")
         }
         Repeater {
             model: page.updates
@@ -369,14 +369,14 @@ Kirigami.ScrollablePage {
                         QQC2.Button {
                             visible: modelData.status === "update-available" && (modelData.format === "appimage" || modelData.format === "flatpak")
                             enabled: !page.checking
-                            text: "Update"
+                            text: qsTr("Update")
                             icon.name: "update-none"
                             onClicked: page.applyUpdate(modelData)
                         }
                         QQC2.Button {
                             visible: modelData.status === "update-available" && !!modelData.facts && modelData.facts.kind === "converted"
                             enabled: !page.checking
-                            text: "Download and review…"
+                            text: qsTr("Download and review…")
                             icon.name: "download"
                             onClicked: page.fetchUpdate(modelData)
                         }
@@ -390,13 +390,13 @@ Kirigami.ScrollablePage {
 
     Kirigami.Dialog {
         id: upgradeDialog
-        title: "Update the system"
+        title: qsTr("Update the system")
         standardButtons: Kirigami.Dialog.Cancel
         preferredWidth: Kirigami.Units.gridUnit * 34
         customFooterActions: [
             Kirigami.Action {
                 objectName: "updateAction"
-                text: "Update"
+                text: qsTr("Update")
                 icon.name: "system-software-update"
                 enabled: !!(page.upgradePlan && (page.upgradePlan.upgrades.length || page.upgradePlan.installs.length || page.upgradePlan.removals.length)) && (!page.newsNeedsAck() || page.newsRead)
                 onTriggered: {
@@ -427,7 +427,7 @@ Kirigami.ScrollablePage {
                 wrapMode: Text.Wrap
                 font.bold: true
                 visible: !!(page.upgradePlan && page.upgradePlan.news && page.upgradePlan.news.ok && page.upgradePlan.news.items.length)
-                text: !page.upgradePlan || !page.upgradePlan.news || !page.upgradePlan.news.ok ? "" : "Arch news since your last update (" + page.upgradePlan.news.total + ")"
+                text: !page.upgradePlan || !page.upgradePlan.news || !page.upgradePlan.news.ok ? "" : qsTr("Arch news since your last update (%1)").arg(page.upgradePlan.news.total)
             }
             Repeater {
                 model: page.upgradePlan && page.upgradePlan.news && page.upgradePlan.news.ok ? page.upgradePlan.news.items : []
@@ -439,7 +439,7 @@ Kirigami.ScrollablePage {
                         wrapMode: Text.Wrap
                         font.bold: true
                         color: modelData.manual ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.textColor
-                        text: (modelData.manual ? "Needs a manual step: " : "") + modelData.title
+                        text: (modelData.manual ? qsTr("Needs a manual step: ") : "") + modelData.title
                     }
                     QQC2.TextArea {
                         textFormat: TextEdit.PlainText
@@ -450,7 +450,7 @@ Kirigami.ScrollablePage {
                     }
                     QQC2.Button {
                         visible: modelData.link !== ""
-                        text: "Read it on archlinux.org"
+                        text: qsTr("Read it on archlinux.org")
                         icon.name: "internet-services"
                         onClicked: Qt.openUrlExternally(modelData.link)
                     }
@@ -466,7 +466,7 @@ Kirigami.ScrollablePage {
             }
             QQC2.CheckBox {
                 visible: page.newsNeedsAck()
-                text: "I have read the news that needs a manual step, and I know what to do"
+                text: qsTr("I have read the news that needs a manual step, and I know what to do")
                 checked: page.newsRead
                 onToggled: page.newsRead = checked
             }
@@ -474,7 +474,7 @@ Kirigami.ScrollablePage {
                 textFormat: Text.PlainText
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                text: page.upgradePlan ? root.flat(page.upgradePlan.upgrades.length || page.upgradePlan.installs.length || page.upgradePlan.removals.length ? page.upgradePlan.message + (page.upgradePlan.download_bytes ? " Download: " + Math.round(page.upgradePlan.download_bytes / 1048576) + " MiB." : "") : "The system is up to date.") : ""
+                text: page.upgradePlan ? root.flat(page.upgradePlan.upgrades.length || page.upgradePlan.installs.length || page.upgradePlan.removals.length ? page.upgradePlan.message + (page.upgradePlan.download_bytes ? " Download: " + Math.round(page.upgradePlan.download_bytes / 1048576) + " MiB." : "") : qsTr("The system is up to date.")) : ""
             }
             QQC2.TextArea {
                 textFormat: TextEdit.PlainText

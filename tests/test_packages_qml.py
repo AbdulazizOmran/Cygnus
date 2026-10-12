@@ -89,15 +89,15 @@ def test_the_question_about_a_package_cygnus_did_not_install_needs_its_own_tick(
     assert "onClosed: page.warnTicked = false" in window
     assert "checked: page.warnTicked" in window and "onToggled: page.warnTicked = checked" in window
     assert ONE.count("planRemove(true)") == 1 and ONE.count("planRemove(false)") == 1  # nothing else confirms on the person's behalf
-    assert "planRemove(false)" in ONE[ONE.index("text: \"Remove…\""):ONE.index("text: \"Remove…\"") + 200]
+    assert "planRemove(false)" in ONE[ONE.index('text: qsTr("Remove…")'):ONE.index('text: qsTr("Remove…")') + 200]
     assert "property bool warnTicked: false" in ONE
 
 
 def test_install_and_remove_are_only_offered_when_the_checks_allow_them():
-    install = ONE[ONE.index('text: "Install…"') - 300:ONE.index('text: "Install…"')]
+    install = ONE[ONE.index('text: qsTr("Install…")') - 300:ONE.index('text: qsTr("Install…")')]
     assert "visible: !!(page.info && !page.info.installed)" in install
     assert "enabled: !!(page.info && !page.info.blocked.install) && page.busyText === \"\"" in install
-    remove = ONE[ONE.index('text: "Remove…"') - 300:ONE.index('text: "Remove…"')]
+    remove = ONE[ONE.index('text: qsTr("Remove…")') - 300:ONE.index('text: qsTr("Remove…")')]
     assert "visible: !!(page.info && page.info.installed)" in remove
     assert "enabled: !!(page.info && !page.info.blocked.remove) && page.busyText === \"\"" in remove
 
@@ -131,7 +131,7 @@ def test_the_list_reloads_when_a_change_to_the_packages_was_made_even_if_the_pag
 
 
 def test_the_pages_can_be_reached():
-    assert 'text: "Packages"' in MAIN and "root.showPage(packagesPage)" in MAIN
+    assert 'text: qsTr("Packages")' in MAIN and "root.showPage(packagesPage)" in MAIN
     assert "packages: packagesPage" in MAIN and "package: packagePage" in MAIN
     assert "PackagesPage {}" in MAIN and "PackagePage {}" in MAIN
 

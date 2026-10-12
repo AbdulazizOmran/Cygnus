@@ -185,7 +185,7 @@ PAGE = _code((QML / "PackagesPage.qml").read_text())
 def test_packages_can_only_be_ticked_on_the_no_longer_needed_list_and_the_ticks_do_not_outlive_it():
     assert "readonly property bool selecting: mode === \"installed\" && filterIndex === 3" in PAGE
     filters = PAGE[PAGE.index("readonly property var filters"):PAGE.index("function installedShown()")]
-    assert filters.split("{")[4].lstrip().startswith("label: \"No longer needed\"")  # index 3 is the no-longer-needed filter (the 0th "{" opens the array)
+    assert filters.split("{")[4].lstrip().startswith('label: qsTr("No longer needed")')  # index 3 is the no-longer-needed filter (the 0th "{" opens the array)
     assert "onSelectingChanged: picked = ({})" in PAGE
     assert "visible: page.selecting" in PAGE[PAGE.index("QQC2.CheckBox {"):][:200]
 

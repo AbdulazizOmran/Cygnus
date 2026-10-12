@@ -3,7 +3,7 @@ import org.kde.kirigami as Kirigami
 
 Kirigami.ApplicationWindow {
     id: root
-    title: "Cygnus"
+    title: qsTr("Cygnus")
     width: Kirigami.Units.gridUnit * 62
     height: Kirigami.Units.gridUnit * 42
     minimumWidth: Kirigami.Units.gridUnit * 26
@@ -14,6 +14,14 @@ Kirigami.ApplicationWindow {
     property var fractionHandlers: ({}) // request id -> (how far 0..1, what it is doing): only where a real count exists
 
     // Text from packages, manifests, repositories or commands is never interpreted as markup.
+    // qsTr("%1 of %2").arg(a).arg(b) replaces the markers one after the other, so a value that itself contains "%2" would be replaced again.
+    // This fills every marker in one pass, and is what a text with more than one value uses.
+    function fill(template, values) {
+        return String(template).replace(/%(\d+)/g, (marker, n) => n >= 1 && n <= values.length ? String(values[n - 1]) : marker);
+    }
+
+    readonly property string appId: "io.github.omranabdulaziz.Cygnus" // an identifier, not text for a person: it is never translated
+
     function plain(text) {
         return String(text === undefined || text === null ? "" : text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
@@ -50,7 +58,7 @@ Kirigami.ApplicationWindow {
     // Why an answer was not a success, in words: what the backend said, and never an empty message.
     function why(r) {
         const text = r.ok ? (r.result && (r.result.error || r.result.detail || r.result.state)) : r.error;
-        return text ? String(text) : "it did not finish";
+        return text ? String(text) : qsTr("it did not finish");
     }
 
     // An answer for a page the person has already left: the work itself carried on (the backend records what it did), but
@@ -77,6 +85,8 @@ Kirigami.ApplicationWindow {
             apps: appsPage,
             app: appPage,
             install: installPage,
+            discover: discoverPage,
+            discoverApp: discoverAppPage,
             packages: packagesPage,
             package: packagePage,
             updates: updatesPage,
@@ -120,38 +130,43 @@ Kirigami.ApplicationWindow {
     }
 
     globalDrawer: Kirigami.GlobalDrawer {
-        title: "Cygnus"
+        title: qsTr("Cygnus")
         titleIcon: "system-software-install"
         isMenu: !root.wideScreen
         modal: !root.wideScreen
         actions: [
             Kirigami.Action {
-                text: "Applications"
+                text: qsTr("Applications")
                 icon.name: "view-list-icons"
                 onTriggered: root.showPage(appsPage)
             },
             Kirigami.Action {
-                text: "Install"
+                text: qsTr("Install")
                 icon.name: "list-add"
                 onTriggered: root.showPage(installPage)
             },
             Kirigami.Action {
-                text: "Packages"
+                text: qsTr("Discover")
+                icon.name: "system-software-install"
+                onTriggered: root.showPage(discoverPage)
+            },
+            Kirigami.Action {
+                text: qsTr("Packages")
                 icon.name: "package-x-generic"
                 onTriggered: root.showPage(packagesPage)
             },
             Kirigami.Action {
-                text: "Updates"
+                text: qsTr("Updates")
                 icon.name: "update-none"
                 onTriggered: root.showPage(updatesPage)
             },
             Kirigami.Action {
-                text: "Storage"
+                text: qsTr("Storage")
                 icon.name: "drive-harddisk"
                 onTriggered: root.showPage(storagePage)
             },
             Kirigami.Action {
-                text: "Settings"
+                text: qsTr("Settings")
                 icon.name: "configure"
                 onTriggered: root.showPage(settingsPage)
             }
@@ -169,6 +184,14 @@ Kirigami.ApplicationWindow {
     Component {
         id: installPage
         InstallPage {}
+    }
+    Component {
+        id: discoverPage
+        DiscoverPage {}
+    }
+    Component {
+        id: discoverAppPage
+        DiscoverAppPage {}
     }
     Component {
         id: packagesPage

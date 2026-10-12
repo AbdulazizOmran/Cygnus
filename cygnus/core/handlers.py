@@ -81,13 +81,21 @@ def enable(run=proc.run) -> dict:
     return after
 
 
-def _forget_default(mime: str) -> None:
-    """Remove Cygnus from the default list of `mime` in mimeapps.list (xdg-mime can set a default but not clear one)."""
+def _lines(text: str) -> list[str]:
+    """The lines of a key file the way GLib counts them: only a line feed ends one. str.splitlines also cuts at U+2028, form feeds and a lone
+    carriage return, which would turn a comment into two lines, the second without an "=", and GLib then ignores the whole file."""
+    parts = text.split("\n")
+    return parts[:-1] if parts and parts[-1] == "" else parts
+
+
+def _forget_default(mime: str, desktop_id: str = DESKTOP_ID) -> None:
+    """Remove `desktop_id` (Cygnus unless told otherwise) from the default list of `mime` in mimeapps.list (xdg-mime can
+    set a default but not clear one)."""
     home = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
     path = (home / "mimeapps.list").resolve()  # a file kept as a link into someone's dotfiles stays a link
     try:
         # surrogateescape: a stray non-UTF-8 byte in a comment is written back unchanged instead of stopping the switch
-        lines = path.read_bytes().decode(errors="surrogateescape").splitlines()
+        lines = _lines(path.read_bytes().decode(errors="surrogateescape"))
     except OSError:
         return
     out, section, changed = [], "", False
@@ -97,7 +105,7 @@ def _forget_default(mime: str) -> None:
             section = stripped
         key, _, value = stripped.partition("=")
         if section == "[Default Applications]" and key.strip() == mime:
-            kept = [v.strip() for v in value.split(";") if v.strip() and v.strip() != DESKTOP_ID]
+            kept = [v.strip() for v in value.split(";") if v.strip() and v.strip() != desktop_id]
             if kept:
                 out.append(f"{key.strip()}={';'.join(kept)};")
             changed = True
@@ -105,6 +113,49 @@ def _forget_default(mime: str) -> None:
         out.append(line)
     if changed:
         atomic_write(path, ("\n".join(out) + "\n").encode(errors="surrogateescape"))
+
+
+def _write_default(mime: str, ids: list[str]) -> None:
+    """Make the default list of `mime` in mimeapps.list exactly `ids` (nothing when `ids` is empty): every line for it in [Default Applications] is
+    replaced by one, and everything else (other sections, comments, order) stays. A line spaced by hand, or two lines for one type, are handled the way
+    GLib reads them (the last wins), so what is written is what the desktop will see."""
+    home = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
+    path = (home / "mimeapps.list").resolve()  # a file kept as a link into someone's dotfiles stays a link
+    try:
+        lines = _lines(path.read_bytes().decode(errors="surrogateescape"))
+    except OSError:
+        lines = []
+    out, section, at, last_default = [], "", None, None
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("["):
+            section = stripped
+        key, _, _value = stripped.partition("=")
+        if section == "[Default Applications]":
+            last_default = len(out)
+            if key.strip() == mime:
+                if at is None:
+                    at = len(out)
+                continue
+        out.append(line)
+    new = f"{mime}={';'.join(ids)};" if ids else None
+    if new is not None:
+        if at is not None:
+            out.insert(at, new)
+        elif last_default is not None:
+            out.insert(min(last_default + 1, len(out)), new)
+        else:
+            out += (["", "[Default Applications]"] if out else ["[Default Applications]"]) + [new]
+    elif at is None:
+        return  # nothing was there and nothing is wanted
+    text = ("\n".join(out) + "\n").encode(errors="surrogateescape")
+    try:
+        if path.read_bytes() == text:
+            return
+    except OSError:
+        pass
+    path.parent.mkdir(parents=True, exist_ok=True)
+    atomic_write(path, text)
 
 
 def disable(run=proc.run) -> dict:

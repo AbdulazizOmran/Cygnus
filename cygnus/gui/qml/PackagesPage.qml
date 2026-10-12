@@ -28,7 +28,7 @@ Kirigami.ScrollablePage {
                 onProgress(line);
         } : undefined);
     }
-    title: "Packages"
+    title: qsTr("Packages")
 
     property string mode: "available" // available = what the repositories offer (a search); installed = what is on this computer
     property var results: []
@@ -57,27 +57,27 @@ Kirigami.ScrollablePage {
 
     readonly property var filters: [
         {
-            label: "All installed packages",
+            label: qsTr("All installed packages"),
             test: p => true
         },
         {
-            label: "Chosen by you",
+            label: qsTr("Chosen by you"),
             test: p => p.reason === "explicit"
         },
         {
-            label: "Installed for another package",
+            label: qsTr("Installed for another package"),
             test: p => p.reason === "dependency"
         },
         {
-            label: "No longer needed",
+            label: qsTr("No longer needed"),
             test: p => !!p.unneeded && !p.protected && !p.managed && !p.odd_name // what could be removed from here: never a protected package, an application of Cygnus's, or a name the helper does not take
         },
         {
-            label: "Updates available",
+            label: qsTr("Updates available"),
             test: p => !!p.update
         },
         {
-            label: "From no repository (a file or the AUR)",
+            label: qsTr("From no repository (a file or the AUR)"),
             test: p => !p.repo
         }
     ]
@@ -143,7 +143,7 @@ Kirigami.ScrollablePage {
         if (!lists || !lists.refreshed)
             return "";
         const hours = Math.floor((Date.now() / 1000 - lists.refreshed) / 3600);
-        const ago = hours < 1 ? "less than an hour ago" : hours < 48 ? hours + " hours ago" : Math.floor(hours / 24) + " days ago";
+        const ago = hours < 1 ? qsTr("less than an hour ago") : hours < 48 ? hours + " hours ago" : Math.floor(hours / 24) + " days ago";
         return "Package lists refreshed " + ago + ". Cygnus never refreshes them on their own (that can break a system): updating the whole system does.";
     }
 
@@ -193,7 +193,7 @@ Kirigami.ScrollablePage {
             return;
         errorText = "";
         doneText = "";
-        busyText = "Preparing…";
+        busyText = qsTr("Preparing…");
         page.ask(backend.planRemovePackagesByName(JSON.stringify(names), confirmedNotMine), function (r) {
             busyText = "";
             if (!r.ok) {
@@ -239,7 +239,7 @@ Kirigami.ScrollablePage {
             return;
         errorText = "";
         doneText = "";
-        busyText = "Preparing…";
+        busyText = qsTr("Preparing…");
         page.ask(backend.planCacheClean(cacheKeep.value, cacheUninstalled.checked), function (r) {
             busyText = "";
             if (!r.ok) {
@@ -257,13 +257,13 @@ Kirigami.ScrollablePage {
         if (busyText !== "" || !plan)
             return;
         confirmPlan = null;
-        busyText = "Waiting for authorization…";
+        busyText = qsTr("Waiting for authorization…");
         page.ask(backend.commitFix(plan.token), function (r) {
             busyText = "";
             if (!r.ok || !r.result.ok)
                 errorText = root.plain(root.why(r));
             else
-                doneText = root.plain(plan.cache ? "The package cache was cleaned." : "Removed.");
+                doneText = root.plain(plan.cache ? qsTr("The package cache was cleaned.") : qsTr("Removed."));
             page.loadInstalled();
         }, function (line) {
             if (line.trim() !== "") // a blank line from pacman must not end "busy": that is what keeps a second change from starting
@@ -293,7 +293,7 @@ Kirigami.ScrollablePage {
             Kirigami.SearchField {
                 id: searchField
                 Layout.fillWidth: true
-                placeholderText: page.mode === "available" ? "Search the repositories (name, description…)" : "Filter the installed packages"
+                placeholderText: page.mode === "available" ? qsTr("Search the repositories (name, description…)") : qsTr("Filter the installed packages")
                 autoAccept: false // the field would otherwise "accept" at every key, which searches at once and defeats the wait below
                 onTextChanged: debounce.restart()
                 onAccepted: {
@@ -306,10 +306,10 @@ Kirigami.ScrollablePage {
                 QQC2.TabBar {
                     id: modeBar
                     QQC2.TabButton {
-                        text: "Available"
+                        text: qsTr("Available")
                     }
                     QQC2.TabButton {
-                        text: "Installed"
+                        text: qsTr("Installed")
                     }
                     onCurrentIndexChanged: {
                         page.mode = currentIndex === 0 ? "available" : "installed";
@@ -332,11 +332,11 @@ Kirigami.ScrollablePage {
                 Layout.fillWidth: true
                 visible: page.selecting
                 QQC2.Button {
-                    text: "Select all"
+                    text: qsTr("Select all")
                     onClicked: page.pickAll()
                 }
                 QQC2.Button {
-                    text: "Select none"
+                    text: qsTr("Select none")
                     onClicked: page.picked = ({})
                 }
                 Item {
@@ -378,7 +378,7 @@ Kirigami.ScrollablePage {
                 wrapMode: Text.Wrap
                 visible: page.selecting
                 opacity: 0.8
-                text: "Installed for another package, and nothing needs them now. Look before you remove: a tool you use by hand, or built something with, can be here, and removing some can leave others that only they needed (they show up next time)."
+                text: qsTr("Installed for another package, and nothing needs them now. Look before you remove: a tool you use by hand, or built something with, can be here, and removing some can leave others that only they needed (they show up next time).")
             }
             QQC2.ProgressBar {
                 Layout.fillWidth: true
@@ -389,10 +389,10 @@ Kirigami.ScrollablePage {
                 Layout.fillWidth: true
                 visible: page.updatesPending > 0
                 type: Kirigami.MessageType.Warning
-                text: page.updatesPending + (page.updatesPending === 1 ? " update is" : " updates are") + " waiting. Update the whole system before you install anything new: installing on a system that is not up to date can break it."
+                text: page.updatesPending + (page.updatesPending === 1 ? qsTr(" update is") : qsTr(" updates are")) + " waiting. Update the whole system before you install anything new: installing on a system that is not up to date can break it."
                 actions: [
                     Kirigami.Action {
-                        text: "Open Updates"
+                        text: qsTr("Open Updates")
                         icon.name: "update-none"
                         onTriggered: root.openPage("updates")
                     }
@@ -427,8 +427,8 @@ Kirigami.ScrollablePage {
             width: parent.width - Kirigami.Units.gridUnit * 4
             visible: list.count === 0 && !page.searching && !page.loadingInstalled
             icon.name: "package-x-generic"
-            text: page.mode === "available" ? (searchField.text.trim().length < 2 ? "Search for a package" : "No package matches") : "No installed package matches"
-            explanation: page.mode === "available" ? (searchField.text.trim().length < 2 ? "Type at least two characters. Every word you type must appear in the package's name, description or the names it provides." : "Check the spelling, or try fewer words. The application may be in the AUR, on Flathub or offered by its maker in another format: the Install page looks there.") : ""
+            text: page.mode === "available" ? (searchField.text.trim().length < 2 ? qsTr("Search for a package") : qsTr("No package matches")) : qsTr("No installed package matches")
+            explanation: page.mode === "available" ? (searchField.text.trim().length < 2 ? qsTr("Type at least two characters. Every word you type must appear in the package's name, description or the names it provides.") : qsTr("Check the spelling, or try fewer words. The application may be in the AUR, on Flathub or offered by its maker in another format: the Install page looks there.")) : ""
         }
 
         delegate: QQC2.ItemDelegate {
@@ -476,13 +476,13 @@ Kirigami.ScrollablePage {
 
     actions: [
         Kirigami.Action {
-            text: "Clean cache…"
+            text: qsTr("Clean cache…")
             icon.name: "edit-clear-all"
             enabled: page.busyText === ""
             onTriggered: page.openCache()
         },
         Kirigami.Action {
-            text: "Reload"
+            text: qsTr("Reload")
             icon.name: "view-refresh"
             enabled: !page.loadingInstalled
             onTriggered: {
@@ -496,13 +496,13 @@ Kirigami.ScrollablePage {
 
     Kirigami.Dialog {
         id: cacheDialog
-        title: "Clean the package cache"
+        title: qsTr("Clean the package cache")
         standardButtons: Kirigami.Dialog.Cancel
         preferredWidth: Kirigami.Units.gridUnit * 34
         customFooterActions: [
             Kirigami.Action {
                 objectName: "cacheAction"
-                text: "Clean…"
+                text: qsTr("Clean…")
                 icon.name: "edit-clear-all"
                 enabled: !!(page.cacheShown && page.cacheShown.files > 0) && page.busyText === ""
                 onTriggered: {
@@ -516,14 +516,14 @@ Kirigami.ScrollablePage {
                 textFormat: Text.PlainText
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                text: "pacman keeps every package it downloaded. This deletes old ones. The installed version of every package always stays, so nothing here can break what is installed; a deleted file that is no longer on the mirrors cannot be fetched again, and the version is then gone for going back to it."
+                text: qsTr("pacman keeps every package it downloaded. This deletes old ones. The installed version of every package always stays, so nothing here can break what is installed; a deleted file that is no longer on the mirrors cannot be fetched again, and the version is then gone for going back to it.")
             }
             RowLayout {
                 QQC2.Label {
                     textFormat: Text.PlainText
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
-                    text: "Older versions to keep besides the installed one:"
+                    text: qsTr("Older versions to keep besides the installed one:")
                 }
                 QQC2.SpinBox {
                     id: cacheKeep
@@ -538,7 +538,7 @@ Kirigami.ScrollablePage {
             QQC2.CheckBox {
                 id: cacheUninstalled
                 objectName: "cacheUninstalled"
-                text: "Packages that are not installed lose every cached version"
+                text: qsTr("Packages that are not installed lose every cached version")
                 onToggled: page.previewCache()
             }
             QQC2.Label {
@@ -546,7 +546,7 @@ Kirigami.ScrollablePage {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
                 font.bold: true
-                text: !page.cacheShown ? "Looking…" : page.cacheShown.files === 0 ? "Nothing would be deleted with these settings." : page.cacheShown.files + " files (" + page.sizeText(page.cacheShown.bytes) + ") of " + page.cacheShown.packages + " package versions would be deleted."
+                text: !page.cacheShown ? qsTr("Looking…") : page.cacheShown.files === 0 ? qsTr("Nothing would be deleted with these settings.") : page.cacheShown.files + " files (" + page.sizeText(page.cacheShown.bytes) + ") of " + page.cacheShown.packages + " package versions would be deleted."
             }
             QQC2.Label {
                 textFormat: Text.PlainText
@@ -608,14 +608,14 @@ Kirigami.ScrollablePage {
 
     Kirigami.Dialog {
         id: warnDialog
-        title: "Remove packages Cygnus did not install?"
+        title: qsTr("Remove packages Cygnus did not install?")
         standardButtons: Kirigami.Dialog.Cancel
         preferredWidth: Kirigami.Units.gridUnit * 30
         onClosed: page.warnTicked = false
         customFooterActions: [
             Kirigami.Action {
                 objectName: "listWarnAction"
-                text: "Go on…"
+                text: qsTr("Go on…")
                 icon.name: "edit-delete"
                 enabled: page.warnTicked
                 onTriggered: {
@@ -639,7 +639,7 @@ Kirigami.ScrollablePage {
                 text: page.warnPlan ? "Packages: " + page.warnPlan.names.join(", ") : ""
             }
             QQC2.CheckBox {
-                text: "I know what these packages are and I want them removed"
+                text: qsTr("I know what these packages are and I want them removed")
                 checked: page.warnTicked
                 onToggled: page.warnTicked = checked
             }

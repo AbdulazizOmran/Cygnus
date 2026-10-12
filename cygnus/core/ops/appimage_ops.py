@@ -610,6 +610,9 @@ def diagnose(registry: Registry, installation_id: str) -> list[dict[str, str]]:
             problems.append({"what": art["kind"], "state": "missing", "path": str(p)})
         elif art["sha256"] and integrate.sha256_bytes(p.read_bytes()) != art["sha256"]:
             problems.append({"what": art["kind"], "state": "changed", "path": str(p)})
+        elif art["kind"] == "desktop_entry" and integrate.lacks_browser_types(p):
+            # unchanged since it was written, but written before Cygnus added what a browser's entry must claim: Repair writes it again with them
+            problems.append({"what": "desktop_entry", "state": "is a browser but does not say it opens web links", "path": str(p)})
     return problems
 
 

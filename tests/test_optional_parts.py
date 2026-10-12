@@ -59,3 +59,13 @@ def test_the_appimage_message_points_at_the_place_that_installs_it():
     import inspect
 
     assert "Optional parts" in inspect.getsource(appimage.prerequisite_issues)
+
+
+def test_the_appstream_data_part_counts_as_installed_only_when_its_data_folder_is_there():
+    part = next(p for p in optional_parts.PARTS if p.id == "appstream")
+    assert part.package == "archlinux-appstream-data"
+    here = lambda wanted: (lambda path: path == wanted)  # noqa: E731
+    present = {p["id"]: p["present"] for p in optional_parts.status(which=lambda tool: "/usr/bin/" + tool, exists=here("/usr/share/swcatalog/xml"))}
+    assert present["appstream"] is True
+    absent = {p["id"]: p["present"] for p in optional_parts.status(which=lambda tool: "/usr/bin/" + tool, exists=here("/usr/share/swcatalog"))}
+    assert absent["appstream"] is False  # the folder alone (some other package's) is not the data this part provides

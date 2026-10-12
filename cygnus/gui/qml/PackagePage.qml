@@ -72,7 +72,7 @@ Kirigami.ScrollablePage {
         stayText = "";
         errorText = "";
         doneText = "";
-        busyText = "Preparing…";
+        busyText = qsTr("Preparing…");
         page.ask(backend.planDowngradePackage(info.name, version), function (r) {
             busyText = "";
             if (!r.ok) {
@@ -91,7 +91,7 @@ Kirigami.ScrollablePage {
         return t ? new Date(t * 1000).toLocaleDateString(Qt.locale(), Locale.ShortFormat) : "";
     }
     function stateText(d) {
-        return d.state === "installed" ? "installed" : d.state === "available" ? "will be installed" + (d.by !== d.dep ? " (" + d.by + ")" : "") : "NOT AVAILABLE";
+        return d.state === "installed" ? "installed" : d.state === "available" ? "will be installed" + (d.by !== d.dep ? " (" + d.by + ")" : "") : qsTr("NOT AVAILABLE");
     }
     function limited(list, more) {
         return list.join(", ") + (more > 0 ? " … and " + more + " more" : "");
@@ -101,7 +101,7 @@ Kirigami.ScrollablePage {
         stayText = "";
         errorText = "";
         doneText = "";
-        busyText = "Preparing…";
+        busyText = qsTr("Preparing…");
         page.ask(backend.planInstallPackages(JSON.stringify([info.name])), function (r) {
             busyText = "";
             if (!r.ok) {
@@ -121,7 +121,7 @@ Kirigami.ScrollablePage {
         stayText = "";
         errorText = "";
         doneText = "";
-        busyText = "Preparing…";
+        busyText = qsTr("Preparing…");
         page.ask(backend.planRemovePackagesByName(JSON.stringify([info.name]), confirmedNotMine), function (r) {
             busyText = "";
             if (!r.ok) {
@@ -145,13 +145,13 @@ Kirigami.ScrollablePage {
         if (busyText !== "" || !plan) // a second click while the window closes must not use the same plan again
             return;
         confirmPlan = null;
-        busyText = "Waiting for authorization…";
+        busyText = qsTr("Waiting for authorization…");
         page.ask(backend.commitFix(plan.token), function (r) {
             busyText = "";
             if (!r.ok || !r.result.ok) {
                 errorText = root.plain(root.why(r));
             } else {
-                doneText = root.plain(plan.downgrade ? "Went back to " + plan.downgrade.to + "." : plan.action === "Remove" ? "Removed." : "Installed.");
+                doneText = root.plain(plan.downgrade ? "Went back to " + plan.downgrade.to + "." : plan.action === "Remove" ? qsTr("Removed.") : qsTr("Installed."));
             }
             page.load();
         }, function (line) {
@@ -162,7 +162,7 @@ Kirigami.ScrollablePage {
 
     actions: [
         Kirigami.Action {
-            text: "Website"
+            text: qsTr("Website")
             icon.name: "internet-services"
             enabled: !!(page.info && /^https?:\/\//.test(page.info.url))
             onTriggered: Qt.openUrlExternally(page.info.url)
@@ -186,7 +186,7 @@ Kirigami.ScrollablePage {
             text: root.plain(page.stayText)
             actions: [
                 Kirigami.Action {
-                    text: "Open Updates"
+                    text: qsTr("Open Updates")
                     icon.name: "update-none"
                     onTriggered: root.openPage("updates")
                 }
@@ -227,21 +227,21 @@ Kirigami.ScrollablePage {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
                 opacity: 0.8
-                text: !page.info ? "" : page.info.installed ? "Installed: " + page.info.installed_version + (page.info.reason === "explicit" ? " (chosen by you)" : " (installed for another package)") + (page.info.install_date ? ", " + page.dateText(page.info.install_date) : "") + (page.info.repo ? "" : ". No repository offers it (it came from a file or the AUR).") : "Not installed. Offered by the repository " + page.info.repo + "."
+                text: !page.info ? "" : page.info.installed ? "Installed: " + page.info.installed_version + (page.info.reason === "explicit" ? qsTr(" (chosen by you)") : qsTr(" (installed for another package)")) + (page.info.install_date ? ", " + page.dateText(page.info.install_date) : "") + (page.info.repo ? "" : qsTr(". No repository offers it (it came from a file or the AUR).")) : "Not installed. Offered by the repository " + page.info.repo + "."
             }
             RowLayout {
                 spacing: Kirigami.Units.largeSpacing
                 QQC2.Button {
                     visible: !!(page.info && !page.info.installed)
                     enabled: !!(page.info && !page.info.blocked.install) && page.busyText === ""
-                    text: "Install…"
+                    text: qsTr("Install…")
                     icon.name: "download"
                     onClicked: page.planInstall()
                 }
                 QQC2.Button {
                     visible: !!(page.info && page.info.installed)
                     enabled: !!(page.info && !page.info.blocked.remove) && page.busyText === ""
-                    text: "Remove…"
+                    text: qsTr("Remove…")
                     icon.name: "edit-delete"
                     onClicked: page.planRemove(false)
                 }
@@ -259,14 +259,14 @@ Kirigami.ScrollablePage {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
                 visible: !!(page.info && page.info.installed && page.info.has_install_script)
-                text: "This package runs an install script as administrator when it is installed, updated or removed (pacman does that for every package that has one)."
+                text: qsTr("This package runs an install script as administrator when it is installed, updated or removed (pacman does that for every package that has one).")
             }
 
             Kirigami.Heading {
                 textFormat: Text.PlainText
                 Layout.fillWidth: true
                 level: 3
-                text: "About"
+                text: qsTr("About")
             }
             QQC2.Label {
                 textFormat: Text.PlainText
@@ -279,13 +279,13 @@ Kirigami.ScrollablePage {
                 textFormat: Text.PlainText
                 Layout.fillWidth: true
                 level: 3
-                text: "Needs"
+                text: qsTr("Needs")
             }
             QQC2.Label {
                 textFormat: Text.PlainText
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                text: !page.info ? "" : page.info.depends.length ? page.info.depends.map(d => d.dep + "  —  " + page.stateText(d)).join("\n") + (page.info.depends_more ? "\n… and " + page.info.depends_more + " more" : "") : "Nothing else."
+                text: !page.info ? "" : page.info.depends.length ? page.info.depends.map(d => d.dep + "  —  " + page.stateText(d)).join("\n") + (page.info.depends_more ? "\n… and " + page.info.depends_more + " more" : "") : qsTr("Nothing else.")
             }
             QQC2.Label {
                 textFormat: Text.PlainText
@@ -293,14 +293,14 @@ Kirigami.ScrollablePage {
                 wrapMode: Text.Wrap
                 visible: !!(page.info && page.info.depends_missing)
                 color: Kirigami.Theme.negativeTextColor
-                text: "Some of what it needs is not available from your repositories, so it cannot be installed."
+                text: qsTr("Some of what it needs is not available from your repositories, so it cannot be installed.")
             }
             Kirigami.Heading {
                 textFormat: Text.PlainText
                 Layout.fillWidth: true
                 level: 3
                 visible: !!(page.info && page.info.optdepends.length)
-                text: "Optional extras"
+                text: qsTr("Optional extras")
             }
             QQC2.Label {
                 textFormat: Text.PlainText
@@ -315,14 +315,14 @@ Kirigami.ScrollablePage {
                 Layout.fillWidth: true
                 level: 3
                 visible: !!(page.info && page.info.installed)
-                text: "Needed by"
+                text: qsTr("Needed by")
             }
             QQC2.Label {
                 textFormat: Text.PlainText
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
                 visible: !!(page.info && page.info.installed)
-                text: !page.info || !page.info.installed ? "" : page.info.required_by.length ? page.limited(page.info.required_by, page.info.required_by_more) : "No installed package needs it."
+                text: !page.info || !page.info.installed ? "" : page.info.required_by.length ? page.limited(page.info.required_by, page.info.required_by_more) : qsTr("No installed package needs it.")
             }
             QQC2.Label {
                 textFormat: Text.PlainText
@@ -338,7 +338,7 @@ Kirigami.ScrollablePage {
                 Layout.fillWidth: true
                 level: 3
                 visible: page.older.length > 0
-                text: "Go back to an older version"
+                text: qsTr("Go back to an older version")
             }
             QQC2.Label {
                 textFormat: Text.PlainText
@@ -346,7 +346,7 @@ Kirigami.ScrollablePage {
                 wrapMode: Text.Wrap
                 opacity: 0.8
                 visible: page.older.length > 0
-                text: "Older versions that your package cache still holds. Going back replaces the installed version with the chosen one; the next system update installs the newer one again."
+                text: qsTr("Older versions that your package cache still holds. Going back replaces the installed version with the chosen one; the next system update installs the newer one again.")
             }
             Repeater {
                 model: page.older
@@ -358,7 +358,7 @@ Kirigami.ScrollablePage {
                         text: modelData.version + "  ·  " + page.dateText(modelData.modified) + "  ·  " + page.sizeText(modelData.size)
                     }
                     QQC2.Button {
-                        text: "Install this version…"
+                        text: qsTr("Install this version…")
                         icon.name: "go-previous"
                         enabled: page.busyText === ""
                         onClicked: page.planDowngrade(modelData.version)
@@ -371,7 +371,7 @@ Kirigami.ScrollablePage {
                 Layout.fillWidth: true
                 level: 3
                 visible: !!(page.info && (page.info.provides.length || page.info.conflicts.length || page.info.replaces.length))
-                text: "Relations"
+                text: qsTr("Relations")
             }
             QQC2.Label {
                 textFormat: Text.PlainText
@@ -452,14 +452,14 @@ Kirigami.ScrollablePage {
 
     Kirigami.Dialog {
         id: warnDialog
-        title: "Remove a package Cygnus did not install?"
+        title: qsTr("Remove a package Cygnus did not install?")
         standardButtons: Kirigami.Dialog.Cancel
         preferredWidth: Kirigami.Units.gridUnit * 30
         onClosed: page.warnTicked = false
         customFooterActions: [
             Kirigami.Action {
                 objectName: "warnAction"
-                text: "Go on…"
+                text: qsTr("Go on…")
                 icon.name: "edit-delete"
                 enabled: page.warnTicked
                 onTriggered: {
@@ -476,7 +476,7 @@ Kirigami.ScrollablePage {
                 text: page.warnPlan ? page.warnPlan.text : ""
             }
             QQC2.CheckBox {
-                text: "I know what this package is and I want it removed"
+                text: qsTr("I know what this package is and I want it removed")
                 checked: page.warnTicked
                 onToggled: page.warnTicked = checked
             }

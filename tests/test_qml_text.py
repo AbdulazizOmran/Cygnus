@@ -44,7 +44,7 @@ def test_pages_ignore_answers_that_arrive_after_they_were_closed():
     """Pages ask the backend through page.ask(), which drops late answers. A destroyed page's callbacks cannot
     be relied on, so nothing that changes the registry may be left to one: the backend does it on commit."""
     pages = list(QML.glob("*Page.qml"))
-    assert len(pages) == 8  # the two Packages pages are in
+    assert len(pages) == 10  # the two Packages pages and the two Discover pages are in
     direct = {}
     for f in pages:
         text = f.read_text()

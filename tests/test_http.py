@@ -111,6 +111,15 @@ def test_a_download_never_writes_through_a_link_left_where_its_partial_file_goes
     assert path.read_bytes() == body and victim.read_text() == "precious"
 
 
+@pytest.mark.parametrize("header", ["abc", "-5", "1e3", "", "  ", "12 34"])
+def test_a_content_length_that_is_not_a_size_means_the_size_is_not_known(server, tmp_path, header):
+    pages, _ = server
+    pages["https://h.example/a.deb"] = FakeResponse(200, {"Content-Length": header}, b"payload")
+    seen = []
+    path = http.download("https://h.example/a.deb", tmp_path, progress=lambda done, size: seen.append(size))
+    assert path.read_bytes() == b"payload" and all(size is None for size in seen)
+
+
 def test_a_folder_that_cannot_be_written_is_a_plain_error(server, tmp_path):
     pages, _ = server
     pages["https://h.example/a.deb"] = FakeResponse(200, {}, b"x")

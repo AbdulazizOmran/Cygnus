@@ -26,7 +26,7 @@ Kirigami.ScrollablePage {
                 onProgress(line);
         } : undefined);
     }
-    title: "Applications"
+    title: qsTr("Applications")
 
     property var apps: JSON.parse(backend ? backend.appsJson : "[]")
     // Applications Cygnus knows how to check even before they are managed (curated manifests).
@@ -34,12 +34,12 @@ Kirigami.ScrollablePage {
         {
             name: "WhatPulse",
             icon: "input-keyboard",
-            note: "Keyboard, mouse and network statistics"
+            note: qsTr("Keyboard, mouse and network statistics")
         },
         {
             name: "Helium",
             icon: "internet-web-browser",
-            note: "Web browser"
+            note: qsTr("Web browser")
         }
     ]
 
@@ -74,7 +74,7 @@ Kirigami.ScrollablePage {
     }
 
     function recover(op, action) {
-        recoveryText = action === "resume" ? "Finishing…" : "Undoing…";
+        recoveryText = action === "resume" ? qsTr("Finishing…") : qsTr("Undoing…");
         page.ask(backend.recover(op.id, action), function (r) {
             page.recoveryText = "";
             if (!r.ok || !r.result.ok) {
@@ -89,12 +89,12 @@ Kirigami.ScrollablePage {
 
     actions: [
         Kirigami.Action {
-            text: "Install…"
+            text: qsTr("Install…")
             icon.name: "list-add"
             onTriggered: root.showPage(installPage)
         },
         Kirigami.Action {
-            text: "Refresh"
+            text: qsTr("Refresh")
             icon.name: "view-refresh"
             onTriggered: backend.refreshApps()
         }
@@ -117,7 +117,7 @@ Kirigami.ScrollablePage {
             text: page.staleLock ? "<b>pacman is locked, but no package manager is running.</b> A package manager stopped unexpectedly " + page.staleLock.minutes + " minutes ago and left its lock behind; installs and updates fail until it is removed." : ""
             actions: [
                 Kirigami.Action {
-                    text: "Remove it…"
+                    text: qsTr("Remove it…")
                     icon.name: "object-unlocked"
                     onTriggered: page.removeStaleLock()
                 }
@@ -132,13 +132,13 @@ Kirigami.ScrollablePage {
                 text: "<b>" + root.plain(modelData.title) + " did not finish.</b> " + root.plain(modelData.explanation) + " (" + root.plain(modelData.progress) + ")" + (page.recoveryText ? "<br>" + root.plain(page.recoveryText) : "")
                 actions: [
                     Kirigami.Action {
-                        text: "Finish it"
+                        text: qsTr("Finish it")
                         icon.name: "media-playback-start"
                         enabled: page.recoveryText === ""
                         onTriggered: page.recover(modelData, "resume")
                     },
                     Kirigami.Action {
-                        text: "Undo it"
+                        text: qsTr("Undo it")
                         icon.name: "edit-undo"
                         enabled: page.recoveryText === ""
                         onTriggered: page.recover(modelData, "rollback")
@@ -151,14 +151,14 @@ Kirigami.ScrollablePage {
             textFormat: Text.PlainText
             Layout.fillWidth: true
             level: 3
-            text: "Managed by Cygnus"
+            text: qsTr("Managed by Cygnus")
         }
         Kirigami.PlaceholderMessage {
             Layout.fillWidth: true
             visible: page.apps.length === 0
             icon.name: "system-software-install"
-            text: "No applications are managed yet"
-            explanation: "Install an AppImage, a Flatpak bundle or a package — or adopt one you already have."
+            text: qsTr("No applications are managed yet")
+            explanation: qsTr("Install an AppImage, a Flatpak bundle or a package — or adopt one you already have.")
         }
         Repeater {
             model: page.apps
@@ -191,12 +191,12 @@ Kirigami.ScrollablePage {
                             QQC2.Label {
                                 textFormat: Text.PlainText
                                 Layout.fillWidth: true
-                                text: [modelData.format, modelData.version, modelData.location ? "on " + modelData.location : ""].filter(x => x).join(" · ")
+                                text: [modelData.format, modelData.version, modelData.location ? qsTr("on %1").arg(modelData.location) : ""].filter(x => x).join(" · ")
                                 opacity: 0.7
                             }
                         }
                         QQC2.Button {
-                            text: "Details"
+                            text: qsTr("Details")
                             onClicked: root.pageStack.push(appPage, {
                                 appName: modelData.name,
                                 installationId: modelData.installation_id,
@@ -213,7 +213,7 @@ Kirigami.ScrollablePage {
             textFormat: Text.PlainText
             Layout.fillWidth: true
             level: 3
-            text: "Check an application"
+            text: qsTr("Check an application")
         }
         Repeater {
             model: page.known
@@ -249,7 +249,7 @@ Kirigami.ScrollablePage {
                             }
                         }
                         QQC2.Button {
-                            text: "Check health"
+                            text: qsTr("Check health")
                             icon.name: "checkmark"
                             onClicked: root.pageStack.push(appPage, {
                                 appName: modelData.name
@@ -268,12 +268,12 @@ Kirigami.ScrollablePage {
 
     Kirigami.PromptDialog {
         id: lockDialog
-        title: "Remove pacman's lock?"
+        title: qsTr("Remove pacman's lock?")
         subtitle: page.lockPlan ? root.flat(page.lockPlan.message) : ""
         standardButtons: Kirigami.Dialog.Cancel
         customFooterActions: [
             Kirigami.Action {
-                text: "Remove"
+                text: qsTr("Remove")
                 icon.name: "object-unlocked"
                 onTriggered: {
                     lockDialog.close();

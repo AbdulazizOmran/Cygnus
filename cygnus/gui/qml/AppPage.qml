@@ -43,9 +43,12 @@ Kirigami.ScrollablePage {
     property bool loading: true
     property string busyText: ""
     property var fixPlan: null
+    property var browserInfo: null // set when the program is a web browser: whether it can be (or is) the default browser
+    property var permissions: null // for a Flatpak: what it may do (see cygnus/core/flatpak_permissions.py)
 
     function load() {
         loading = true;
+        loadBrowser(); // what a Repair or a Move changed (the menu entry) may change whether it can be the default browser
         page.ask(backend.checkApp(appName), function (r) {
             loading = false;
             report = r.ok ? r.result : {
@@ -58,7 +61,7 @@ Kirigami.ScrollablePage {
     function startFix(component) {
         if (busyText !== "") // something else on this page is still going on
             return;
-        busyText = "Preparing…";
+        busyText = qsTr("Preparing…");
         progressValue = -1;
         progressLabel = "";
         page.ask(backend.planFix(report.name, component), function (r) {
@@ -98,7 +101,7 @@ Kirigami.ScrollablePage {
     function openScripts() {
         if (busyText !== "")
             return;
-        busyText = "Reading the program's scripts…";
+        busyText = qsTr("Reading the program's scripts…");
         page.ask(backend.archiveScripts(installationId), function (r) {
             busyText = "";
             if (!r.ok) {
@@ -116,7 +119,7 @@ Kirigami.ScrollablePage {
         if (busyText !== "")
             return;
         if (admin) {
-            busyText = "Preparing…";
+            busyText = qsTr("Preparing…");
             page.ask(backend.planScriptAdmin(installationId, name, sha256), function (r) {
                 busyText = "";
                 if (!r.ok) {
@@ -159,7 +162,7 @@ Kirigami.ScrollablePage {
         }
         if (busyText !== "")
             return;
-        busyText = "Looking at the program's folder…";
+        busyText = qsTr("Looking at the program's folder…");
         page.ask(backend.archiveInfo(installationId), function (r) {
             busyText = "";
             if (!r.ok) {
@@ -181,7 +184,7 @@ Kirigami.ScrollablePage {
     function checkLibraries() {
         if (busyText !== "")
             return;
-        busyText = "Checking the libraries the program needs…";
+        busyText = qsTr("Checking the libraries the program needs…");
         progressValue = -1;
         progressLabel = "";
         page.ask(backend.archiveLibraries(installationId), function (r) {
@@ -204,7 +207,7 @@ Kirigami.ScrollablePage {
     function installLibraries() {
         if (busyText !== "" || !libraryResult || !libraryResult.packages.length)
             return;
-        busyText = "Preparing…";
+        busyText = qsTr("Preparing…");
         page.ask(backend.planRepoDependencies(JSON.stringify(libraryResult.packages)), function (r) {
             busyText = "";
             if (!r.ok) {
@@ -224,7 +227,7 @@ Kirigami.ScrollablePage {
     function askNeeds(extraUrl) {
         if (busyText !== "")
             return;
-        busyText = "Checking the assistant settings…";
+        busyText = qsTr("Checking the assistant settings…");
         needsError = "";
         page.ask(backend.aiStatus(), function (s) {
             if (!s.ok) {
@@ -234,10 +237,10 @@ Kirigami.ScrollablePage {
             }
             if (!s.result.enabled) {
                 busyText = "";
-                showAttention("The AI assistant is off. You can turn it on in Settings; nothing is sent until you do.");
+                showAttention(qsTr("The AI assistant is off. You can turn it on in Settings; nothing is sent until you do."));
                 return;
             }
-            busyText = "Reading the documentation…";
+            busyText = qsTr("Reading the documentation…");
             page.ask(backend.aiDiscover(installationId, extraUrl), function (r) {
                 busyText = "";
                 if (!r.ok) {
@@ -263,7 +266,7 @@ Kirigami.ScrollablePage {
             });
             return;
         }
-        busyText = "Preparing…";
+        busyText = qsTr("Preparing…");
         progressValue = -1;
         progressLabel = "";
         needsError = "";
@@ -317,10 +320,76 @@ Kirigami.ScrollablePage {
         });
     }
 
+    function loadBrowser() {
+        if (installationId === "")
+            return;
+        page.ask(backend.defaultBrowserInfo(installationId), function (r) {
+            browserInfo = r.ok && r.result.browser ? r.result : null;
+        });
+    }
+
+    function openPermissions() {
+        if (busyText !== "")
+            return;
+        busyText = qsTr("Reading the permissions…");
+        page.ask(backend.flatpakPermissions(installationId), function (r) {
+            busyText = "";
+            if (!r.ok) {
+                showError(r.error);
+                return;
+            }
+            permissions = r.result;
+            permissionsDialog.open();
+        });
+    }
+
+    // The permissions as rows for the dialog: a heading for each group, then its items (the worst first).
+    function permissionRows() {
+        if (!permissions)
+            return [];
+        const rows = [];
+        permissions.groups.forEach(g => {
+            rows.push({
+                heading: g.title
+            });
+            permissions.items.filter(i => i.group === g.id).forEach(i => rows.push(i));
+        });
+        return rows;
+    }
+
+    function permissionTag(item) {
+        return (item.level === "escape" ? qsTr("  ·  can leave the sandbox") : item.level === "broad" ? qsTr("  ·  broad access") : "") + (item.source === "you" ? qsTr("  ·  changed by you") : item.source === "system" ? qsTr("  ·  changed for the whole system") : "");
+    }
+
+    function showDone(text) {
+        errorMessage.type = Kirigami.MessageType.Positive;
+        errorMessage.text = root.plain(text);
+        errorMessage.visible = true;
+    }
+
+    // Makes the program the one links open with, or puts back what was set before it. Cygnus reads the result back from
+    // every place the desktop looks, so an answer of "ok" means it really took.
+    function setBrowser(on) {
+        if (busyText !== "" || !browserInfo)
+            return;
+        const name = browserInfo.name;
+        busyText = on ? "Making " + name + " the default browser…" : qsTr("Putting your earlier choice back…");
+        page.ask(backend.setDefaultBrowser(browserInfo.desktop_id, on), function (r) {
+            busyText = "";
+            if (!r.ok)
+                showError(r.error);
+            else if (on)
+                showDone(name + " is now your default browser: links you click in other programs open there.");
+            else
+                showDone(qsTr("What was set before is back."));
+            page.loadBrowser();
+        });
+    }
+
     function startRepair() {
         if (busyText !== "")
             return;
-        busyText = "Checking…";
+        busyText = qsTr("Checking…");
         page.ask(backend.diagnoseApp(installationId), function (r) {
             busyText = "";
             if (!r.ok) {
@@ -334,20 +403,20 @@ Kirigami.ScrollablePage {
 
     actions: [
         Kirigami.Action {
-            text: "Check again"
+            text: qsTr("Check again")
             enabled: page.busyText === ""
             icon.name: "view-refresh"
             onTriggered: page.load()
         },
         Kirigami.Action {
-            text: "Repair…"
+            text: qsTr("Repair…")
             enabled: page.busyText === ""
             icon.name: "tools-wizard"
             visible: page.movable
             onTriggered: page.startRepair()
         },
         Kirigami.Action {
-            text: "Move to…"
+            text: qsTr("Move to…")
             enabled: page.busyText === ""
             icon.name: "folder-move"
             visible: page.movable
@@ -357,28 +426,44 @@ Kirigami.ScrollablePage {
             }
         },
         Kirigami.Action {
-            text: "Check libraries…"
+            objectName: "browserAction"
+            text: !!page.browserInfo && page.browserInfo.is_default && page.browserInfo.remembered ? qsTr("Put back the earlier browser…") : qsTr("Make default browser…")
+            enabled: page.busyText === ""
+            icon.name: "internet-web-browser"
+            visible: !!page.browserInfo && !(page.browserInfo.is_default && !page.browserInfo.remembered)
+            onTriggered: browserDialog.open()
+        },
+        Kirigami.Action {
+            objectName: "permissionsAction"
+            text: qsTr("Permissions…")
+            enabled: page.busyText === ""
+            icon.name: "security-medium"
+            visible: page.installationFormat === "flatpak"
+            onTriggered: page.openPermissions()
+        },
+        Kirigami.Action {
+            text: qsTr("Check libraries…")
             enabled: page.busyText === ""
             icon.name: "system-search"
             visible: page.installationFormat === "archive"
             onTriggered: page.checkLibraries()
         },
         Kirigami.Action {
-            text: "Install scripts…"
+            text: qsTr("Install scripts…")
             enabled: page.busyText === ""
             icon.name: "utilities-terminal"
             visible: page.installationFormat === "archive"
             onTriggered: page.openScripts()
         },
         Kirigami.Action {
-            text: "What else does this need?"
+            text: qsTr("What else does this need?")
             enabled: page.busyText === ""
             icon.name: "help-hint"
             visible: page.installationId !== ""
             onTriggered: page.askNeeds("")
         },
         Kirigami.Action {
-            text: "Uninstall…"
+            text: qsTr("Uninstall…")
             enabled: page.busyText === ""
             icon.name: "edit-delete"
             visible: page.installationId !== ""
@@ -391,10 +476,17 @@ Kirigami.ScrollablePage {
 
         Kirigami.InlineMessage {
             id: errorMessage
+            objectName: "pageMessage"
             Layout.fillWidth: true
             type: Kirigami.MessageType.Error
             showCloseButton: true
             visible: false
+        }
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            type: Kirigami.MessageType.Information
+            visible: !!page.browserInfo && (page.browserInfo.is_default || page.browserInfo.by_accident)
+            text: !page.browserInfo ? "" : root.plain(page.browserInfo.is_default ? qsTr("This is your default web browser: links you click in other programs open here.") : page.browserInfo.name + " opens links only because nothing else is chosen. Choose it on purpose to make that stick.")
         }
         ProgressStrip {
             Layout.fillWidth: true
@@ -405,8 +497,8 @@ Kirigami.ScrollablePage {
         Kirigami.PlaceholderMessage {
             Layout.fillWidth: true
             visible: !page.loading && page.report && !page.report.known
-            text: "Cygnus has no detailed knowledge of this application yet"
-            explanation: page.report && page.report.error ? root.flat(page.report.error) : "Basic checks only."
+            text: qsTr("Cygnus has no detailed knowledge of this application yet")
+            explanation: page.report && page.report.error ? root.flat(page.report.error) : qsTr("Basic checks only.")
         }
         Kirigami.PlaceholderMessage {
             Layout.fillWidth: true
@@ -442,22 +534,22 @@ Kirigami.ScrollablePage {
                         QQC2.Label {
                             textFormat: Text.PlainText
                             Layout.fillWidth: true
-                            text: "Not managed by Cygnus yet: add a menu entry and launcher that keep working if the drive is unplugged."
+                            text: qsTr("Not managed by Cygnus yet: add a menu entry and launcher that keep working if the drive is unplugged.")
                             wrapMode: Text.Wrap
                             opacity: 0.8
                         }
                         QQC2.Button {
-                            text: "Manage with Cygnus"
+                            text: qsTr("Manage with Cygnus")
                             icon.name: "list-add"
                             enabled: page.busyText === ""
-                            onClicked: page.runWithProgress(backend.adoptAppImage(modelData.where), "Adopting…")
+                            onClicked: page.runWithProgress(backend.adoptAppImage(modelData.where), qsTr("Adopting…"))
                         }
                     }
                     Kirigami.InlineMessage {
                         Layout.fillWidth: true
                         visible: modelData.runtime_eol
                         type: Kirigami.MessageType.Warning
-                        text: "This copy uses a Flatpak runtime that no longer receives security updates."
+                        text: qsTr("This copy uses a Flatpak runtime that no longer receives security updates.")
                     }
                     GridLayout {
                         columns: 3
@@ -507,7 +599,7 @@ Kirigami.ScrollablePage {
                                 text: "You switched off: " + modelData.name
                             }
                             QQC2.Button {
-                                text: "Show again"
+                                text: qsTr("Show again")
                                 flat: true
                                 enabled: page.busyText === ""
                                 onClicked: {
@@ -534,16 +626,16 @@ Kirigami.ScrollablePage {
                             QQC2.Button {
                                 visible: modelData.resolutions.length > 0 && !!modelData.component
                                 enabled: page.busyText === ""
-                                text: modelData.code === "BROWSER_EXT_MISSING" ? "Get extension…" : "Install missing component…"
+                                text: modelData.code === "BROWSER_EXT_MISSING" ? qsTr("Get extension…") : qsTr("Install missing component…")
                                 icon.name: "list-add"
                                 onClicked: page.startFix(modelData.component)
                             }
                             QQC2.Button {
                                 visible: !!modelData.dismissible
                                 enabled: page.busyText === ""
-                                text: "Not interested"
+                                text: qsTr("Not interested")
                                 icon.name: "dialog-cancel"
-                                QQC2.ToolTip.text: "Stop checking and suggesting this optional feature"
+                                QQC2.ToolTip.text: qsTr("Stop checking and suggesting this optional feature")
                                 QQC2.ToolTip.visible: hovered
                                 onClicked: page.ask(backend.dismissComponent(page.report.name, modelData.component, true), function (r) {
                                     if (!r.ok)
@@ -578,7 +670,7 @@ Kirigami.ScrollablePage {
                 Layout.margins: Kirigami.Units.largeSpacing
                 wrapMode: Text.Wrap
                 textFormat: Text.PlainText
-                text: !page.needsResult ? "" : page.needsResult.suggestions.length === 0 ? (page.needsResult.needs_address ? "Cygnus does not know a documentation page for this program. Paste one below and ask again." : "Nothing was suggested. " + (page.needsResult.pages.length ? "Pages read: " + page.needsResult.pages.join(", ") : "No documentation page could be read.")) : "These come from an AI assistant reading the program's own documentation (" + page.needsResult.provider + "). For each one Cygnus checked that the quoted sentence really is on the page, and that a suggested package or group exists, but the AI can still be wrong: only go on with what makes sense for you. Nothing is installed without your approval."
+                text: !page.needsResult ? "" : page.needsResult.suggestions.length === 0 ? (page.needsResult.needs_address ? qsTr("Cygnus does not know a documentation page for this program. Paste one below and ask again.") : "Nothing was suggested. " + (page.needsResult.pages.length ? "Pages read: " + page.needsResult.pages.join(", ") : qsTr("No documentation page could be read."))) : "These come from an AI assistant reading the program's own documentation (" + page.needsResult.provider + "). For each one Cygnus checked that the quoted sentence really is on the page, and that a suggested package or group exists, but the AI can still be wrong: only go on with what makes sense for you. Nothing is installed without your approval."
             }
             Repeater {
                 model: page.needsResult ? page.needsResult.suggestions : []
@@ -592,7 +684,7 @@ Kirigami.ScrollablePage {
                             wrapMode: Text.Wrap
                             font.bold: true
                             textFormat: Text.PlainText
-                            text: modelData.name + (modelData.relation === "required" ? " (it says this is required)" : " (optional)")
+                            text: modelData.name + (modelData.relation === "required" ? qsTr(" (it says this is required)") : " (optional)")
                         }
                         QQC2.Label {
                             Layout.fillWidth: true
@@ -631,12 +723,12 @@ Kirigami.ScrollablePage {
                         RowLayout {
                             visible: modelData.satisfied === "" && modelData.kind !== "info"
                             QQC2.Button {
-                                text: modelData.kind === "aur" ? "Review it on the Install page" : modelData.kind === "extension" ? "Open the store page…" : modelData.kind === "group" ? "Add me to the group…" : modelData.kind === "service" ? "Start it…" : "Install…"
+                                text: modelData.kind === "aur" ? qsTr("Review it on the Install page") : modelData.kind === "extension" ? qsTr("Open the store page…") : modelData.kind === "group" ? qsTr("Add me to the group…") : modelData.kind === "service" ? qsTr("Start it…") : qsTr("Install…")
                                 enabled: page.busyText === ""
                                 onClicked: page.actOnSuggestion(modelData)
                             }
                             QQC2.Button {
-                                text: "Open the page it came from"
+                                text: qsTr("Open the page it came from")
                                 onClicked: Qt.openUrlExternally(modelData.citation_url)
                             }
                         }
@@ -658,10 +750,10 @@ Kirigami.ScrollablePage {
                 QQC2.TextField {
                     id: needsAddressField
                     Layout.fillWidth: true
-                    placeholderText: "Another documentation page (https), if you know one"
+                    placeholderText: qsTr("Another documentation page (https), if you know one")
                 }
                 QQC2.Button {
-                    text: "Ask again"
+                    text: qsTr("Ask again")
                     enabled: page.busyText === ""
                     onClicked: {
                         needsDialog.close();
@@ -675,14 +767,14 @@ Kirigami.ScrollablePage {
     Kirigami.PromptDialog {
         id: scriptsDialog
         title: root.flat("Install scripts of " + page.appName)
-        subtitle: "These came with the program's archive. Nothing here runs unless you press one of the Run buttons; each one runs exactly the text shown, and only while it is still as it was when the program was installed."
+        subtitle: qsTr("These came with the program's archive. Nothing here runs unless you press one of the Run buttons; each one runs exactly the text shown, and only while it is still as it was when the program was installed.")
         standardButtons: Kirigami.Dialog.Close
         ColumnLayout {
             spacing: Kirigami.Units.largeSpacing
             QQC2.Label {
                 textFormat: Text.PlainText
                 visible: !!page.scriptsInfo && page.scriptsInfo.scripts.length === 0
-                text: "This program's archive had no install scripts."
+                text: qsTr("This program's archive had no install scripts.")
             }
             Repeater {
                 model: page.scriptsInfo ? page.scriptsInfo.scripts : []
@@ -693,14 +785,14 @@ Kirigami.ScrollablePage {
                     Kirigami.Heading {
                         textFormat: Text.PlainText
                         level: 5
-                        text: scriptRow.modelData.name + (scriptRow.modelData.phase === "remove" ? " (for removing the program)" : "")
+                        text: scriptRow.modelData.name + (scriptRow.modelData.phase === "remove" ? qsTr(" (for removing the program)") : "")
                     }
                     QQC2.Label {
                         textFormat: Text.PlainText
                         visible: scriptRow.modelData.state !== "ok"
                         wrapMode: Text.Wrap
                         Layout.fillWidth: true
-                        text: scriptRow.modelData.state === "changed" ? "It has been changed since the program was installed, so it will not be run." : "It is not there any more."
+                        text: scriptRow.modelData.state === "changed" ? qsTr("It has been changed since the program was installed, so it will not be run.") : qsTr("It is not there any more.")
                     }
                     QQC2.ScrollView {
                         visible: scriptRow.modelData.state === "ok"
@@ -720,18 +812,18 @@ Kirigami.ScrollablePage {
                         wrapMode: Text.Wrap
                         Layout.fillWidth: true
                         opacity: 0.7
-                        text: "It is offered when you remove the program."
+                        text: qsTr("It is offered when you remove the program.")
                     }
                     RowLayout {
                         visible: scriptRow.modelData.state === "ok" && scriptRow.modelData.phase === "install"
                         QQC2.Button {
-                            text: "Run as me"
+                            text: qsTr("Run as me")
                             icon.name: "media-playback-start"
                             enabled: page.busyText === ""
                             onClicked: page.runScript(scriptRow.modelData.name, scriptRow.modelData.sha256, false)
                         }
                         QQC2.Button {
-                            text: "Run as administrator…"
+                            text: qsTr("Run as administrator…")
                             icon.name: "dialog-password"
                             enabled: page.busyText === ""
                             onClicked: page.runScript(scriptRow.modelData.name, scriptRow.modelData.sha256, true)
@@ -745,11 +837,11 @@ Kirigami.ScrollablePage {
     Kirigami.PromptDialog {
         id: libraryDialog
         title: root.flat("What " + page.appName + " is missing")
-        subtitle: !page.libraryResult ? "" : root.flat((page.libraryResult.glibc ? "It was built for a newer C library (" + page.libraryResult.glibc.needs + ") than this computer has (" + page.libraryResult.glibc.have + "), so it may not start. " : "") + (page.libraryResult.packages.length ? "Libraries it needs are not installed here. Your repositories have them in: " + page.libraryResult.packages.join(", ") + ". " : "") + (page.libraryResult.unresolved.length ? "No repository provides: " + page.libraryResult.unresolved.slice(0, 6).join(", ") + (page.libraryResult.unresolved.length > 6 ? " and more" : "") + ". It may not start. " : "") + (page.libraryResult.optional.length ? "Some parts also want: " + page.libraryResult.optional.map(o => o.package).join(", ") + " (optional)." : ""))
+        subtitle: !page.libraryResult ? "" : root.flat((page.libraryResult.glibc ? "It was built for a newer C library (" + page.libraryResult.glibc.needs + ") than this computer has (" + page.libraryResult.glibc.have + "), so it may not start. " : "") + (page.libraryResult.packages.length ? "Libraries it needs are not installed here. Your repositories have them in: " + page.libraryResult.packages.join(", ") + ". " : "") + (page.libraryResult.unresolved.length ? "No repository provides: " + page.libraryResult.unresolved.slice(0, 6).join(", ") + (page.libraryResult.unresolved.length > 6 ? qsTr(" and more") : "") + ". It may not start. " : "") + (page.libraryResult.optional.length ? "Some parts also want: " + page.libraryResult.optional.map(o => o.package).join(", ") + " (optional)." : ""))
         standardButtons: Kirigami.Dialog.Close
         customFooterActions: [
             Kirigami.Action {
-                text: "Install the missing libraries…"
+                text: qsTr("Install the missing libraries…")
                 icon.name: "download"
                 visible: !!page.libraryResult && page.libraryResult.packages.length > 0
                 onTriggered: {
@@ -763,11 +855,11 @@ Kirigami.ScrollablePage {
     Kirigami.PromptDialog {
         id: fixDialog
         title: page.fixPlan ? root.flat(page.fixPlan.title) : ""
-        subtitle: page.fixPlan ? root.flat(page.fixPlan.message + (page.fixPlan.security_note ? "\n\n" + page.fixPlan.security_note : "") + (page.fixPlan.relogin ? "\n\nYou will need to log out and back in afterwards." : "")) : ""
+        subtitle: page.fixPlan ? root.flat(page.fixPlan.message + (page.fixPlan.security_note ? "\n\n" + page.fixPlan.security_note : "") + (page.fixPlan.relogin ? qsTr("\n\nYou will need to log out and back in afterwards.") : "")) : ""
         standardButtons: Kirigami.Dialog.Cancel
         customFooterActions: [
             Kirigami.Action {
-                text: page.fixPlan && page.fixPlan.kind === "browser" ? "Open store page" : "Continue"
+                text: page.fixPlan && page.fixPlan.kind === "browser" ? qsTr("Open store page") : "Continue"
                 icon.name: "dialog-ok"
                 enabled: page.fixPlan && page.fixPlan.kind !== "info"
                 onTriggered: {
@@ -778,7 +870,7 @@ Kirigami.ScrollablePage {
                         Qt.openUrlExternally(page.fixPlan.urls[0]);
                         return;
                     }
-                    page.busyText = "Waiting for authorization…";
+                    page.busyText = qsTr("Waiting for authorization…");
                     page.progressValue = -1;
                     page.progressLabel = "";
                     const plan = page.fixPlan; // what happens afterwards belongs to this very plan
@@ -800,19 +892,84 @@ Kirigami.ScrollablePage {
         ]
     }
 
+    Kirigami.Dialog {
+        id: permissionsDialog
+        objectName: "permissionsDialog"
+        title: root.flat(page.permissions ? page.permissions.name + ": what it may do" : "Permissions")
+        standardButtons: Kirigami.Dialog.Close
+        preferredWidth: Kirigami.Units.gridUnit * 36
+        ColumnLayout {
+            spacing: Kirigami.Units.smallSpacing
+            QQC2.Label {
+                objectName: "permissionsSummary"
+                textFormat: Text.PlainText
+                Layout.fillWidth: true
+                Layout.margins: Kirigami.Units.largeSpacing
+                wrapMode: Text.Wrap
+                font.bold: true
+                text: !page.permissions ? "" : page.permissions.summary.escape + " that can leave the sandbox · " + page.permissions.summary.broad + " broad · " + page.permissions.summary.total + " in all"
+            }
+            Repeater {
+                model: page.permissionRows()
+                QQC2.Label {
+                    required property var modelData
+                    objectName: modelData.heading !== undefined ? "permissionHeading" : "permissionItem"
+                    textFormat: Text.PlainText
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Kirigami.Units.largeSpacing * (modelData.heading !== undefined ? 1 : 2)
+                    Layout.rightMargin: Kirigami.Units.largeSpacing
+                    Layout.topMargin: modelData.heading !== undefined ? Kirigami.Units.largeSpacing : 0
+                    wrapMode: Text.Wrap
+                    font.bold: modelData.heading !== undefined || modelData.level === "escape"
+                    text: modelData.heading !== undefined ? modelData.heading : (modelData.level === "escape" ? "⚠ " : "• ") + modelData.text + page.permissionTag(modelData)
+                }
+            }
+            QQC2.Label {
+                textFormat: Text.PlainText
+                Layout.fillWidth: true
+                Layout.margins: Kirigami.Units.largeSpacing
+                wrapMode: Text.Wrap
+                opacity: 0.7
+                visible: !!page.permissions
+                text: !page.permissions ? "" : (page.permissions.removed.length ? page.permissions.removed.join("\n") + "\n\n" : "") + (page.permissions.notes.length ? page.permissions.notes.join("\n") + "\n\n" : "") + "This is what the application asks for, with the changes made on this computer (by Flatseal or flatpak override). Cygnus only shows it: change it with Flatseal or the flatpak override command."
+            }
+        }
+    }
+
+    Kirigami.PromptDialog {
+        id: browserDialog
+        objectName: "browserDialog"
+        readonly property bool putBack: !!page.browserInfo && page.browserInfo.is_default && page.browserInfo.remembered
+        title: root.flat(!page.browserInfo ? "" : putBack ? qsTr("Put back what was set before?") : "Make " + page.browserInfo.name + " your default browser?")
+        subtitle: root.flat(!page.browserInfo ? "" : (putBack ? "Links will open in what they opened in before you chose " + page.browserInfo.name + " (a choice you changed since is left as it is)." : "Links you click in other programs (chat, mail, the terminal) will open in " + page.browserInfo.name + (page.browserInfo.current_name ? " instead of " + page.browserInfo.current_name : "") + ". What is set now is remembered, so you can put it back from this page.") + (page.browserInfo.blockers.length ? "\n\nThis cannot be done yet:\n• " + page.browserInfo.blockers.join("\n• ") : "") + (!putBack && page.browserInfo.notes.length ? "\n\nGood to know:\n• " + page.browserInfo.notes.join("\n• ") : ""))
+        standardButtons: Kirigami.Dialog.Cancel
+        customFooterActions: [
+            Kirigami.Action {
+                objectName: "browserDialogAction"
+                text: browserDialog.putBack ? qsTr("Put back") : qsTr("Make default")
+                icon.name: "internet-web-browser"
+                enabled: !!page.browserInfo && (browserDialog.putBack || page.browserInfo.can)
+                onTriggered: {
+                    browserDialog.close();
+                    page.setBrowser(!browserDialog.putBack);
+                }
+            }
+        ]
+    }
+
     Kirigami.PromptDialog {
         id: repairDialog
-        title: root.flat(page.problems.length ? "Repair " + page.appName + "?" : "Nothing to repair")
+        title: root.flat(page.problems.length ? "Repair " + page.appName + "?" : qsTr("Nothing to repair"))
         subtitle: root.flat(page.problems.length ? "Cygnus found:\n" + page.problems.map(p => "• " + p.what.replace("_", " ") + " " + p.state + ": " + p.path).join("\n") + "\n\nIt will rewrite what it created. Your settings and data are not touched." : "Everything Cygnus set up for " + page.appName + " is in place.")
         standardButtons: page.problems.length ? Kirigami.Dialog.Cancel : Kirigami.Dialog.Ok
         customFooterActions: [
             Kirigami.Action {
-                text: "Repair"
+                text: qsTr("Repair")
                 icon.name: "tools-wizard"
                 visible: page.problems.length > 0
                 onTriggered: {
                     repairDialog.close();
-                    page.runWithProgress(backend.repairApp(page.installationId), "Repairing…");
+                    page.runWithProgress(backend.repairApp(page.installationId), qsTr("Repairing…"));
                 }
             }
         ]
@@ -821,16 +978,16 @@ Kirigami.ScrollablePage {
     Kirigami.PromptDialog {
         id: moveDialog
         title: root.flat("Move " + page.appName)
-        subtitle: !page.moveTargets.length ? "There is no other connected storage location that can hold this application. Add one on the Storage page." : page.installationFormat === "flatpak" ? "Flatpak installs it in the other installation, then removes the old copy. Your settings and data in ~/.var/app stay where they are." : "The menu entry and launcher follow it, including autostart. The old copy is deleted only after everything else worked."
+        subtitle: !page.moveTargets.length ? qsTr("There is no other connected storage location that can hold this application. Add one on the Storage page.") : page.installationFormat === "flatpak" ? qsTr("Flatpak installs it in the other installation, then removes the old copy. Your settings and data in ~/.var/app stay where they are.") : qsTr("The menu entry and launcher follow it, including autostart. The old copy is deleted only after everything else worked.")
         standardButtons: Kirigami.Dialog.Cancel
         customFooterActions: [
             Kirigami.Action {
-                text: "Move"
+                text: qsTr("Move")
                 icon.name: "folder-move"
                 enabled: page.moveTargets.length > 0
                 onTriggered: {
                     moveDialog.close();
-                    page.runWithProgress(backend.moveApp(page.installationId, moveTarget.currentText), "Moving…");
+                    page.runWithProgress(backend.moveApp(page.installationId, moveTarget.currentText), qsTr("Moving…"));
                 }
             }
         ]
@@ -844,16 +1001,16 @@ Kirigami.ScrollablePage {
     Kirigami.PromptDialog {
         id: uninstallDialog
         title: root.flat("Remove " + page.appName + "?")
-        subtitle: page.isPackage ? "pacman removes the package. Cygnus shows exactly what will be removed before asking for your password." : page.installationFormat === "flatpak" ? "Flatpak removes the application, and any runtime Cygnus installed for it that nothing else uses. Your settings and data in ~/.var/app are kept." : page.installationFormat === "archive" ? "The menu entry, icon and launcher Cygnus created will be removed. What the program saved in your home folder (its settings and data) is kept. " + (!!page.archiveInfo && page.archiveInfo.present && page.archiveInfo.ours ? "The program's own folder is kept too unless you tick the box below." : "The program's own folder is left alone: it is gone, or it is not one Cygnus made.") : "The menu entry, icon and launcher Cygnus created will be removed. Your settings and data are kept."
+        subtitle: page.isPackage ? qsTr("pacman removes the package. Cygnus shows exactly what will be removed before asking for your password.") : page.installationFormat === "flatpak" ? qsTr("Flatpak removes the application, and any runtime Cygnus installed for it that nothing else uses. Your settings and data in ~/.var/app are kept.") : page.installationFormat === "archive" ? "The menu entry, icon and launcher Cygnus created will be removed. What the program saved in your home folder (its settings and data) is kept. " + (!!page.archiveInfo && page.archiveInfo.present && page.archiveInfo.ours ? qsTr("The program's own folder is kept too unless you tick the box below.") : qsTr("The program's own folder is left alone: it is gone, or it is not one Cygnus made.")) : qsTr("The menu entry, icon and launcher Cygnus created will be removed. Your settings and data are kept.")
         standardButtons: Kirigami.Dialog.Cancel
         customFooterActions: [
             Kirigami.Action {
-                text: "Remove application"
+                text: qsTr("Remove application")
                 icon.name: "edit-delete"
                 onTriggered: {
                     uninstallDialog.close();
                     if (page.isPackage) {
-                        page.busyText = "Preparing…";
+                        page.busyText = qsTr("Preparing…");
                         page.progressValue = -1;
                         page.progressLabel = "";
                         page.ask(backend.planUninstallPackages(page.installationId), function (r) {
@@ -869,7 +1026,7 @@ Kirigami.ScrollablePage {
                         });
                         return;
                     }
-                    page.busyText = "Removing…";
+                    page.busyText = qsTr("Removing…");
                     page.progressValue = -1;
                     page.progressLabel = "";
                     const chosen = page.chosenRemovalScripts();
@@ -924,7 +1081,7 @@ Kirigami.ScrollablePage {
         QQC2.CheckBox {
             id: deleteFile
             visible: page.installationFormat === "appimage" || (page.installationFormat === "archive" && !!page.archiveInfo && page.archiveInfo.present && page.archiveInfo.ours)
-            text: page.installationFormat === "archive" && page.archiveInfo ? "Also delete the program's folder (" + page.archiveInfo.files + " files" + (page.archiveInfo.changed || page.archiveInfo.added ? "; " + (page.archiveInfo.changed || 0) + " changed and " + (page.archiveInfo.added || 0) + " added since it was unpacked, so it may hold things the program saved itself" : "") + ")" : "Also delete the application file"
+            text: page.installationFormat === "archive" && page.archiveInfo ? "Also delete the program's folder (" + page.archiveInfo.files + " files" + (page.archiveInfo.changed || page.archiveInfo.added ? "; " + (page.archiveInfo.changed || 0) + " changed and " + (page.archiveInfo.added || 0) + " added since it was unpacked, so it may hold things the program saved itself" : "") + ")" : qsTr("Also delete the application file")
         }
     }
 

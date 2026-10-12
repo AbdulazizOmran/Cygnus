@@ -178,6 +178,59 @@ handler, and restores them when switched off; a type someone else changed meanwh
 hands its arguments to the running window over the session bus (under the application's own name) and exits, before any
 QML is loaded.
 
+### Translations
+
+A translation is a compiled Qt message file (`cygnus_<language>.qm`) loaded by Qt's translator: data, never code. `cygnus/gui/i18n.py` accepts the
+language only as a plain tag, loads only a regular file (not a link, not a folder) of at most 8 MiB from the package folder,
+`/usr/share/cygnus/translations` or the absolute folder the user names in `CYGNUS_TRANSLATIONS` (their own environment), and ignores a file Qt cannot
+read. Labels show translated text as plain text, but some Kirigami components read markup (inline messages, placeholder explanations and dialog subtitles) and would interpret markup
+written in a translation: a translation file is trusted like the software it comes with, so install one only from a source you trust.
+
+### The Flatpak permissions viewer and the update icon
+
+**Permissions** (`cygnus/core/flatpak_permissions.py`) is read-only: it reads the installed application's metadata through libflatpak and the
+override files of the installation and of the user (`overrides/global` and `overrides/<application id>`), each only as a regular file of at most
+256 KiB (a link into the person's own dotfiles is followed, a pipe, a folder or an oversized file is skipped and said so), parses them as
+keyfiles with entry limits, and merges them in Flatpak's order. Names from those files are made printable and bounded before they are shown.
+Nothing is written and nothing is run. The reading was compared by hand with `flatpak info --show-permissions` on two real installations (the tests use fakes, as they
+cannot see the user's Flatpaks). An application installed both for the user and system-wide is shown as its per-user copy (the one `flatpak run` starts) unless the
+registry names the system copy.
+
+**The update icon** (`cygnus/core/tray.py`, `cygnus/gui/tray.py`) is a separate unprivileged program started from an autostart entry in the
+user's own `~/.config/autostart`. It reads only the results the update checks already stored (the registry's last known update states and
+`~/.cache/cygnus/system-updates.json`, which is size-capped and must parse as a JSON object with a list of packages); it opens no network
+connection and does not talk to the helper. Switching on writes the entry (never through a link or over a folder) and remembers the choice in
+the preferences; switching off removes the entry only if it carries Cygnus's marker (a link is removed, never what it points at). One copy runs
+at a time (a lock file in the runtime folder, or in the person's state folder when there is none; never `/tmp`), it quits within a minute of the choice being switched off (it looks once a minute), and it
+leaves politely when there is no tray. The system-update count is dropped once pacman's package database changed after the check that made it.
+
+### Choosing the default browser
+
+`cygnus/core/defaultbrowser.py` changes the user's own browser settings and nothing else: the browser lines of
+`~/.config/mimeapps.list` (`xdg-settings set default-web-browser`, which also writes the `about:` and unknown-scheme lines
+outside KDE) and, on KDE, `BrowserApplication` in `~/.config/kdeglobals`. No administrator action, no helper involved. One more thing
+happens outside KDE: `xdg-settings` itself (xdg-utils, not Cygnus) may add missing types to the user's own menu entry for that browser and write it
+with owner-only permissions; on KDE it does not (checked with the real tool). Cygnus does not undo that, and an entry it manages then reads as
+"changed after Cygnus wrote it" and is kept when the program is removed.
+- The menu entry name is validated (`[A-Za-z0-9][A-Za-z0-9._+-]*.desktop`, never starting with a dash or holding a path) before
+  it reaches `xdg-settings`, and the entry must exist in the user's or the system's application folders, claim `http`, `https`
+  and `text/html`, not be hidden, and start a program that exists. Names read from a menu entry are stripped of control
+  characters before they are shown.
+- `xdg-settings` is run with a minimal environment plus the session variables it needs to know the desktop
+  (`XDG_*`, `KDE_SESSION_VERSION`, `KDE_FULL_SESSION`, `DESKTOP_SESSION`); without `KDE_SESSION_VERSION` it fails and never
+  writes KDE's setting, so the module passes it on (a test proves the difference).
+- The result is **read back** from the default-applications list, `gio mime`, KDE's own key and `xdg-settings check`; a desktop-specific list
+  in the user's settings folder that overrides the choice is named in the message. If anything did not take, every setting is
+  put back to exactly what it was before the attempt, including the lines `xdg-settings` left behind when it failed (the menu-entry rewrite described above is not undone).
+- What was set before the very first choice is remembered in the preferences file (never overwritten by later choices) and put
+  back by "undo" only where the list is still exactly what the choice left (Cygnus keeps that too): a setting the user changed since, or a name added
+  to or taken out of the list since, makes the whole list the user's, and it is left as set. If an undo cannot write, the memory is kept so it can be
+  tried again. Names are kept as GLib reads them, including ones a menu entry's own id could not have (an `@`); a malformed file is read more
+  leniently than GLib reads it (a stray line without `=` does not hide the file from Cygnus, though GLib would ignore the whole file), and the final
+  read-back through `gio mime` is what decides success.
+- When Cygnus writes the menu entry of a program that files itself as a web browser but leaves `http`, `https` or `text/html` out
+  of its `MimeType`, it adds them (and says so): an entry that does not claim the types cannot be chosen by the desktop.
+
 ### Other package managers
 
 pacman allows one transaction at a time. Before running a plan, the helper:
@@ -247,6 +300,32 @@ narrowly (`cygnus/core/cacheclean.py`, `plan_cache_clean` / `clean_cache` in `cy
   the plan, is chosen again, and is still the same regular file; each file is removed with `unlinkat` relative to the folder's descriptor,
   so a link put in its place is never followed. A package installed in between can only make the list shorter.
 - The polkit action is `auth_admin` every time, never `_keep`; the message names the count, the size and the folder.
+
+### Discover (browsing what can be installed)
+
+Discover only LISTS (`cygnus/core/discover.py`, `cygnus/core/vendor_catalog.py`, the `discover_*` and `fetch_vendor_package` functions of
+`cygnus/gui/service.py`). It adds no administrator action and no new way to install: every choice is handed to a flow that has its own
+plan and confirmation. What it reads and how:
+- **AppStream files are hostile input.** Flathub's file and the Arch data package's are read as a stream with `xml.parsers.expat` (never
+  as one document in memory): a document type or entity declaration is refused in any encoding (so no entity expansion), at most 60,000
+  applications (240,000 components of every kind) and 768 MiB uncompressed are read (a file with more is refused as a whole, as is one nested more than 32 levels deep), the
+  default description, name and summary are taken (a translated variant is never read, whether it is a whole `<description xml:lang>` or a `<p xml:lang>` inside the default text), every field is cut to a limit, text is reduced to printable plain text, and only
+  application components are kept. A data file must be a regular file opened without following links and without blocking on a pipe;
+  one that cannot be read costs only itself (it is reported, the others are still listed).
+- **Icons** are used only as a bare file name of a known kind (`png`, `jxl`, `webp`) looked up in the size folder the data names, and only
+  if it is a regular file, not a link. **Websites** are kept only if they are well-formed `https` addresses. **Screenshots are not fetched**:
+  the page makes no request to anything while you browse. (Cygnus's existing hosts list is unchanged.)
+- **Merging is by exact identity only.** Two sources are one program only when they have the same AppStream id, or when the maker's package
+  is mapped to a Flathub id in a hand-checked table (`vendor_catalog.py`, kept equal to the feeds list by a test and to the verified ids
+  by another); never by a similar name. Google Chrome's beta channel has no Flathub id on purpose.
+- **A maker's package is downloaded, not converted, from the page.** `fetch_vendor_package` uses the same vendor package lists as the update
+  check (HTTPS only, capped, strictly validated), downloads over HTTPS into a folder of its own (`~/.cache/cygnus/downloads/vendor/<program>`,
+  mode 0700; only an earlier download of that program is removed, at most three programs' downloads are kept, nothing is deleted
+  through a link, and the Updates page's folder is never touched), checks the SHA-256 the maker publishes (the `.deb` has one; the `.rpm`
+  address has none, and the page says that only the secure connection vouches for it), and shares the one-download-at-a-time lock with the
+  Updates page. The file is then opened on the Install page, where it is analysed and confirmed like any file you chose.
+- The catalogue is built off the window's main thread and cached by each file's identity (path, size, date, inode); what is typed in the
+  search box is plain words (at most 8), never a pattern, and every argument from the window is checked in `service.discover_*`.
 
 ### The Packages page (repository packages by name)
 
@@ -410,7 +489,7 @@ analysed, and again when it is built).
   they could tell that the text reading above cannot (files generated at run time) is small; and every sandbox is a promise that
   a kernel or sandbox flaw can break. If a package needs a step Cygnus cannot read, it says so and shows the script. A script is
   run only when you choose to run it for real: see below.
-- **Updates of converted programs download, they do not install.** For the vendors that publish an apt `Packages` list (a built-in list of thirteen well known
+- **Updates of converted programs download, they do not install.** For the vendors that publish an apt `Packages` list (a built-in list of fourteen well known
   vendors, plus any you add yourself with `cygnus feed add`, which must be https and is read once before it is kept) Cygnus reads the newest version from it over HTTPS (TLS only; the list is decompressed with a
   size cap, every field is validated, and a file name that leads outside the vendor's own folder is refused). "Download and review"
   fetches that one file, checks its SHA-256 against the list (an rpm comes from the vendor's fixed "current" address and has no

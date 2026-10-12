@@ -24,7 +24,7 @@ def test_the_address_is_https_on_gumroad_and_has_no_tracking_or_personal_parts()
 
 def test_the_support_page_is_opened_only_by_the_button_and_says_so_in_words():
     qml = (REPO / "cygnus/gui/qml/SettingsPage.qml").read_text()
-    block = qml[qml.index('text: "Support Cygnus"') - 60:][:600]
+    block = qml[qml.index('text: qsTr("Support Cygnus")') - 60:][:600]
     assert "onClicked: Qt.openUrlExternally(" in block and "Cygnus itself sends nothing" in block
     assert qml.count(URL) == 1  # not opened from anywhere else (no timer, no start-up call)
     assert "openUrlExternally" not in (REPO / "cygnus/gui/qml/Main.qml").read_text().replace("showPassiveNotification", "")

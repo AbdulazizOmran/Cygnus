@@ -33,6 +33,30 @@ def xdg_config_home() -> Path:
     return Path(v) if v and os.path.isabs(v) else Path.home() / ".config"
 
 
+# What a menu entry has to claim before the desktop lets it be the default web browser (see core/defaultbrowser.py).
+BROWSER_MIME_TYPES = ("x-scheme-handler/http", "x-scheme-handler/https", "text/html")
+
+
+def complete_browser_types(mime: str, categories: str) -> tuple[str, list[str]]:
+    """A program that files itself as a web browser but leaves the types the desktop looks for out of its MimeType list can
+    never be chosen as the default browser (an AppImage's own menu entry is often written by hand, or trimmed). The three
+    types are added then, and only then. -> (the list to write, what was added)."""
+    if "WebBrowser" not in desktop_entry.split_list(categories):
+        return mime, []
+    have = desktop_entry.split_list(mime)
+    added = [t for t in BROWSER_MIME_TYPES if t not in have]
+    return (";".join(have + added) + ";", added) if added else (mime, [])
+
+
+def lacks_browser_types(path: Path) -> bool:
+    """Is the menu entry on disk one that files itself as a web browser but leaves out types a browser needs (one written before Cygnus added them)?"""
+    try:
+        entry = desktop_entry.parse(path.read_text(errors="replace")[:262144])
+    except OSError:
+        return False
+    return bool(complete_browser_types(entry.get("MimeType") or "", entry.get("Categories") or "")[1])
+
+
 def shim_dir() -> Path:
     # ~/.local/libexec/cygnus/launch for the default XDG_DATA_HOME (~/.local/share).
     return xdg_data_home().parent / "libexec/cygnus/launch"
@@ -178,6 +202,11 @@ def plan_appimage_integration(*, app_key: str, display_name: str, appimage_path:
     for key in ("GenericName", "Comment", "Categories", "MimeType", "Keywords", "StartupNotify", "Terminal"):
         if src.get(key):
             de.set_raw(key, src[key].replace("\n", " "))
+    mime, added = complete_browser_types(src.get("MimeType", "").replace("\n", " "), src.get("Categories", ""))
+    if added:
+        de.set_raw("MimeType", mime)
+        plan.notes.append("Its menu entry files it as a web browser but did not say it opens " + ", ".join(added)
+                          + ", so Cygnus added them: without that the desktop cannot offer it as your default browser.")
     for key, value in src.items():  # localized names/comments
         if re.fullmatch(r"(Name|GenericName|Comment|Keywords)\[[A-Za-z_@.-]+\]", key):
             de.set_raw(key, value.replace("\n", " "))

@@ -52,10 +52,19 @@ it started.
 | Local Arch package | ✓ via the privileged helper | with the system | ✓ via the helper | — | — | ✓ |
 | AUR | ✓ review → build as you → install via the helper (dependency chains too) | rebuild after reviewing changes | ✓ via the helper | — | — | ✓ |
 | Archive (`.tar.gz`, `.tar.xz`, `.tar.zst` …) | ✓ unpack onto a drive of your choice, with a menu entry and launcher (its scripts are shown, and run only if you tick them; libraries checked afterwards) | notice only (Cygnus tells you to reinstall) | ✓ | — | — | libraries, checked after installing and on demand |
-| DEB / RPM | ✓ convert into a pacman package when safe (shows what the vendor's install scripts would have done; they are run only if you tick a box); otherwise a native alternative or a refusal | ✓ for 13 known vendors (Chrome, Edge, Brave, Signal, …) and any you add: download, review, replace | ✓ via the helper | — | — | — |
+| DEB / RPM | ✓ convert into a pacman package when safe (shows what the vendor's install scripts would have done; they are run only if you tick a box); otherwise a native alternative or a refusal | ✓ for 14 known vendors (Chrome, Edge, Brave, Signal, …) and any you add: download, review, replace | ✓ via the helper | — | — | — |
 
 * **Flathub's Install button and software files** can open Cygnus instead of another store (an opt-in switch in
   Settings; it asks first and never installs by itself).
+* **Translatable**: the text on the screens can be translated (about seven in ten of it today; none is shipped; see `docs/translating.md`).
+* **Flatpak permissions** in plain words: what an installed Flatpak may do outside its sandbox, with what lets it leave the sandbox marked and
+  your own overrides shown (read-only).
+* **An optional update icon** in the system tray while updates are waiting (off until you switch it on; the icon only reads stored results and never goes to the network).
+* **Discover**: browse what you can get from Flathub, your repositories and the makers' own `.deb`/`.rpm` packages, with every way to get a
+  program explained in plain words. It only lists: each choice goes to the page that already installs it, with its own confirmation.
+* **Your default browser**: a browser Cygnus manages (Helium, for example) can be made the one links open with, in one click
+  or with `cygnus default-browser set`. Cygnus reads the result back from every place the desktop looks, undoes it with a plain
+  message if it did not take, and remembers what was set before so you can put it back. Only your own settings change.
 * **System updates** are checked without administrator rights and applied as one full upgrade
   through the helper (never a partial upgrade); a new kernel is pointed out. Before an update starts, the **Arch news** since your
   last upgrade is shown, and an item that says it needs a manual step must be acknowledged first.
@@ -103,7 +112,8 @@ for updates of what you installed: your distribution's package mirrors (through 
 `dl.flathub.org`, `aur.archlinux.org`, `archlinux.org` (the news feed, read when you start a system update), `api.github.com` / `github.com` (AppImage update information, and a check whether a newer Cygnus exists: GitHub sees your address
 and `Cygnus/<version>`, nothing else),
 and the vendor
-package lists of programs you converted (for example `dl.google.com`, `packages.microsoft.com`). Everything it stores is in
+package lists of programs you converted (for example `dl.google.com`, `packages.microsoft.com`), and a vendor's own server only when you press
+"Download and review" on Discover for that vendor's program. Browsing Discover itself contacts nothing: it reads files already on your computer. Everything it stores is in
 `~/.local/share/cygnus`, `~/.config/cygnus`, `~/.cache/cygnus` and `~/.local/state/cygnus`, plus the helper's own
 record of administrator actions in `/var/lib/cygnus`.
 
@@ -141,7 +151,7 @@ ordinary pacman packages, Flatpaks and AppImages); Cygnus only forgets them. Its
     pages, and the switch that makes Cygnus the default program for software files) and `glib2` (`gio`,
     which reads that default).
   * Optional: `base-devel` (the compilers and build tools AUR packages need to build from source),
-    `kservice` (refresh the Plasma menu at once), `fuse2` / `fuse3` (run AppImages that need them),
+    `kservice` (refresh the Plasma menu at once), `archlinux-appstream-data` (lets Discover list your repositories' programs), `fuse2` / `fuse3` (run AppImages that need them),
     `zsync` (delta downloads for AppImage updates).
 * **Build:** `python-build`, `python-installer`, `python-setuptools`, `python-wheel`.
 * **Tests:** `python-pytest`.

@@ -24,8 +24,9 @@ def test_every_page_loads_without_warnings(tmp_path):
     assert proc.returncode == 0 and lines, proc.stderr[-3000:]
     report = json.loads(lines[-1])
     assert report["window"] and not report["errors"]
-    assert report["pages"] == {"apps": "Applications", "app": "Hello World", "packages": "Packages", "package": "bash",
-                               "updates": "Updates", "storage": "Storage", "settings": "Settings", "install": "Install"}
+    assert report["pages"] == {"apps": "Applications", "app": "Hello World", "discover": "Discover", "discoverApp": "Google Chrome",
+                               "packages": "Packages", "package": "bash", "updates": "Updates", "storage": "Storage",
+                               "settings": "Settings", "install": "Install"}
     assert [w for w in report["warnings"] if not w.endswith(UPSTREAM)] == []
     plan = report["install_plan"]
     assert plan and plan["format"] == "appimage" and plan["name"] == "Hello World"

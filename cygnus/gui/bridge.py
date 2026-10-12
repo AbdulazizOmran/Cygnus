@@ -241,6 +241,48 @@ class Backend(QObject):
 
         return self._submit(lambda: handlers.enable() if enabled else handlers.disable())
 
+    @Slot(str, result=str)
+    def flatpakPermissions(self, installation_id: str) -> str:
+        return self._submit(lambda: service.flatpak_permissions(installation_id))
+
+    @Slot(result=str)
+    def trayStatus(self) -> str:
+        from cygnus.core import tray
+
+        return self._submit(tray.status)
+
+    @Slot(bool, result=str)
+    def setTray(self, enabled: bool) -> str:
+        from cygnus.core import tray
+
+        return self._submit(lambda: tray.enable() if enabled else tray.disable())
+
+    @Slot(result=str)
+    def discoverOverview(self) -> str:
+        return self._submit(service.discover_overview, long=True)  # the first call reads the data files: seconds, not milliseconds
+
+    @Slot(str, str, str, int, result=str)
+    def discoverSearch(self, query: str, group: str, kind: str, offset: int) -> str:
+        return self._submit(lambda: service.discover_search(query, group, kind, offset), long=True)
+
+    @Slot(str, result=str)
+    def discoverApp(self, key: str) -> str:
+        return self._submit(lambda: service.discover_app(key), long=True)
+
+    @Slot(str, str, result=str)
+    def fetchVendorPackage(self, package: str, fmt: str) -> str:
+        return self._submit(lambda progress: service.fetch_vendor_package(package, fmt, progress), wants_progress=True)
+
+    @Slot(str, result=str)
+    def defaultBrowserInfo(self, installation_id: str) -> str:
+        return self._submit(lambda: service.default_browser_info(installation_id))
+
+    @Slot(str, bool, result=str)
+    def setDefaultBrowser(self, desktop_id: str, enabled: bool) -> str:
+        from cygnus.core import defaultbrowser
+
+        return self._submit(lambda: defaultbrowser.enable(desktop_id) if enabled else defaultbrowser.restore(), long=True)
+
     @Slot(result=str)
     def interruptedAurChains(self) -> str:
         from cygnus.gui import fixes

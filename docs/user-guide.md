@@ -189,6 +189,22 @@ Discover…) and puts it back when you switch it off. If a Cygnus window is alre
 opening a second one. A browser remembers its own "always open with…" choice: if you once told Firefox or Chrome to
 always use another program, reset that in the browser's settings.
 
+**Making a browser your default browser.** A program that came as an AppImage or an archive is not known to the desktop as
+a browser until Cygnus gives it a menu entry, and even then somebody has to choose it. On the page of a web browser Cygnus
+manages (Helium, for example), **Make default browser…** says what will change, then sets it: web links (`http`, `https`)
+and web page files open there from every program (outside KDE the `about:` links too). Cygnus makes the choice with `xdg-settings`, the same
+program browsers use for their own "make default" button, and then **reads the result back from every place the desktop
+looks** (the list of default applications, KDE's own browser setting and what the desktop answers when asked), so "done"
+means it took. If it did not, everything is put back and the message names what did not stick. What was set before is
+remembered: the page then offers **Put back the earlier browser…**, and a setting you changed yourself in the meantime is
+left as you set it. A browser that is first only because nothing else is chosen is told so on its page. A browser whose
+menu entry leaves out what a browser has to claim cannot be chosen (the reason is shown); when Cygnus writes the menu entry
+for a program that files itself as a web browser it adds those claims itself, and **Repair** does the same for one set up
+earlier. A browser kept on a drive that can be unplugged says that links will not open while the drive is away. In the
+terminal: `cygnus default-browser status | list | set NAME | undo`. Only your own settings change (`~/.config/mimeapps.list`
+and, on KDE, `~/.config/kdeglobals`); nothing needs a password. (Outside KDE, the program that makes the choice, `xdg-settings`, may also add
+missing types to your own menu entry for the browser.)
+
 **Progress.** Installs, updates, moves, repairs and uninstalls show a progress bar with the step it is on.
 The bar shows a real count only: the step of the operation, pacman's own package counter, the bytes of a
 download of known size, or Flatpak's percentage. Where no count exists (building, looking things up), the bar
@@ -196,6 +212,27 @@ only shows that something is happening.
 
 **Already have an AppImage?** Open its page and choose **Manage with Cygnus**. Cygnus adds a menu
 entry and a launcher that keep working when its drive is unplugged. The file stays where it is.
+
+## Discover: browsing what you can get
+
+**Discover** is the page to browse when you do not know yet which program you want. It lists the programs on Flathub (and on any
+other Flatpak remote you have), the ones in your own repositories, and the ones their makers publish as a `.deb` or `.rpm` (Chrome, Edge,
+Vivaldi, Brave, Opera, Signal, 1Password, TeamViewer, Slack, Visual Studio Code, Google Earth and any source you added with
+`cygnus feed add`). Type in the search box (every word must appear in the name, what it does, its keywords, its maker or its id; the best
+matches come first), pick a kind of program, or only the programs that can be got one way. Opening a program shows **every way to
+get it**, in plain words: the Flatpak (sandboxed, updated by Flatpak), the repository package (part of your system) and the maker's own
+package (converted by Cygnus when that is safe; not sandboxed; it does not update itself). The same program from several places is one
+entry, but only when the data says it is the same program (the same AppStream id, or a maker's package whose Flathub id was checked by
+hand), never because the names look alike.
+
+Nothing is installed from Discover. Each way opens the page that already does that job and asks the usual questions: a Flatpak goes to the
+Install page (what it needs and where it goes), a repository package to its page in Packages, a maker's file is first downloaded over
+HTTPS and checked against the checksum the maker publishes (the `.deb` has one; the maker's `.rpm` address has none, and the page says so),
+then opened on the Install page for the full look before anything is converted. Programs from your own repositories are listed only when
+AppStream data for them is installed: the package `archlinux-appstream-data` (Settings → Optional parts; it holds data only) puts it in
+`/usr/share/swcatalog`, and Discover also reads the other standard catalogue folders (`/var/lib/swcatalog`, `/usr/share/app-info`); a program
+listed from there is opened on its page in Packages, which says so if no repository has it. Screenshots are not fetched.
+Terminal: `cygnus discover search [WORDS] [--group G] [--source flatpak|repo|vendor] [--page N]` and `cygnus discover info ID`.
 
 ## Packages from your repositories
 
@@ -257,6 +294,16 @@ cannot download a file, the lists are old: update the system.
 
 Terminal: `cygnus packages search WORDS…`, `info NAME [--files]`, `installed [--explicit --deps --unneeded --updates --foreign]`,
 `install NAME…`, `remove NAME… [--not-installed-by-cygnus]`, `versions NAME`, `downgrade NAME [--to VERSION]`, `orphans`, `cache`, `clean`.
+
+## What a Flatpak may do (Permissions)
+
+On the page of a Flatpak application, **Permissions…** lists what it is allowed to do outside its sandbox, in plain words and grouped: the
+internet, windows and sound, devices, files, the other programs it can talk to, and the settings it changes. What lets a program **leave the
+sandbox** (every file on your computer, starting programs outside it, the whole session bus) is marked with a warning sign and listed first
+in its group; what reaches a great deal (your whole home folder, every device) is marked as broad. The list is the application's own
+permissions with the changes made on this computer by Flatseal or `flatpak override` applied the way Flatpak applies them (the application's
+own, then the system-wide overrides, then yours; an item written with `!` takes that item away), and it says which ones you changed. Cygnus
+only shows permissions: change them with Flatseal or `flatpak override`. In the terminal: `cygnus permissions org.example.App [--json]`.
 
 ## Checking an application
 
@@ -341,6 +388,21 @@ checks every few hours and sends a notification about anything new:
 - pending system updates, at most once a day.
 
 It never installs anything by itself.
+
+## Language
+
+The window's text can be shown in your language when a translation of it exists; Cygnus ships none of its own yet, so it is English until someone
+adds one (see `docs/translating.md`: it also says plainly how much of the text can be translated, about seven in ten of the pieces of text on the screens, and
+that messages made in Python, such as errors and what a plan will do, stay in English). The language is your desktop's, or `CYGNUS_LANGUAGE`.
+
+## The update icon in the system tray
+
+**Settings → Update icon** switches on a small icon in the system tray that appears while updates are waiting and says how many (programs and
+system packages, and whether one is a kernel). Clicking it opens Cygnus; its menu can look for updates now. It is a separate little program
+(`cygnus-tray`) that starts when you log in, and it only reads the stored results of the last update checks: it never goes to the network,
+never installs anything and never starts the root helper. The checks themselves are still made by the background timer or the Updates page; the menu item
+**Look for updates now** runs that same background check, which does go to the network (your mirrors and GitHub) like the Updates page does.
+Switching it off removes it (a running icon notices within a minute and goes away). In the terminal: `cygnus tray status | on | off`.
 
 ## Moving and repairing (AppImages)
 
@@ -432,7 +494,8 @@ something can be updated, and that includes a newer Cygnus.
 
 The packages Cygnus needs to run are installed with it by pacman. A few extra tools are only suggested, and Cygnus uses them
 when they are there: `fuse3` and `fuse2` (start AppImages the normal way), `zsync` (download only what changed when an
-AppImage is updated), `base-devel` (build AUR packages) and `kservice` (refresh the Plasma menu at once). **Settings →
+AppImage is updated), `base-devel` (build AUR packages), `kservice` (refresh the Plasma menu at once) and `archlinux-appstream-data`
+(the descriptions and icons Discover needs to list programs from your repositories). **Settings →
 Optional parts** lists the ones that are missing and installs any of them on request: it shows the helper's plan (exactly what
 pacman will install) and asks for your password, like every other installation. Cygnus never installs them by itself.
 What an application needs (Flatpak runtimes, build dependencies of an AUR package, libraries of a converted program) is

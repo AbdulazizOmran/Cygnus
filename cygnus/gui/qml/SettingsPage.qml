@@ -27,7 +27,7 @@ FormCard.FormCardPage {
                 onProgress(line);
         } : undefined);
     }
-    title: "Settings"
+    title: qsTr("Settings")
 
     property bool changing: false // a switch is being applied: the others wait, so two answers cannot cross
     property bool watchAvailable: false
@@ -51,17 +51,17 @@ FormCard.FormCardPage {
     property string aiPending: "" // the assistant the dialog is being used to set up, while it is not the saved one yet
     property string aiDialogError: ""
     readonly property var aiProviderIds: ["hosted", "gemini", "compatible"]
-    readonly property var aiProviderNames: ["Cygnus hosted assistant (nothing to set up)", "Google Gemini, with your own key", "OpenAI-compatible server, or one on this computer"]
+    readonly property var aiProviderNames: [qsTr("Cygnus hosted assistant (nothing to set up)"), qsTr("Google Gemini, with your own key"), qsTr("OpenAI-compatible server, or one on this computer")]
     readonly property string aiProviderId: aiState ? aiState.provider : "hosted"
     readonly property string aiDialogProvider: aiPending !== "" ? aiPending : aiProviderId
     readonly property bool aiHasKey: !!aiState && aiState.has_key
     readonly property bool aiWalletOk: !!aiState && aiState.wallet_ok
     readonly property string aiProviderNote: {
         if (aiProviderId === "hosted")
-            return aiState && !aiState.hosted_available ? "The hosted assistant is not available in this version yet: pick another one, or leave this off." : "Free while in beta, and limited per day for everyone. The request goes to Cygnus's own small service, hosted on Cloudflare, which asks Google's Gemini on your behalf. It needs no account and stores nothing about you, but like any website it sees your internet address, and Google may keep the public text under the terms of its free service.";
+            return aiState && !aiState.hosted_available ? qsTr("The hosted assistant is not available in this version yet: pick another one, or leave this off.") : qsTr("Free while in beta, and limited per day for everyone. The request goes to Cygnus's own small service, hosted on Cloudflare, which asks Google's Gemini on your behalf. It needs no account and stores nothing about you, but like any website it sees your internet address, and Google may keep the public text under the terms of its free service.");
         if (aiProviderId === "gemini")
-            return "Your key goes straight to Google (generativelanguage.googleapis.com) and is kept in KWallet.";
-        return "For a program such as Ollama on this computer, or a server you trust. A key is optional, and is kept for this server's address only.";
+            return qsTr("Your key goes straight to Google (generativelanguage.googleapis.com) and is kept in KWallet.");
+        return qsTr("For a program such as Ollama on this computer, or a server you trust. A key is optional, and is kept for this server's address only.");
     }
 
     function syncProviderChoice() {
@@ -179,7 +179,7 @@ FormCard.FormCardPage {
         if (aiBusy)
             return;
         aiBusy = true;
-        aiMessage = "Testing…";
+        aiMessage = qsTr("Testing…");
         page.ask(backend.aiTest(), function (r) {
             aiBusy = false;
             aiMessage = r.ok && r.result.ok ? "It works: " + root.flat(r.result.provider) + " answered." : root.flat(root.why(r));
@@ -204,28 +204,28 @@ FormCard.FormCardPage {
     }
 
     FormCard.FormHeader {
-        title: "Safety"
+        title: qsTr("Safety")
     }
     FormCard.FormCard {
         FormCard.FormTextDelegate {
-            text: "Community (AUR) build scripts"
-            description: "Always shown for review before building. This cannot be turned off from here."
+            text: qsTr("Community (AUR) build scripts")
+            description: qsTr("Always shown for review before building. This cannot be turned off from here.")
         }
         FormCard.FormDelegateSeparator {}
         FormCard.FormTextDelegate {
-            text: "Administrator actions"
-            description: "Every system change shows exactly what will happen in the authentication dialog."
+            text: qsTr("Administrator actions")
+            description: qsTr("Every system change shows exactly what will happen in the authentication dialog.")
         }
     }
 
     FormCard.FormHeader {
-        title: "Background checks"
+        title: qsTr("Background checks")
     }
     FormCard.FormCard {
         FormCard.FormSwitchDelegate {
             id: watchSwitch
-            text: "Check for updates and problems"
-            description: "Every few hours, Cygnus checks your applications and system packages and sends a notification about anything new. It never installs anything by itself."
+            text: qsTr("Check for updates and problems")
+            description: qsTr("Every few hours, Cygnus checks your applications and system packages and sends a notification about anything new. It never installs anything by itself.")
             enabled: page.watchAvailable && !page.changing
             onToggled: {
                 const wanted = checked;
@@ -245,18 +245,18 @@ FormCard.FormCardPage {
         FormCard.FormTextDelegate {
             id: watchNote
             visible: description !== ""
-            text: "Note"
+            text: qsTr("Note")
         }
     }
 
     FormCard.FormHeader {
-        title: "Opening software"
+        title: qsTr("Opening software")
     }
     FormCard.FormCard {
         FormCard.FormSwitchDelegate {
             id: handlerSwitch
-            text: "Open Flathub links and software files with Cygnus"
-            description: "Makes Cygnus the program that opens Flathub's Install button, .flatpakref and .flatpak files, .deb, .rpm and AppImage files. It never installs anything by itself: it shows what the file is and asks first. Turning this off puts back the program that opened them before."
+            text: qsTr("Open Flathub links and software files with Cygnus")
+            description: qsTr("Makes Cygnus the program that opens Flathub's Install button, .flatpakref and .flatpak files, .deb, .rpm and AppImage files. It never installs anything by itself: it shows what the file is and asks first. Turning this off puts back the program that opened them before.")
             enabled: page.handlerAvailable && !page.changing
             onToggled: {
                 const wanted = checked;
@@ -282,24 +282,63 @@ FormCard.FormCardPage {
         FormCard.FormTextDelegate {
             id: handlerNote
             visible: description !== ""
-            text: "Note"
+            text: qsTr("Note")
         }
     }
 
     FormCard.FormHeader {
-        title: "Optional parts"
+        title: qsTr("Update icon")
+    }
+    FormCard.FormCard {
+        FormCard.FormSwitchDelegate {
+            id: traySwitch
+            objectName: "traySwitch"
+            text: qsTr("Show an icon in the system tray while updates are waiting")
+            description: qsTr("A small separate program that starts when you log in. It only looks at the results of the last update checks (it never goes to the network or installs anything), shows an icon while something is waiting, and opens Cygnus when you click it. Turning this off removes it.")
+            enabled: !page.changing
+            onToggled: {
+                const wanted = checked;
+                page.changing = true;
+                page.ask(backend.setTray(wanted), function (r) {
+                    page.changing = false;
+                    if (r.ok) {
+                        traySwitch.checked = r.result.enabled;
+                        trayNote.description = "";
+                    } else {
+                        traySwitch.checked = !wanted;
+                        trayNote.description = root.flat(r.error);
+                        page.changing = true; // it may be set up although it could not be started: show what is really so
+                        page.ask(backend.trayStatus(), function (state) {
+                            page.changing = false;
+                            if (state.ok)
+                                traySwitch.checked = state.result.enabled;
+                        });
+                    }
+                });
+            }
+        }
+        FormCard.FormTextDelegate {
+            id: trayNote
+            objectName: "trayNote"
+            visible: description !== ""
+            text: qsTr("Note")
+        }
+    }
+
+    FormCard.FormHeader {
+        title: qsTr("Optional parts")
     }
     FormCard.FormCard {
         FormCard.FormTextDelegate {
             visible: page.parts.length > 0 && page.parts.every(p => p.present)
-            text: "Everything optional is installed"
-            description: "Cygnus can use every extra tool it knows about."
+            text: qsTr("Everything optional is installed")
+            description: qsTr("Cygnus can use every extra tool it knows about.")
         }
         Repeater {
             model: page.parts.filter(p => !p.present)
             delegate: FormCard.FormButtonDelegate {
                 required property var modelData
-                text: modelData.package + " is not installed"
+                text: qsTr("%1 is not installed").arg(modelData.package)
                 description: root.flat(modelData.what)
                 icon.name: "download"
                 enabled: !page.changing
@@ -308,15 +347,15 @@ FormCard.FormCardPage {
         }
         FormCard.FormTextDelegate {
             visible: page.partsMessage !== ""
-            text: "Note"
+            text: qsTr("Note")
             description: page.partsMessage
         }
     }
 
     Kirigami.PromptDialog {
         id: aiDialog
-        title: page.aiDialogProvider === "gemini" ? "Google Gemini" : "Your own server"
-        subtitle: page.aiDialogProvider === "gemini" ? "Your Gemini key from Google AI Studio. It is kept in KWallet, never in a file, and is not shown again." : "Where the server is, and a key if it needs one. A key is kept in KWallet, never in a file, and for this address only: if you change the address, give the key again."
+        title: page.aiDialogProvider === "gemini" ? qsTr("Google Gemini") : qsTr("Your own server")
+        subtitle: page.aiDialogProvider === "gemini" ? qsTr("Your Gemini key from Google AI Studio. It is kept in KWallet, never in a file, and is not shown again.") : qsTr("Where the server is, and a key if it needs one. A key is kept in KWallet, never in a file, and for this address only: if you change the address, give the key again.")
         standardButtons: Kirigami.Dialog.Cancel
         onClosed: {
             aiKey.text = ""; // a key that was typed and not saved is not kept anywhere
@@ -326,7 +365,7 @@ FormCard.FormCardPage {
         }
         customFooterActions: [
             Kirigami.Action {
-                text: "Save"
+                text: qsTr("Save")
                 icon.name: "dialog-ok"
                 enabled: !page.aiBusy
                 onTriggered: page.saveAiDialog()
@@ -340,7 +379,7 @@ FormCard.FormCardPage {
                 text: root.plain(page.aiDialogError)
             }
             QQC2.Label {
-                text: "Model"
+                text: qsTr("Model")
                 textFormat: Text.PlainText
             }
             QQC2.TextField {
@@ -349,17 +388,17 @@ FormCard.FormCardPage {
             }
             QQC2.Label {
                 visible: page.aiDialogProvider === "compatible"
-                text: "Address of the server (https, or http on this computer)"
+                text: qsTr("Address of the server (https, or http on this computer)")
                 textFormat: Text.PlainText
             }
             QQC2.TextField {
                 id: aiBase
                 visible: page.aiDialogProvider === "compatible"
                 Layout.fillWidth: true
-                placeholderText: "http://localhost:11434/v1"
+                placeholderText: "http://localhost:11434/v1" // an example address, not text for a person
             }
             QQC2.Label {
-                text: page.aiHasKey && page.aiPending === "" ? "Key (one is saved; type a new one to replace it)" : "Key"
+                text: page.aiHasKey && page.aiPending === "" ? qsTr("Key (one is saved; type a new one to replace it)") : qsTr("Key")
                 textFormat: Text.PlainText
             }
             QQC2.TextField {
@@ -367,7 +406,7 @@ FormCard.FormCardPage {
                 Layout.fillWidth: true
                 echoMode: TextInput.Password
                 enabled: page.aiWalletOk
-                placeholderText: page.aiWalletOk ? "" : "KWallet is not available"
+                placeholderText: page.aiWalletOk ? "" : qsTr("KWallet is not available")
             }
         }
     }
@@ -379,7 +418,7 @@ FormCard.FormCardPage {
         standardButtons: Kirigami.Dialog.Cancel
         customFooterActions: [
             Kirigami.Action {
-                text: "Install"
+                text: qsTr("Install")
                 icon.name: "dialog-ok"
                 onTriggered: {
                     partsDialog.close();
@@ -388,7 +427,7 @@ FormCard.FormCardPage {
                     const plan = page.partsPlan;
                     page.partsPlan = null;
                     page.changing = true;
-                    page.partsMessage = "Installing… (you will be asked for your password)";
+                    page.partsMessage = qsTr("Installing… (you will be asked for your password)");
                     page.ask(backend.commitFix(plan.token), function (r) {
                         page.changing = false;
                         page.partsMessage = r.ok && r.result.ok ? "" : root.flat(root.why(r));
@@ -400,76 +439,76 @@ FormCard.FormCardPage {
     }
 
     FormCard.FormHeader {
-        title: "AI assistant (optional)"
+        title: qsTr("AI assistant (optional)")
     }
     FormCard.FormCard {
         FormCard.FormSwitchDelegate {
             id: aiSwitch
-            text: "Suggest what an application may still need"
-            description: "Off by default. When you press \"What else does this need?\" on an application, Cygnus reads that program's public documentation itself and asks an AI assistant what else it mentions (a group, a service, a library, a browser extension). Only the program's name and id, its format, and the text of those public pages are sent: nothing about you, your files or your other programs. The AI can be wrong, so Cygnus keeps only suggestions that quote a sentence really present in those pages, checks that a suggested package or group exists, labels each one as an unverified AI suggestion, and never installs anything without your approval."
+            text: qsTr("Suggest what an application may still need")
+            description: qsTr("Off by default. When you press \"What else does this need?\" on an application, Cygnus reads that program's public documentation itself and asks an AI assistant what else it mentions (a group, a service, a library, a browser extension). Only the program's name and id, its format, and the text of those public pages are sent: nothing about you, your files or your other programs. The AI can be wrong, so Cygnus keeps only suggestions that quote a sentence really present in those pages, checks that a suggested package or group exists, labels each one as an unverified AI suggestion, and never installs anything without your approval.")
             enabled: !page.changing && !page.aiBusy && !!page.aiState
             onToggled: page.changeAi(checked, page.aiState.provider, page.aiState.model, page.aiState.base_url || "")
         }
         FormCard.FormDelegateSeparator {}
         FormCard.FormComboBoxDelegate {
             id: aiProvider
-            text: "Which assistant"
+            text: qsTr("Which assistant")
             description: page.aiProviderNote
             model: page.aiProviderNames
             enabled: !page.changing && !page.aiBusy && !!page.aiState
             onActivated: page.pickProvider(currentIndex)
         }
         FormCard.FormButtonDelegate {
-            text: "Model, address and key…"
-            description: page.aiProviderId === "compatible" ? "The server's address, the model it should use, and a key if it needs one." : "The model to use and your key."
+            text: qsTr("Model, address and key…")
+            description: page.aiProviderId === "compatible" ? qsTr("The server's address, the model it should use, and a key if it needs one.") : qsTr("The model to use and your key.")
             icon.name: "configure"
             visible: page.aiProviderId !== "hosted"
             enabled: !page.changing && !page.aiBusy && !!page.aiState
             onClicked: page.openAiDialog(page.aiProviderId)
         }
         FormCard.FormButtonDelegate {
-            text: "Remove the saved key"
+            text: qsTr("Remove the saved key")
             icon.name: "edit-delete"
             visible: page.aiProviderId !== "hosted" && page.aiHasKey
             enabled: !page.changing && !page.aiBusy
             onClicked: page.removeAiKey()
         }
         FormCard.FormButtonDelegate {
-            text: "Test the connection"
-            description: "Checks that the assistant above answers. The shared assistant is only asked whether it is ready; the others get one harmless question. Nothing about you is sent."
+            text: qsTr("Test the connection")
+            description: qsTr("Checks that the assistant above answers. The shared assistant is only asked whether it is ready; the others get one harmless question. Nothing about you is sent.")
             icon.name: "network-connect"
             enabled: !page.changing && !page.aiBusy && aiSwitch.checked
             onClicked: page.testAi()
         }
         FormCard.FormTextDelegate {
             visible: page.aiMessage !== ""
-            text: "Note"
+            text: qsTr("Note")
             description: page.aiMessage
         }
     }
 
     FormCard.FormHeader {
-        title: "About"
+        title: qsTr("About")
     }
     FormCard.FormCard {
         FormCard.FormTextDelegate {
-            text: "Cygnus"
-            description: "Application installer and manager for CachyOS"
+            text: qsTr("Cygnus")
+            description: qsTr("Application installer and manager for CachyOS")
         }
         FormCard.FormDelegateSeparator {}
         FormCard.FormTextDelegate {
-            text: "Version"
-            description: (Qt.application.version ? Qt.application.version + " " : "") + "(public beta). To report a problem, run `cygnus report` in a terminal and paste what it prints."
+            text: qsTr("Version")
+            description: (Qt.application.version ? Qt.application.version + " " : "") + qsTr("(public beta). To report a problem, run `cygnus report` in a terminal and paste what it prints.")
         }
         FormCard.FormDelegateSeparator {}
         FormCard.FormTextDelegate {
-            text: "Application ID"
-            description: "io.github.omranabdulaziz.Cygnus"
+            text: qsTr("Application ID")
+            description: root.appId
         }
         FormCard.FormDelegateSeparator {}
         FormCard.FormButtonDelegate {
-            text: "Support Cygnus"
-            description: "Cygnus is free software, made by one person. If it saves you time, you can support its development on Gumroad. This opens the page in your web browser; Cygnus itself sends nothing."
+            text: qsTr("Support Cygnus")
+            description: qsTr("Cygnus is free software, made by one person. If it saves you time, you can support its development on Gumroad. This opens the page in your web browser; Cygnus itself sends nothing.")
             icon.name: "emblem-favorite"
             onClicked: Qt.openUrlExternally("https://azizomran.gumroad.com/l/jtudib")
         }
@@ -485,6 +524,12 @@ FormCard.FormCardPage {
                 watchNote.description = r.result.available ? "" : root.flat(r.result.why || "");
             } else {
                 watchNote.description = root.flat(r.error);
+            }
+        });
+        page.ask(backend.trayStatus(), function (r) {
+            if (r.ok) {
+                traySwitch.checked = r.result.enabled;
+                trayNote.description = r.result.why ? root.flat(r.result.why) : "";
             }
         });
         page.ask(backend.defaultHandler(), function (r) {

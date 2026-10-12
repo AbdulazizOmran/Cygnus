@@ -105,6 +105,9 @@ def main(argv: list[str] | None = None) -> int:
     app.setApplicationVersion(__version__)
     app.setOrganizationDomain("omranabdulaziz.github.io")
     app.setDesktopFileName(APP_ID)
+    from cygnus.gui import i18n
+
+    i18n.install(app)  # the text of the screens in the language of the desktop, when there is a translation of it
 
     receiver = instance.Receiver()
     if not instance.listen(receiver):  # another window is open: give it the arguments and leave

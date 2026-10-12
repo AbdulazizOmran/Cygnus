@@ -38,7 +38,7 @@ Kirigami.ScrollablePage {
     }
     property real progressValue: -1 // how far the running request really is (0..1); -1 = not known, the bar only shows activity
     property string progressLabel: ""
-    title: "Install"
+    title: qsTr("Install")
 
     property string fileUrl: ""
     property string launchNotice: "" // why something handed to Cygnus (a link, a file) could not be opened, or what it asked for
@@ -117,17 +117,17 @@ Kirigami.ScrollablePage {
         if (!plan)
             return "";
         if (plan.kind === "foreign")
-            return vendorChosen ? "The vendor's install scripts will run as administrator when the package is installed and removed." : "";
+            return vendorChosen ? qsTr("The vendor's install scripts will run as administrator when the package is installed and removed.") : "";
         const chosen = chosenScripts();
         if (!chosen.length)
             return "";
-        return "After installing, Cygnus will run: " + chosen.map(c => c.name + (c.as === "admin" ? " (as administrator, asking for your password)" : " (as you)")).join("; ") + ".";
+        return "After installing, Cygnus will run: " + chosen.map(c => c.name + (c.as === "admin" ? qsTr(" (as administrator, asking for your password)") : qsTr(" (as you)"))).join("; ") + ".";
     }
 
     function reportScripts(results) {
         const failed = results.filter(x => !x.ok);
         results.forEach(x => {
-            log += (x.ok ? "Ran " : "Did not run ") + x.script + (x.ok ? ": it finished without an error" : ": " + x.error) + "\n";
+            log += (x.ok ? "Ran " : qsTr("Did not run ")) + x.script + (x.ok ? qsTr(": it finished without an error") : ": " + x.error) + "\n";
             if (x.output)
                 log += x.output + "\n";
         });
@@ -487,8 +487,8 @@ Kirigami.ScrollablePage {
     Kirigami.PromptDialog {
         id: confirmDialog
         property bool confirmed: false
-        title: page.confirmPlan && page.confirmPlan.dialog_title ? root.flat(page.confirmPlan.dialog_title) : "Confirm installation"
-        subtitle: page.confirmPlan ? root.flat(page.confirmPlan.message + (page.confirmPlan.security_note ? "\n\n" + page.confirmPlan.security_note : "") + (page.confirmPlan.relogin ? "\n\nYou will need to log out and back in afterwards." : "")) : ""
+        title: page.confirmPlan && page.confirmPlan.dialog_title ? root.flat(page.confirmPlan.dialog_title) : qsTr("Confirm installation")
+        subtitle: page.confirmPlan ? root.flat(page.confirmPlan.message + (page.confirmPlan.security_note ? "\n\n" + page.confirmPlan.security_note : "") + (page.confirmPlan.relogin ? qsTr("\n\nYou will need to log out and back in afterwards.") : "")) : ""
         standardButtons: Kirigami.Dialog.Cancel
         onOpened: confirmed = false
         onClosed: {
@@ -523,7 +523,7 @@ Kirigami.ScrollablePage {
 
     FileDialog {
         id: fileDialog
-        title: "Choose an application to install"
+        title: qsTr("Choose an application to install")
         nameFilters: ["Applications (*.AppImage *.appimage *.flatpak *.flatpakref *.pkg.tar.* *.pkg *.deb *.rpm *.tar.gz *.tgz *.tar.xz *.txz *.tar.zst *.tar.bz2 *.tar)", "All files (*)"]
         onAccepted: {
             if (page.installing)
@@ -568,15 +568,15 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
             type: Kirigami.MessageType.Warning
             visible: page.unfinished.length > 0 && !page.installing
-            text: page.unfinished.length ? root.plain(page.unfinished[0].target) + " was not finished: " + root.plain(page.unfinished[0].dependencies.join(", ")) + (page.unfinished[0].dependencies.length > 1 ? " were installed as its dependencies, but " : " was installed as its dependency, but ") + root.plain(page.unfinished[0].target) + " itself was not built and installed." : ""
+            text: page.unfinished.length ? root.plain(page.unfinished[0].target) + " was not finished: " + root.plain(page.unfinished[0].dependencies.join(", ")) + (page.unfinished[0].dependencies.length > 1 ? qsTr(" were installed as its dependencies, but ") : qsTr(" was installed as its dependency, but ")) + root.plain(page.unfinished[0].target) + " itself was not built and installed." : ""
             actions: [
                 Kirigami.Action {
-                    text: "Continue"
+                    text: qsTr("Continue")
                     icon.name: "go-next"
                     onTriggered: page.resumeChain(page.unfinished[0])
                 },
                 Kirigami.Action {
-                    text: "Dismiss"
+                    text: qsTr("Dismiss")
                     onTriggered: page.dismissChain(page.unfinished[0])
                 }
             ]
@@ -592,10 +592,10 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
             visible: !!(page.libraries && (page.libraries.packages.length || page.libraries.unresolved.length || page.libraries.glibc))
             type: page.libraries && (page.libraries.unresolved.length || page.libraries.glibc) ? Kirigami.MessageType.Warning : Kirigami.MessageType.Information
-            text: !page.libraries ? "" : root.plain(page.libraries.name) + ": " + (page.libraries.glibc ? "This program was built for a newer C library (" + root.plain(page.libraries.glibc.needs) + ") than this computer has (" + root.plain(page.libraries.glibc.have) + "), so it may not start. " : "") + (page.libraries.packages.length ? "It needs libraries that are not installed here. Your repositories have them in: " + root.plain(page.libraries.packages.join(", ")) + ". " : "") + (page.libraries.unresolved.length ? "No repository provides: " + root.plain(page.libraries.unresolved.slice(0, 6).join(", ")) + (page.libraries.unresolved.length > 6 ? " and more" : "") + ". The program may not start." : "")
+            text: !page.libraries ? "" : root.plain(page.libraries.name) + ": " + (page.libraries.glibc ? "This program was built for a newer C library (" + root.plain(page.libraries.glibc.needs) + ") than this computer has (" + root.plain(page.libraries.glibc.have) + "), so it may not start. " : "") + (page.libraries.packages.length ? "It needs libraries that are not installed here. Your repositories have them in: " + root.plain(page.libraries.packages.join(", ")) + ". " : "") + (page.libraries.unresolved.length ? "No repository provides: " + root.plain(page.libraries.unresolved.slice(0, 6).join(", ")) + (page.libraries.unresolved.length > 6 ? qsTr(" and more") : "") + ". The program may not start." : "")
             actions: [
                 Kirigami.Action {
-                    text: "Install the missing libraries…"
+                    text: qsTr("Install the missing libraries…")
                     icon.name: "download"
                     visible: !!(page.libraries && page.libraries.packages.length)
                     enabled: !page.installing
@@ -607,24 +607,24 @@ Kirigami.ScrollablePage {
             id: doneMessage
             Layout.fillWidth: true
             type: Kirigami.MessageType.Positive
-            text: root.plain(page.plan ? page.plan.name : "The application") + " is installed." + (page.plan && (page.plan.format === "appimage" || page.plan.format === "flatpak" || page.plan.format === "flatpak-bundle" || page.plan.format === "archive") ? " You can find it in your application menu." : "")
+            text: root.plain(page.plan ? page.plan.name : qsTr("The application")) + " is installed." + (page.plan && (page.plan.format === "appimage" || page.plan.format === "flatpak" || page.plan.format === "flatpak-bundle" || page.plan.format === "archive") ? qsTr(" You can find it in your application menu.") : "")
             showCloseButton: true
             visible: false
         }
 
         RowLayout {
             QQC2.Button {
-                text: page.fileUrl ? "Choose another file…" : "Choose a file…"
+                text: page.fileUrl ? qsTr("Choose another file…") : qsTr("Choose a file…")
                 icon.name: "document-open"
                 onClicked: fileDialog.open()
             }
             QQC2.Label {
                 textFormat: Text.PlainText
-                text: "Store on:"
+                text: qsTr("Store on:")
             }
             QQC2.ComboBox {
                 id: locationBox
-                model: page.locationLabels.length ? page.locationLabels : ["(no storage location yet)"]
+                model: page.locationLabels.length ? page.locationLabels : [qsTr("(no storage location yet)")]
                 onActivated: page.analyse()
             }
         }
@@ -633,7 +633,7 @@ Kirigami.ScrollablePage {
             QQC2.TextField {
                 id: appSpecField
                 Layout.fillWidth: true
-                placeholderText: "Or a Flathub app id (org.kde.kcalc), another repository (remote:app.id), or aur:name"
+                placeholderText: qsTr("Or a Flathub app id (org.kde.kcalc), another repository (remote:app.id), or aur:name")
                 onAccepted: {
                     if (lookUp.enabled) // Enter must not do what the greyed-out button would not
                         lookUp.clicked();
@@ -641,7 +641,7 @@ Kirigami.ScrollablePage {
             }
             QQC2.Button {
                 id: lookUp
-                text: "Look up"
+                text: qsTr("Look up")
                 icon.name: "search"
                 enabled: appSpecField.text.trim() !== "" && !page.installing
                 onClicked: {
@@ -655,14 +655,14 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
             visible: !page.fileUrl && !page.appSpec
             icon.name: "document-import"
-            text: "Drop an application here"
-            explanation: "AppImage, Flatpak bundle, Arch package, .deb or .rpm"
+            text: qsTr("Drop an application here")
+            explanation: qsTr("AppImage, Flatpak bundle, Arch package, .deb or .rpm")
         }
         ProgressStrip {
             Layout.fillWidth: true
             running: page.analysing || page.installing
             value: page.progressValue
-            text: page.progressLabel !== "" ? page.progressLabel : (page.analysing ? "Looking at the file…" : "Working…")
+            text: page.progressLabel !== "" ? page.progressLabel : (page.analysing ? qsTr("Looking at the file…") : qsTr("Working…"))
         }
 
         ColumnLayout {
@@ -673,13 +673,13 @@ Kirigami.ScrollablePage {
                 Layout.fillWidth: true
                 visible: true
                 type: Kirigami.MessageType.Warning
-                text: "AUR packages are build scripts written by community members. Building runs this script as you; installing gives the result administrator rights. Read it before you continue."
+                text: qsTr("AUR packages are build scripts written by community members. Building runs this script as you; installing gives the result administrator rights. Read it before you continue.")
             }
             QQC2.Label {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
                 textFormat: Text.PlainText
-                text: page.plan && page.plan.kind === "aur" ? ("Maintainer " + page.plan.maintainer + " · " + page.plan.votes + " votes" + (page.plan.out_of_date ? " · flagged out of date" : "") + (page.plan.repo_dependencies.length ? " · needs " + page.plan.repo_dependencies.join(", ") + " from your repositories" : "") + (page.plan.dependencies.length ? " · needs " + page.plan.dependencies.length + " other AUR package" + (page.plan.dependencies.length > 1 ? "s" : "") + ", reviewed below" : "")) : ""
+                text: page.plan && page.plan.kind === "aur" ? ("Maintainer " + page.plan.maintainer + " · " + page.plan.votes + " votes" + (page.plan.out_of_date ? qsTr(" · flagged out of date") : "") + (page.plan.repo_dependencies.length ? " · needs " + page.plan.repo_dependencies.join(", ") + " from your repositories" : "") + (page.plan.dependencies.length ? " · needs " + page.plan.dependencies.length + " other AUR package" + (page.plan.dependencies.length > 1 ? "s" : "") + ", reviewed below" : "")) : ""
             }
             Repeater {
                 model: page.plan && page.plan.kind === "aur" ? page.plan.blockers : []
@@ -700,7 +700,7 @@ Kirigami.ScrollablePage {
                         textFormat: Text.PlainText
                         Layout.fillWidth: true
                         level: 3
-                        text: pkgReview.modelData.pkgbase + (pkgReview.modelData === page.plan ? "" : "  (dependency)") + (pkgReview.modelData.previously_approved === pkgReview.modelData.commit ? " · you approved this exact version before" : pkgReview.modelData.previously_approved ? " · showing what changed since the version you approved" : "")
+                        text: pkgReview.modelData.pkgbase + (pkgReview.modelData === page.plan ? "" : "  (dependency)") + (pkgReview.modelData.previously_approved === pkgReview.modelData.commit ? qsTr(" · you approved this exact version before") : pkgReview.modelData.previously_approved ? qsTr(" · showing what changed since the version you approved") : "")
                     }
                     Repeater {
                         model: pkgReview.modelData.problems
@@ -722,7 +722,7 @@ Kirigami.ScrollablePage {
                         }
                     }
                     Repeater {
-                        model: pkgReview.modelData.diff ? [["Changes since the version you approved", pkgReview.modelData.diff]] : Object.entries(pkgReview.modelData.files)
+                        model: pkgReview.modelData.diff ? [[qsTr("Changes since the version you approved"), pkgReview.modelData.diff]] : Object.entries(pkgReview.modelData.files)
                         delegate: ColumnLayout {
                             Layout.fillWidth: true
                             Kirigami.Heading {
@@ -744,7 +744,7 @@ Kirigami.ScrollablePage {
             }
             QQC2.CheckBox {
                 id: reviewed
-                text: page.plan && page.plan.kind === "aur" && page.plan.dependencies.length ? "I have read the build files of all " + (page.plan.dependencies.length + 1) + " packages" : "I have read the build files"
+                text: page.plan && page.plan.kind === "aur" && page.plan.dependencies.length ? "I have read the build files of all " + (page.plan.dependencies.length + 1) + " packages" : qsTr("I have read the build files")
             }
         }
 
@@ -872,7 +872,7 @@ Kirigami.ScrollablePage {
                     visible: !!(page.plan && page.plan.format === "archive" && page.plan.archive && (page.plan.archive.choices.length > 1 || page.plan.archive.needs_choice))
                     QQC2.Label {
                         textFormat: Text.PlainText
-                        text: page.plan && page.plan.archive && page.plan.archive.needs_choice ? "Cygnus cannot tell which program to start. Choose it:" : "Program to start:"
+                        text: page.plan && page.plan.archive && page.plan.archive.needs_choice ? qsTr("Cygnus cannot tell which program to start. Choose it:") : qsTr("Program to start:")
                         font.bold: true
                     }
                     QQC2.ComboBox {
@@ -880,7 +880,7 @@ Kirigami.ScrollablePage {
                         Layout.fillWidth: true
                         model: page.plan && page.plan.archive ? page.plan.archive.choices : []
                         currentIndex: page.plan && page.plan.archive ? page.plan.archive.choices.indexOf(page.archiveMain) : -1
-                        displayText: currentIndex >= 0 ? currentText : "Choose…"
+                        displayText: currentIndex >= 0 ? currentText : qsTr("Choose…")
                         onActivated: page.archiveMain = currentText
                     }
                 }
@@ -892,7 +892,7 @@ Kirigami.ScrollablePage {
                         Layout.fillWidth: true
                         visible: true
                         type: Kirigami.MessageType.Warning
-                        text: page.plan && page.plan.format === "archive" ? "This archive contains install scripts. Cygnus does not run them unless you choose to: show a script below and tick the box under it. If you do not, nothing they would do (stopping the program, changing system settings, deleting caches) happens. They are listed so you can see what the program's maker expected." : "Cygnus could not fully read this package's install scripts. Converting does not run them unless you choose to (in the section below, which shows them in full), so nothing they would do (adding a software repository, creating groups, changing settings) happens by default. If the program needs one of those things it may not work properly, and a program that updates itself through the vendor's repository will not do that: update it by converting the newer file."
+                        text: page.plan && page.plan.format === "archive" ? qsTr("This archive contains install scripts. Cygnus does not run them unless you choose to: show a script below and tick the box under it. If you do not, nothing they would do (stopping the program, changing system settings, deleting caches) happens. They are listed so you can see what the program's maker expected.") : qsTr("Cygnus could not fully read this package's install scripts. Converting does not run them unless you choose to (in the section below, which shows them in full), so nothing they would do (adding a software repository, creating groups, changing settings) happens by default. If the program needs one of those things it may not work properly, and a program that updates itself through the vendor's repository will not do that: update it by converting the newer file.")
                     }
                     QQC2.Label {
                         textFormat: Text.PlainText
@@ -905,7 +905,7 @@ Kirigami.ScrollablePage {
                     QQC2.Label {
                         textFormat: Text.PlainText
                         visible: !!(page.plan && page.plan.scripts && page.plan.scripts.mentions.length)
-                        text: "The scripts mention:"
+                        text: qsTr("The scripts mention:")
                         font.bold: true
                     }
                     Repeater {
@@ -915,18 +915,18 @@ Kirigami.ScrollablePage {
                             wrapMode: Text.Wrap
                             Layout.fillWidth: true
                             font.bold: modelData.important
-                            text: (modelData.important ? "! " : "• ") + modelData.command + ": " + modelData.what + " (" + modelData.scripts.join(", ") + ")" + (modelData.important ? "; if the program needs this, it will be missing" : "")
+                            text: (modelData.important ? "! " : "• ") + modelData.command + ": " + modelData.what + " (" + modelData.scripts.join(", ") + ")" + (modelData.important ? qsTr("; if the program needs this, it will be missing") : "")
                         }
                     }
                     QQC2.Button {
                         visible: !!(page.plan && page.plan.scripts && page.plan.scripts.effects && page.plan.scripts.effects.length)
-                        text: page.effectsShown ? "Hide what the scripts would have done" : "Show what the scripts would have done to your system"
+                        text: page.effectsShown ? qsTr("Hide what the scripts would have done") : qsTr("Show what the scripts would have done to your system")
                         onClicked: page.effectsShown = !page.effectsShown
                     }
                     QQC2.Label {
                         textFormat: Text.PlainText
                         visible: page.effectsShown
-                        text: "Read from the scripts' text; nothing was run. Steps marked \"only if a condition holds\" may not happen at all."
+                        text: qsTr("Read from the scripts' text; nothing was run. Steps marked \"only if a condition holds\" may not happen at all.")
                         wrapMode: Text.Wrap
                         Layout.fillWidth: true
                         opacity: 0.7
@@ -967,7 +967,7 @@ Kirigami.ScrollablePage {
                         }
                     }
                     QQC2.Button {
-                        text: page.scriptsShown ? "Hide the scripts" : "Show the scripts"
+                        text: page.scriptsShown ? qsTr("Hide the scripts") : qsTr("Show the scripts")
                         onClicked: page.scriptsShown = !page.scriptsShown
                     }
                     Repeater {
@@ -1013,7 +1013,7 @@ Kirigami.ScrollablePage {
                                 }
                                 QQC2.ComboBox {
                                     id: howBox
-                                    model: ["as me", "as administrator (asks for your password)"]
+                                    model: [qsTr("as me"), qsTr("as administrator (asks for your password)")]
                                     currentIndex: page.scriptChoice[scriptView.modelData] === "admin" ? 1 : 0
                                     enabled: runBox.checked && !page.installing
                                     onActivated: page.setScriptChoice(scriptView.modelData, currentIndex === 1 ? "admin" : "user")
@@ -1025,7 +1025,7 @@ Kirigami.ScrollablePage {
                                 wrapMode: Text.Wrap
                                 Layout.fillWidth: true
                                 opacity: 0.7
-                                text: "This one belongs to removing the program: it is offered when you uninstall it."
+                                text: qsTr("This one belongs to removing the program: it is offered when you uninstall it.")
                             }
                         }
                     }
@@ -1035,7 +1035,7 @@ Kirigami.ScrollablePage {
                         QQC2.CheckBox {
                             id: acceptScripts
                             Layout.fillWidth: true
-                            text: "I have read what the scripts do, and I understand that they will not be run."
+                            text: qsTr("I have read what the scripts do, and I understand that they will not be run.")
                             contentItem: QQC2.Label {
                                 textFormat: Text.PlainText
                                 wrapMode: Text.Wrap
@@ -1058,7 +1058,7 @@ Kirigami.ScrollablePage {
                     QQC2.Label {
                         textFormat: Text.PlainText
                         visible: !!(page.plan && page.plan.vendor_scripts && page.plan.vendor_scripts.mentions.length)
-                        text: "The scripts mention:"
+                        text: qsTr("The scripts mention:")
                         font.bold: true
                     }
                     Repeater {
@@ -1082,7 +1082,7 @@ Kirigami.ScrollablePage {
                         }
                     }
                     QQC2.Button {
-                        text: page.vendorShown ? "Hide the scripts" : "Show the scripts"
+                        text: page.vendorShown ? qsTr("Hide the scripts") : qsTr("Show the scripts")
                         onClicked: page.vendorShown = !page.vendorShown
                     }
                     Repeater {
@@ -1113,7 +1113,7 @@ Kirigami.ScrollablePage {
                         id: runVendor
                         Layout.fillWidth: true
                         enabled: page.vendorShown && !page.installing
-                        text: "I have read these scripts. Run them as administrator when the package is installed and removed."
+                        text: qsTr("I have read these scripts. Run them as administrator when the package is installed and removed.")
                         contentItem: QQC2.Label {
                             textFormat: Text.PlainText
                             wrapMode: Text.Wrap
@@ -1140,7 +1140,7 @@ Kirigami.ScrollablePage {
                 RowLayout {
                     Layout.alignment: Qt.AlignRight
                     QQC2.Button {
-                        text: page.plan && page.plan.kind === "foreign" ? "Convert and install" : page.plan && page.plan.kind === "aur" ? "Build and install" : "Install"
+                        text: page.plan && page.plan.kind === "foreign" ? qsTr("Convert and install") : page.plan && page.plan.kind === "aur" ? qsTr("Build and install") : "Install"
                         icon.name: "download"
                         enabled: !!(page.plan && (page.plan.installable || (page.plan.installable_after_review && acceptScripts.checked) || (page.plan.vendor_scripts && page.vendorChosen))) && !page.installing && (page.plan.kind !== "aur" || reviewed.checked) && (page.plan.format !== "archive" || page.archiveMain !== "")
                         onClicked: page.install()

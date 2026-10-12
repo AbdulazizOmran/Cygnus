@@ -5,7 +5,7 @@
 
 pkgname=cygnus
 pkgver=0.1.2
-pkgrel=1
+pkgrel=3
 pkgdesc="Application installer and manager for CachyOS / KDE Plasma: choose the drive each app lives on"
 arch=('any')
 url="https://github.com/AbdulazizOmran/Cygnus"
@@ -24,6 +24,7 @@ optdepends=(
   'fuse2: run type-2 AppImages that need libfuse2'
   'fuse3: run AppImages built with the static runtime'
   'zsync: delta downloads for AppImage updates'
+  'archlinux-appstream-data: descriptions and icons, so Discover can list programs from your repositories'
 )
 makedepends=('python-build' 'python-installer' 'python-setuptools' 'python-wheel')
 checkdepends=('python-pytest')
@@ -32,6 +33,9 @@ _tree="$startdir/../.."
 
 build() {
   cd "$_tree"
+  # Translations (cygnus/gui/i18n/cygnus_<language>.ts -> .qm, so they are in the wheel). None ship yet, so this does nothing; when one is added,
+  # add 'qt6-tools' (lrelease6) to makedepends.
+  sh packaging/translations.sh build
   rm -rf "$srcdir/dist"  # exactly one wheel: the one built now
   python -m build --wheel --no-isolation --outdir "$srcdir/dist"
 }

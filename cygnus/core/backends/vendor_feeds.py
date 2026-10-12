@@ -67,6 +67,8 @@ FEEDS: dict[str, Feed] = {f.package: f for f in (
          "https://linux.teamviewer.com/deb/"),
     Feed("slack-desktop", "https://packagecloud.io/slacktechnologies/slack/debian/dists/jessie/main/binary-amd64/Packages.gz",
          "https://packagecloud.io/slacktechnologies/slack/debian/"),
+    Feed("code", "https://packages.microsoft.com/repos/code/dists/stable/main/binary-amd64/Packages.gz",
+         "https://packages.microsoft.com/repos/code/"),
     Feed("code-insiders", "https://packages.microsoft.com/repos/code/dists/stable/main/binary-amd64/Packages.gz",
          "https://packages.microsoft.com/repos/code/"),
     Feed("google-earth-pro-stable", "https://dl.google.com/linux/earth/deb/dists/stable/main/binary-amd64/Packages.gz",

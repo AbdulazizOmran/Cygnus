@@ -19,7 +19,8 @@ from cygnus.gui.app import QML_DIR  # noqa: E402
 from cygnus.gui.bridge import Backend  # noqa: E402
 
 FILE = QUrl.fromLocalFile(sys.argv[1]).toString() if len(sys.argv) > 1 else ""
-PAGES = [("apps", {}), ("app", {"appName": "Hello World"}), ("packages", {}), ("package", {"packageName": "bash"}), ("updates", {}),
+PAGES = [("apps", {}), ("app", {"appName": "Hello World"}), ("discover", {}), ("discoverApp", {"entryKey": "vendor:google-chrome-stable"}),
+         ("packages", {}), ("package", {"packageName": "bash"}), ("updates", {}),
          ("storage", {}), ("settings", {}), ("install", {"fileUrl": FILE} if FILE else {})]
 
 app = QGuiApplication(sys.argv[:1])

@@ -26,7 +26,7 @@ Kirigami.ScrollablePage {
                 onProgress(line);
         } : undefined);
     }
-    title: "Storage"
+    title: qsTr("Storage")
 
     property var storage: JSON.parse(backend ? backend.storageJson : "{\"locations\": [], \"candidates\": []}")
     property string addPath: ""
@@ -41,7 +41,7 @@ Kirigami.ScrollablePage {
 
     actions: [
         Kirigami.Action {
-            text: "Refresh"
+            text: qsTr("Refresh")
             icon.name: "view-refresh"
             onTriggered: backend.refreshStorage()
         }
@@ -62,14 +62,14 @@ Kirigami.ScrollablePage {
             textFormat: Text.PlainText
             Layout.fillWidth: true
             level: 3
-            text: "Application storage"
+            text: qsTr("Application storage")
         }
         Kirigami.PlaceholderMessage {
             Layout.fillWidth: true
             visible: page.storage.locations.length === 0
             icon.name: "drive-harddisk"
-            text: "No storage locations yet"
-            explanation: "Choose below where applications may be stored, for example your SSD and your HDD."
+            text: qsTr("No storage locations yet")
+            explanation: qsTr("Choose below where applications may be stored, for example your SSD and your HDD.")
         }
         Repeater {
             model: page.storage.locations
@@ -95,17 +95,17 @@ Kirigami.ScrollablePage {
                                 textFormat: Text.PlainText
                                 Layout.fillWidth: true
                                 level: 3
-                                text: modelData.label + (modelData.default ? "  (default)" : "")
+                                text: modelData.label + (modelData.default ? qsTr("  (default)") : "")
                             }
                             QQC2.Label {
                                 textFormat: Text.PlainText
-                                text: modelData.online ? "Applications folder: " + modelData.apps_dir : "Unavailable: " + modelData.reason
+                                text: modelData.online ? qsTr("Applications folder: %1").arg(modelData.apps_dir) : qsTr("Unavailable: %1").arg(modelData.reason)
                                 wrapMode: Text.Wrap
                                 Layout.fillWidth: true
                             }
                             QQC2.Label {
                                 textFormat: Text.PlainText
-                                text: "Can store: apps you run" + (modelData.flatpak ? ", Flatpak apps" : "") + (modelData.class === "system" ? ", system packages" : "  ·  Cannot store: system packages")
+                                text: "Can store: apps you run" + (modelData.flatpak ? qsTr(", Flatpak apps") : "") + (modelData.class === "system" ? qsTr(", system packages") : qsTr("  ·  Cannot store: system packages"))
                                 opacity: 0.7
                                 wrapMode: Text.Wrap
                                 Layout.fillWidth: true
@@ -120,7 +120,7 @@ Kirigami.ScrollablePage {
             textFormat: Text.PlainText
             Layout.fillWidth: true
             level: 3
-            text: "Drives on this computer"
+            text: qsTr("Drives on this computer")
         }
         Repeater {
             model: page.storage.candidates
@@ -152,12 +152,12 @@ Kirigami.ScrollablePage {
                                 QQC2.Label {
                                     textFormat: Text.PlainText
                                     Layout.fillWidth: true
-                                    text: modelData.mount + "  ·  " + page.gib(modelData.free) + " free of " + page.gib(modelData.size)
+                                    text: root.fill(qsTr("%1  ·  %2 free of %3"), [modelData.mount, page.gib(modelData.free), page.gib(modelData.size)])
                                     opacity: 0.7
                                 }
                             }
                             QQC2.Button {
-                                text: "Use for applications…"
+                                text: qsTr("Use for applications…")
                                 icon.name: "list-add"
                                 enabled: modelData.eligible
                                 onClicked: {
@@ -193,11 +193,11 @@ Kirigami.ScrollablePage {
     Kirigami.PromptDialog {
         id: addDialog
         title: root.flat("Store applications on " + page.addPath)
-        subtitle: "Cygnus will test what this drive supports (it creates and removes a small test folder)."
+        subtitle: qsTr("Cygnus will test what this drive supports (it creates and removes a small test folder).")
         standardButtons: Kirigami.Dialog.Cancel
         customFooterActions: [
             Kirigami.Action {
-                text: "Add"
+                text: qsTr("Add")
                 icon.name: "dialog-ok"
                 onTriggered: {
                     addDialog.close();
@@ -213,11 +213,11 @@ Kirigami.ScrollablePage {
         ColumnLayout {
             QQC2.TextField {
                 id: labelField
-                placeholderText: "Name, e.g. HDD"
+                placeholderText: qsTr("Name, e.g. HDD")
             }
             QQC2.CheckBox {
                 id: defaultBox
-                text: "Use as the default location"
+                text: qsTr("Use as the default location")
             }
         }
     }

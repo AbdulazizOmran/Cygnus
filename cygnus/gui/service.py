@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 import threading
 from dataclasses import asdict
@@ -1554,6 +1555,238 @@ def record_package_install(name: str, version: str, *, origin: str, source: dict
 def package_names(installation_id: str) -> list[str]:
     reg = _registry()
     return [a["locator"] for a in regdb.artifacts_of(reg, installation_id) if a["kind"] == "package"]
+
+
+def _menu_entry_ids(installation_id: str) -> list[str]:
+    """The menu entries of an installed program, by name: the ones Cygnus wrote (AppImage, archive), or a Flatpak's own."""
+    reg = _registry()
+    ids = [Path(a["locator"]).name for a in regdb.artifacts_of(reg, installation_id) if a["kind"] == "desktop_entry"]
+    if not ids:
+        for row in regdb.list_installations(reg):
+            if row["id"] == installation_id and row["format"] == "flatpak":
+                parts = (row["source"].get("ref") or "").split("/")
+                if len(parts) > 1 and parts[1]:
+                    ids.append(parts[1] + ".desktop")
+    return ids
+
+
+def default_browser_info(installation_id: str) -> dict[str, Any]:
+    """For an application's page: is the program a web browser that can be the default (and is it)? {"browser": False} for
+    anything else, so the page shows nothing."""
+    from cygnus.core import defaultbrowser as db
+
+    for desktop_id in _menu_entry_ids(installation_id):
+        verdict = db.assess(desktop_id)
+        if not verdict["browser"]:
+            continue
+        state = db.status()
+        chosen = state["available"] and all(state["current"].get(m) == desktop_id and state["explicit"].get(m) == desktop_id
+                                            for m in db.MIME_TYPES) \
+            and (state["kde"] is None or state["kde"].removesuffix(".desktop") == desktop_id.removesuffix(".desktop"))
+        now = state["default"] if state["available"] and state["default"] != desktop_id else ""
+        return {"browser": True, "desktop_id": desktop_id, "name": verdict["name"], "repairable": verdict["repairable"],
+                "can": state["available"] and not verdict["blockers"],
+                "blockers": verdict["blockers"] + ([] if state["available"] else [state["why"]]), "notes": verdict["notes"],
+                "is_default": chosen, "by_accident": state["available"] and not chosen and state["default"] == desktop_id,
+                "remembered": state["chosen_here"] == desktop_id, "current_name": db.assess(now)["name"] if now else ""}
+    return {"browser": False}
+
+
+def flatpak_permissions(installation_id: Any) -> dict[str, Any]:
+    """What an installed Flatpak application may do, in plain words (read-only): its own permissions with this user's override files."""
+    from cygnus.core import flatpak_permissions as fp
+    from cygnus.core.backends import flatpak as fb
+
+    row = next((r for r in regdb.list_installations(_registry()) if r["id"] == installation_id), None) if isinstance(installation_id, str) else None
+    if row is None or row["format"] != "flatpak":
+        raise CygnusError("this is not a Flatpak application Cygnus manages, so there are no Flatpak permissions to show")
+    parts = (row["source"].get("ref") or "").split("/")
+    if len(parts) < 2 or not parts[1]:
+        raise CygnusError("Cygnus has no record of which Flatpak this is")
+    return fp.read(parts[1], fb.FlatpakEnv(), user_path=fb.user_dir(), installation=row["source"].get("installation"))
+
+
+# -- Discover (browsing what can be installed) ----------------------------------------------------------------------------------
+_DISCOVER_LOCK = threading.Lock()
+_CATALOGUE: dict[str, Any] = {"signature": "", "entries": [], "sources": [], "problems": [], "repo_missing": True}
+_MARKS: dict[str, Any] = {"at": 0.0, "value": None}
+MARKS_SECONDS = 5.0  # how long "what is installed" is trusted: typing in the search box must not ask libflatpak and pacman at every key
+
+
+def _catalogue() -> dict[str, Any]:
+    """The merged catalogue: built once, and again when a data file or a vendor entry has changed. A data file that cannot be read is
+    reported and left out; it does not take the others with it."""
+    from cygnus.core import discover, vendor_catalog
+
+    sources = [*discover.flatpak_sources(), *discover.repo_sources()]
+    vendors = vendor_catalog.vendors()
+    signature = discover.signature(sources, vendors)
+    with _DISCOVER_LOCK:
+        if _CATALOGUE["signature"] == signature:
+            return _CATALOGUE
+        usable, problems, shown, loaded = [], [], [], {}
+        for source in sources:
+            try:
+                loaded[source] = discover.load_index(source)  # read once: a file replaced meanwhile cannot fail the build below
+            except Exception as exc:  # noqa: BLE001 - whatever is wrong with one data file (damaged, replaced, a library error) costs only that file
+                if not isinstance(exc, CygnusError):
+                    logging.getLogger(__name__).warning("the application data of %s could not be read", source.label, exc_info=True)
+                problems.append(f"{source.label}: {exc if isinstance(exc, CygnusError) else 'it could not be read (' + type(exc).__name__ + ')'}")
+                continue
+            usable.append(source)
+            try:
+                updated = os.lstat(source.xml).st_mtime
+            except OSError:
+                updated = 0.0
+            shown.append({"kind": source.kind, "label": source.label, "updated": updated})
+        _CATALOGUE.update(signature=signature, entries=discover.build_entries(usable, vendors, loader=lambda source: loaded[source]), sources=shown,
+                          problems=problems,
+                          repo_missing=not any(s.kind == "repo" for s in sources))
+        return _CATALOGUE
+
+
+def _installed_marks() -> dict[str, set[str]]:
+    """What is installed, for the "installed" marks: Flatpak application ids, pacman package names, and the vendor packages Cygnus
+    converted. Whatever cannot be asked is simply not marked."""
+    import time
+
+    with _DISCOVER_LOCK:
+        if _MARKS["value"] is not None and time.monotonic() - _MARKS["at"] < MARKS_SECONDS:
+            return _MARKS["value"]
+    flatpaks: set[str] = set()
+    try:
+        from cygnus.core.backends import flatpak as fb
+
+        env = fb.FlatpakEnv()
+        for _inst, ref in env.installed_refs():
+            if ref.get_kind() == env.Flatpak.RefKind.APP:
+                flatpaks.add(ref.get_name())
+    except Exception:  # noqa: BLE001 - no Flatpak, or it cannot be read: nothing is marked from it
+        pass
+    pacman: set[str] = set()
+    try:
+        from cygnus.core import packages
+
+        pacman = set(packages.installed_versions())
+    except CygnusError:
+        pass
+    vendor: set[str] = set()
+    try:
+        vendor = {r["source"].get("vendor_package") for r in regdb.list_installations(_registry())
+                  if r["source"].get("made_by") == "converted" and r["source"].get("vendor_package")}
+    except (CygnusError, OSError):
+        pass
+    marks = {"flatpak": flatpaks, "pacman": pacman, "vendor": vendor}
+    with _DISCOVER_LOCK:
+        _MARKS.update(at=time.monotonic(), value=marks)
+    return marks
+
+
+def _shown(entry: dict[str, Any], marks: dict[str, set[str]]) -> dict[str, Any]:
+    """An entry as the page needs it: the icon as an address, and which of its ways of installing it are already in use."""
+    out = {k: v for k, v in entry.items() if k != "icon"}
+    out["icon_url"] = Path(entry["icon"]).as_uri() if entry["icon"] else ""
+    sources = []
+    for src in entry["sources"]:
+        src = dict(src)
+        if src["kind"] == "flatpak":
+            src["installed"] = src["id"].removesuffix(".desktop") in marks["flatpak"]
+        elif src["kind"] == "repo":
+            src["installed"] = src["package"] in marks["pacman"]
+        else:  # a vendor's package: installed once Cygnus converted it, or once pacman has a package of that name
+            src["installed"] = src["package"] in marks["vendor"] or src["package"] in marks["pacman"]
+        sources.append(src)
+    out["sources"] = sources
+    out["installed"] = any(s["installed"] for s in sources)
+    return out
+
+
+def discover_overview() -> dict[str, Any]:
+    """What Discover is made of: the data it read (and how old), what could not be read, and whether the repositories' data is missing."""
+    cat = _catalogue()
+    return {"total": len(cat["entries"]), "sources": cat["sources"], "problems": cat["problems"], "repo_missing": cat["repo_missing"],
+            "vendors": sum(1 for e in cat["entries"] if any(s["kind"] == "vendor" for s in e["sources"]))}
+
+
+def discover_search(query: Any = "", group: Any = "", kind: Any = "", offset: Any = 0) -> dict[str, Any]:
+    """One page of results (see discover.search), each entry marked with what is installed. Everything is checked: this is called from
+    a window."""
+    from cygnus.core import discover
+
+    text = query if isinstance(query, str) else ""
+    wanted_group = group if isinstance(group, str) and group in discover.GROUP_IDS else ""
+    wanted_kind = kind if isinstance(kind, str) and kind in ("flatpak", "repo", "vendor") else ""
+    start = offset if isinstance(offset, int) and not isinstance(offset, bool) else 0
+    result = discover.search(_catalogue()["entries"], text[:200], wanted_group, wanted_kind, start)
+    marks = _installed_marks()
+    result["entries"] = [_shown(e, marks) for e in result["entries"]]
+    return result
+
+
+def discover_app(key: Any) -> dict[str, Any]:
+    """One application with every way of installing it. An unknown key is an error in words."""
+    entry = next((e for e in _catalogue()["entries"] if e["key"] == key), None) if isinstance(key, str) else None
+    if entry is None:
+        raise CygnusError("that application is no longer in the list; search again")
+    return _shown(entry, _installed_marks())
+
+
+def _vendor_download_folder(package: str) -> Path:
+    """An empty folder of our own for one vendor download. Only an earlier download of the same program is removed (they are big), and
+    at most three programs' downloads are kept: the folder the Updates page uses is never touched, and nothing is deleted through a link."""
+    import shutil
+
+    root = paths.cache_dir() / "downloads"
+    base = root / "vendor"
+    for part in (root, base):
+        if part.is_symlink() or (part.exists() and not part.is_dir()):
+            raise CygnusError(f"{part} is not a plain folder, so Cygnus will not put or remove files there")
+    base.mkdir(parents=True, exist_ok=True)
+    mine = base / package
+    if mine.is_symlink() or (mine.exists() and not mine.is_dir()):
+        mine.unlink(missing_ok=True)  # a stray file or link of ours: the link itself goes, never what it points at
+    elif mine.exists():
+        shutil.rmtree(mine, ignore_errors=True)
+    mine.mkdir(mode=0o700)
+    others = sorted((p for p in base.iterdir() if p != mine and p.is_dir() and not p.is_symlink()), key=lambda p: p.stat().st_mtime, reverse=True)
+    for old in others[2:]:
+        shutil.rmtree(old, ignore_errors=True)
+    return mine
+
+
+def fetch_vendor_package(package: Any, fmt: Any, progress: Callable[[str], None], *, newest=None, download=None) -> dict[str, Any]:
+    """Download a vendor's own .deb or .rpm for a program Discover lists. It is only fetched (over HTTPS, checked against the checksum the
+    vendor publishes where there is one: the .deb has one, the vendor's .rpm address has none), never converted or installed here: the
+    person opens it on the Install page, where it is analysed and confirmed like any file they chose."""
+    from cygnus.core.backends import vendor_feeds as vf
+    from cygnus.core.util import http
+
+    if not isinstance(package, str) or not vf._PACKAGE.fullmatch(package) or fmt not in ("deb", "rpm"):
+        raise CygnusError("that is not a program and package format Cygnus knows")
+    feed = vf.feed_for(package)
+    if feed is None:
+        raise CygnusError("Cygnus has no source for that vendor's package")
+    if fmt == "rpm" and not feed.rpm:
+        raise CygnusError("the vendor publishes no .rpm for this program; the .deb is offered instead")
+    if not _FETCH_LOCK.acquire(blocking=False):
+        return {"ok": False, "error": "Another download is still going. Wait for it to finish."}
+    try:
+        progress("Looking for the newest version…")
+        release = (newest or vf.newest)(feed, fmt)
+        if not release.url.startswith("https://"):
+            return {"ok": False, "error": "the vendor's package list gave no usable download address"}
+        folder = _vendor_download_folder(package)
+        name = release.url.rsplit("/", 1)[-1].split("?", 1)[0] or "download"
+        progress(f"Downloading {name}…")
+        path = (download or http.download)(release.url, folder, expected_sha256=release.sha256, progress=_download_progress(progress, name))
+        return {"ok": True, "path": str(path), "file_url": Path(path).as_uri(), "version": release.version, "format": fmt,
+                "checked": bool(release.sha256), "package": package,
+                # said only if the page was left while it downloaded (the page itself opens the Install page when it is still there)
+                "late_attention": f"The vendor's .{fmt} for {package} finished downloading: {path}. To review and install it, open the Install page and choose that file."}
+    except OSError as exc:  # a full disk, a folder that cannot be written: said in words, not as a raw error
+        raise CygnusError(f"the download could not be saved: {exc.strerror or exc}") from exc
+    finally:
+        _FETCH_LOCK.release()
 
 
 def forget_installation(installation_id: str) -> None:

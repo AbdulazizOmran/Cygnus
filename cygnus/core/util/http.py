@@ -211,7 +211,12 @@ def download(url: str, dest_dir, *, expected_sha256: str | None = None, limit: i
         with _open(url, headers={"User-Agent": USER_AGENT}, timeout=timeout) as resp:
             if resp.status_code >= 400:
                 raise HttpError(f"HTTP {resp.status_code} for {url}", resp.status_code)
-            size = int(resp.headers.get("Content-Length") or 0) or None
+            try:
+                size = int(resp.headers.get("Content-Length") or 0) or None
+            except ValueError:  # a server's header that is not a number: the size is then simply not known
+                size = None
+            if size is not None and size < 0:
+                size = None
             deadline = time.monotonic() + max(timeout * 60, 3600)
             part.unlink(missing_ok=True)  # a left-over (or a planted link: only the link goes) ...
             fd = os.open(part, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o644)  # ...never written through

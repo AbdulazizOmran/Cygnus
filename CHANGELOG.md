@@ -2,6 +2,35 @@
 
 ## Next (planned 0.2.0, in progress) — what other package managers have
 
+- **Translations, ready for translators.** The text on the screens is now translatable (376 texts, about seven in ten of the pieces of text on the screens; the rest is
+  built from pieces at run time and stays English for now), with a template (`cygnus/gui/i18n/cygnus.ts`), tools (`packaging/translations.sh`) and a loader
+  that picks the language of your desktop (or `CYGNUS_LANGUAGE`). Cygnus ships no translation and nothing is machine-translated: add a language
+  by following `docs/translating.md`. Errors, plans and the terminal are produced in Python and stay in English. A test keeps the template equal to
+  the screens' texts.
+- **Flatpak permissions, in plain words.** **Permissions…** on a Flatpak's page (and `cygnus permissions ID`) lists what the application may do
+  outside its sandbox, grouped, with what lets it leave the sandbox marked first and the changes you made with Flatseal or `flatpak override`
+  applied the way Flatpak applies them and labelled as yours (the escapes Flatpak 1.17 added, `host-root`, `!host:reset` and `if:` conditions included). Read-only: Cygnus shows permissions, it does not change them.
+- **An update icon in the system tray (optional).** **Settings → Update icon** (or `cygnus tray on`) starts a small separate program at login
+  that shows an icon while updates are waiting and says how many. The icon reads only the stored results of the last checks (no network, no installs,
+  no root helper; its menu's "Look for updates now" runs the normal background check). Clicking it opens Cygnus; switching it off removes it.
+- **Discover: browse what you can get.** A new **Discover** page (and `cygnus discover search | info`) lists the programs on Flathub
+  and your other Flatpak remotes, in your repositories (when the data package `archlinux-appstream-data` is installed: a new optional part)
+  and the ones their makers publish as a `.deb` or `.rpm` (14 known programs from nine makers, plus your own sources, including stable Visual Studio Code). Search
+  by words, filter by kind or by how it can be got, and open a program to see every way to get it, in plain words. The same program from
+  several places is one entry, merged only by its exact id (or a hand-checked Flathub id for a maker's package), never by a similar name.
+  Nothing is installed from Discover: a Flatpak goes to the Install page, a repository package to its page in Packages, and a maker's
+  package is downloaded over HTTPS (the `.deb` against the checksum the maker publishes; the `.rpm` has none and the page says so) and opened
+  on the Install page for the usual look before anything is converted. The application lists are read as a stream (a document type or entity
+  declaration is refused in any encoding, every field is capped), cached by file identity, and screenshots are not fetched.
+- **Choose your default browser, and know it took.** A web browser Cygnus manages (Helium, for one) gets **Make default
+  browser…** on its page and `cygnus default-browser status | list | set | undo` in the terminal. Cygnus sets it with
+  `xdg-settings` (what browsers' own "make default" button runs), then reads the result back from every place the desktop looks
+  and undoes everything with a plain message if any of them disagree; what was set before is remembered and can be put back
+  ("Put back the earlier browser…"). It also tells you when a browser is first only by accident (nothing chosen), and checks the menu
+  entry first: one that does not claim web links and pages cannot be chosen, and the menu entry Cygnus writes for a program that
+  files itself as a browser now claims them (Repair fixes one made earlier). Found while building it: outside a full KDE session
+  environment `xdg-settings` fails and never writes KDE's own setting, so the session variables are passed on.
+
 - **Packages from your repositories, by name.** A new **Packages** page (and `cygnus packages search | info | installed | install |
   remove`) searches every configured repository (name, description, what a package provides, its groups; every word must match, and
   nothing you type is a pattern), lists what is installed (chosen by you, installed for another package, no longer needed, with
@@ -107,7 +136,7 @@ First public release. Not independently reviewed; see [SECURITY.md](SECURITY.md)
   shown for review first, built as you, never as root); full system upgrades only (never partial).
 - **DEB and RPM:** converted into pacman packages when safe, with missing libraries found and installed from the
   repositories, a report of what the vendor's install scripts would have done (the scripts are never run), enforced checks
-  that nothing of the vendor's package is lost, and updates for 13 known vendors (plus your own sources).
+  that nothing of the vendor's package is lost, and updates for 14 known vendors (plus your own sources).
 - **Privileged helper:** every action is planned by the helper, shown in full in the authentication dialog and approved
   by you; untrusted package files are read by an unprivileged, sandboxed reader, never by the helper itself.
 - **Everything else:** progress bars with real counts, health checks, interrupted-operation recovery, background checks,

@@ -365,6 +365,172 @@ def cmd_feed(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_discover(args: argparse.Namespace) -> int:
+    """Browse what can be installed (reads the application lists; installs nothing, downloads nothing)."""
+    from cygnus.core import discover
+    from cygnus.gui import service
+
+    if args.sub == "info":
+        entry = service.discover_app(args.key)
+        if args.json:
+            _emit(entry)
+            return 0
+        print(f"{entry['name']}" + (f"  ({entry['developer']})" if entry["developer"] else ""))
+        print(f"  {entry['summary']}")
+        if entry["description"]:
+            print("\n" + "\n".join(f"  {line}" for line in entry["description"].splitlines()))
+        if entry["url"]:
+            print(f"\n  website: {entry['url']}")
+        print("\nWays to get it:")
+        for src in entry["sources"]:
+            mark = "  [installed]" if src["installed"] else ""
+            if src["kind"] == "flatpak":
+                print(f"  • Flatpak: cygnus install {src['remote']}:{src['id']}{mark}")
+            elif src["kind"] == "repo":
+                print(f"  • Your repositories: cygnus packages install {src['package']}{mark}")
+            else:
+                print(f"  • The vendor's own package ({' / '.join(src['formats'])}): download it, then cygnus install FILE{mark}")
+        return 0
+    group = args.group or ""
+    if group and group not in discover.GROUP_IDS:
+        raise CygnusError("unknown kind of program; choose one of: " + ", ".join(discover.GROUP_IDS))
+    page = max(1, args.page)
+    result = service.discover_search(" ".join(args.words), group, args.source or "", (page - 1) * discover.PAGE)
+    if args.json:
+        _emit(result)
+        return 0
+    for entry in result["entries"]:
+        ways = ", ".join(sorted({s["kind"] for s in entry["sources"]}))
+        print(f"{entry['key']:<40} {entry['name']}  [{ways}]" + ("  installed" if entry["installed"] else ""))
+    pages = -(-result["total"] // discover.PAGE)
+    if not result["total"]:
+        print("nothing matches")
+    elif not result["entries"]:
+        print(f"-- there are {result['total']} matches on {pages} {'page' if pages == 1 else 'pages'}; --page {pages} is the last")
+    elif result["offset"] + len(result["entries"]) < result["total"]:
+        print(f"-- {result['total']} in all; --page {page + 1} shows the next ones")
+    return 0
+
+
+def cmd_permissions(args: argparse.Namespace) -> int:
+    """What an installed Flatpak application may do (reads only)."""
+    from cygnus.core import flatpak_permissions as fp
+    from cygnus.core.backends import flatpak as fb
+
+    result = fp.read(args.app_id, fb.FlatpakEnv(), user_path=fb.user_dir())
+    if args.json:
+        _emit(result)
+        return 0
+    print(f"{result['name']} ({result['app']}), from {result['origin'] or 'an unknown source'}")
+    summary = result["summary"]
+    print(f"  {summary['escape']} that can leave the sandbox, {summary['broad']} broad, {summary['total']} in all"
+          + ("; some changed by you" if result["changed_by_you"] else ""))
+    marks = {"escape": "!! ", "broad": "!  ", "normal": "   "}
+    for group in result["groups"]:
+        print(f"\n{group['title']}")
+        for item in result["items"]:
+            if item["group"] == group["id"]:
+                print(f"  {marks[item['level']]}{item['text']}" + ("  [changed by you]" if item["source"] == "you" else ""))
+    for line in result["removed"]:
+        print(f"\n  {line}")
+    for note in result["notes"]:
+        print(f"\n  {note}")
+    return 0
+
+
+def cmd_tray(args: argparse.Namespace) -> int:
+    from cygnus.core import tray
+
+    if args.sub == "status":
+        state = tray.status()
+        shown = tray.describe(tray.pending())
+        print("update icon: " + ("on" if state["enabled"] else "off"))
+        print(f"it would say: {shown['tooltip']}" + ("" if shown["visible"] else " (and not be shown)"))
+        if state["why"]:
+            print(state["why"])
+        return 0
+    state = tray.enable() if args.sub == "on" else tray.disable()
+    print("done: the update icon is " + ("on" if state["enabled"] else "off") + ("" if args.sub == "off" else " (it starts at every login)"))
+    return 0
+
+
+def _find_browser(spec: str) -> str:
+    """The menu entry a person means: its file name ("helium.desktop" or "helium") or the name it shows ("Helium")."""
+    from cygnus.core import defaultbrowser as db
+
+    spec = spec.strip()
+    for guess in (spec, spec + ".desktop"):
+        if db.find_entry(guess):
+            return guess  # even one that is no browser: the reason is then given, instead of "not found"
+    named = [b for b in db.candidates() if b["name"].casefold() == spec.casefold()]
+    if len(named) > 1:
+        raise CygnusError(f"more than one web browser is called {spec}: " + ", ".join(b["desktop_id"] for b in named))
+    if not named:
+        raise CygnusError(f"no web browser called {spec} was found; `cygnus default-browser list` shows the ones there are")
+    return named[0]["desktop_id"]
+
+
+def cmd_default_browser(args: argparse.Namespace) -> int:
+    from cygnus.core import defaultbrowser as db
+
+    if args.sub == "list":
+        state = db.status()
+        found = db.candidates()
+        if args.json:
+            _emit([{**b, "default": b["desktop_id"] == state["default"]} for b in found])
+            return 0
+        for b in found:
+            tags = [t for t, on in (("default", b["desktop_id"] == state["default"]), ("set up by Cygnus", b["managed"])) if on]
+            print(f"{b['name']}  ({b['desktop_id']})" + (f"  [{', '.join(tags)}]" if tags else ""))
+        if not found:
+            print("no web browser was found")
+        return 0
+    if args.sub == "status":
+        state = db.status()
+        if args.json:
+            _emit(state)
+            return 0 if state["available"] else 1
+        if not state["available"]:
+            print(state["why"], file=sys.stderr)
+            return 1
+        name = db.assess(state["default"])["name"] if state["default"] else "nothing"
+        print(f"links open with: {name}" + (f" ({state['default']})" if state["default"] else ""))
+        if not state["consistent"]:
+            for mime, entry in state["current"].items():
+                print(f"  {mime}: {entry or 'nothing'}")
+        chosen = state["default"] and all(state["explicit"].get(m) == state["default"] for m in state["current"])
+        print("chosen on purpose: " + ("yes" if chosen else "no" + (" (it only comes first because nothing else is chosen)" if state["default"] else "")))
+        if state["kde"] is not None:
+            print(f"KDE's own setting: {state['kde'] or 'none'}")
+        print("Cygnus remembers what was set before: " + ("yes" if state["chosen_here"] else "no"))
+        return 0
+    if args.sub == "undo":
+        if not _confirm("Put back the browser settings that were there before Cygnus chose a browser?", args.yes):
+            print("cancelled")
+            return 1
+        state = db.restore()
+        for kind in state.get("left_alone", []):
+            print(f"  left as it is now (you or a program changed it since): {kind}")
+        print("done: " + (f"links open with {state['default']}" if state["default"] else "nothing is chosen any more"))
+        return 0
+    entry = _find_browser(args.browser)
+    verdict = db.assess(entry)
+    if verdict["blockers"]:
+        print(f"{verdict['name']} cannot be the default browser:", file=sys.stderr)
+        for reason in verdict["blockers"]:
+            print(f"  - {reason}", file=sys.stderr)
+        return 1
+    for note in verdict["notes"]:
+        print(f"  note: {note}")
+    if not _confirm(f"Make {verdict['name']} ({entry}) the browser links open with? What is set now is remembered, "
+                    "and `cygnus default-browser undo` puts it back.", args.yes):
+        print("cancelled")
+        return 1
+    state = db.enable(entry)
+    print(("done: " if state["changed"] else "already so: ") + f"links open with {verdict['name']}")
+    return 0
+
+
 def cmd_ai(args: argparse.Namespace) -> int:
     """The optional AI assistant's settings. The key is typed here, or piped in, and goes to the wallet: never to a file."""
     import getpass
@@ -1612,6 +1778,41 @@ def build_parser() -> argparse.ArgumentParser:
     s = fd.add_parser("remove", help="forget a source you added")
     s.add_argument("package")
     s.set_defaults(func=cmd_feed)
+    s = sub.add_parser("permissions", help="what an installed Flatpak application may do: its permissions and your overrides (changes nothing)")
+    s.add_argument("app_id", help="the Flatpak application id, for example org.mozilla.firefox")
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_permissions)
+    tr = sub.add_parser("tray", help="the optional update icon in the system tray").add_subparsers(dest="sub", required=True)
+    for name, text in (("status", "is it on, and what would it say (changes nothing)"), ("on", "switch it on and start it"), ("off", "switch it off and remove its start-up entry")):
+        tr.add_parser(name, help=text).set_defaults(func=cmd_tray)
+    dc = sub.add_parser("discover", help="browse the programs you can get (Flathub, your repositories, vendors' own packages)").add_subparsers(
+        dest="sub", required=True)
+    s = dc.add_parser("search", help="find programs; every word must appear in the name, what it does, its keywords or its maker (changes nothing)")
+    s.add_argument("words", nargs="*", help="what to look for (nothing lists everything)")
+    s.add_argument("--group", help="only one kind of program (browsers, chat, development, games, graphics, media, office, learn, system, internet, utility, other)")
+    s.add_argument("--source", choices=["flatpak", "repo", "vendor"], help="only programs that can be got this way")
+    s.add_argument("--page", type=int, default=1, help="which page of results (40 to a page)")
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_discover)
+    s = dc.add_parser("info", help="one program and every way to get it (changes nothing)")
+    s.add_argument("key", help="the id `cygnus discover search` printed")
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_discover)
+    db_ = sub.add_parser("default-browser", help="choose which web browser links open with (and put the earlier choice back)").add_subparsers(
+        dest="sub", required=True)
+    s = db_.add_parser("status", help="what links open with now, and whether that was chosen or just came first (changes nothing)")
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_default_browser)
+    s = db_.add_parser("list", help="the web browsers on this computer (changes nothing)")
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(func=cmd_default_browser)
+    s = db_.add_parser("set", help="make a browser the one links open with; it is read back to check it took, and undone if it did not")
+    s.add_argument("browser", help="its menu entry name (helium.desktop) or the name it shows (Helium)")
+    s.add_argument("-y", "--yes", action="store_true", help="do not ask first")
+    s.set_defaults(func=cmd_default_browser)
+    s = db_.add_parser("undo", help="put back what was set before Cygnus chose a browser")
+    s.add_argument("-y", "--yes", action="store_true", help="do not ask first")
+    s.set_defaults(func=cmd_default_browser)
     ai = sub.add_parser("ai", help="the optional AI assistant that suggests what a program may still need (off by default)").add_subparsers(
         dest="sub", required=True)
     for name, text in (("status", "what is set"), ("on", "turn it on"), ("off", "turn it off"), ("test", "send one harmless test question")):

@@ -19,6 +19,7 @@ cygnus = "cygnus.cli.main:main"
 
 [project.gui-scripts]
 cygnus-gui = "cygnus.gui.app:main"
+cygnus-tray = "cygnus.gui.tray:main"
 
 [tool.setuptools.dynamic]
 version = {attr = "cygnus.__version__"}
@@ -28,7 +29,7 @@ include = ["cygnus*"]
 
 [tool.setuptools.package-data]
 "cygnus.data" = ["manifests/*.json"]
-"cygnus.gui" = ["qml/*.qml", "icons/*.svg"]
+"cygnus.gui" = ["qml/*.qml", "icons/*.svg", "i18n/*.qm", "i18n/*.ts"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
