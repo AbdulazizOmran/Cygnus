@@ -109,3 +109,22 @@ def test_info_shows_each_way_with_the_command_that_does_it(capsys):
 def test_info_for_something_not_in_the_list_is_explained(capsys):
     assert cli.main(["discover", "info", "org.nothing.Here"]) == 2
     assert "no longer in the list" in capsys.readouterr().err
+
+
+def test_the_search_can_ask_for_the_makers_own_downloads(capsys):
+    assert cli.main(["discover", "search", "--source", "release"]) == 0
+    out = capsys.readouterr().out
+    assert "release:helium" in out and "[release]" in out and "Calculator" not in out and "Firefox" not in out
+
+
+def test_info_for_a_makers_download_names_the_kinds_and_the_page_and_downloads_nothing(capsys, monkeypatch):
+    from cygnus.core.util import http
+
+    monkeypatch.setattr(http, "get", lambda *a, **k: pytest.fail("the terminal command must not ask the network"))
+    monkeypatch.setattr(http, "download", lambda *a, **k: pytest.fail("the terminal command must not download"))
+    assert cli.main(["discover", "info", "release:helium"]) == 0
+    out = capsys.readouterr().out
+    assert "The maker's own download (AppImage / .deb / archive)" in out and "https://github.com/imputnet/helium-linux/releases" in out
+    assert "cygnus install FILE" in out and "[installed]" not in out
+    assert cli.main(["discover", "info", "release:helium", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["sources"][0]["kind"] == "release"

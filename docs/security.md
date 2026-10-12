@@ -303,7 +303,7 @@ narrowly (`cygnus/core/cacheclean.py`, `plan_cache_clean` / `clean_cache` in `cy
 
 ### Discover (browsing what can be installed)
 
-Discover only LISTS (`cygnus/core/discover.py`, `cygnus/core/vendor_catalog.py`, the `discover_*` and `fetch_vendor_package` functions of
+Discover only LISTS (`cygnus/core/discover.py`, `cygnus/core/vendor_catalog.py`, `cygnus/core/release_catalog.py`, the `discover_*`, `fetch_vendor_package` and `fetch_release_download` functions of
 `cygnus/gui/service.py`). It adds no administrator action and no new way to install: every choice is handed to a flow that has its own
 plan and confirmation. What it reads and how:
 - **AppStream files are hostile input.** Flathub's file and the Arch data package's are read as a stream with `xml.parsers.expat` (never
@@ -316,12 +316,33 @@ plan and confirmation. What it reads and how:
   if it is a regular file, not a link. **Websites** are kept only if they are well-formed `https` addresses. **Screenshots are not fetched**:
   the page makes no request to anything while you browse. (Cygnus's existing hosts list is unchanged.)
 - **Merging is by exact identity only.** Two sources are one program only when they have the same AppStream id, or when the maker's package
-  is mapped to a Flathub id in a hand-checked table (`vendor_catalog.py`, kept equal to the feeds list by a test and to the verified ids
-  by another); never by a similar name. Google Chrome's beta channel has no Flathub id on purpose.
+  is mapped to a Flathub id in a hand-checked table (`vendor_catalog.py`, `release_catalog.py`, each kept equal to its list of sources by a test
+  and to the verified ids by another; the 21 release ids were checked against the real Flathub data); never by a similar name. Google Chrome's beta channel has no Flathub id on purpose.
+- **A maker's release download is looked up only when a button is pressed, and chosen strictly.** `cygnus/core/backends/release_feeds.py` asks
+  `api.github.com` for ONE project's newest release (a hand-checked list of 24 projects; unauthenticated, so GitHub sees the address and
+  `Cygnus/<version>`, nothing else) and treats the answer as hostile input: it must be a JSON object that is neither a draft nor a
+  pre-release, every field is type-checked, the tag and the file name are pattern- and length-limited (8 MiB answer; a release listing more than 300 files is refused, not looked at in part), and the file is chosen by a
+  regular expression written for that program and kind (x86_64/amd64 only, matched against the WHOLE name, so signatures, checksums, `.zsync`
+  and other-processor files can never match). Zero matches or more than one is an error in words, never "the first". The file's download
+  address must be EXACTLY `https://github.com/<owner>/<repo>/releases/download/<tag>/<file name>` for that project, that release and that file
+  (compared as a whole: dot segments, escapes, queries and fragments would let an address that only begins like the project's reach another
+  repository; only the owner and repository may differ in capital letters), its declared size must be between 1 byte and 3 GiB and is also the limit
+  of the download (a file that arrives in another size is thrown away, which also catches a damaged file that has no published checksum), and
+  it must be fully uploaded. The download
+  runs over HTTPS with every hop checked first: only `github.com` and `*.githubusercontent.com` (where GitHub redirects release files, today
+  `release-assets.githubusercontent.com`) may be contacted. The SHA-256 GitHub publishes for the file is checked when present (when GitHub publishes one, as it does today for every file the catalogue picks; if one has none, the page says
+  so). The file goes into `~/.cache/cygnus/downloads/release/<program>` (a folder of its own, mode 0700,
+  at most three programs kept per kind (a vendor folder and a release folder each keep three), and a folder younger than an hour is never cleared, because a
+  notice may just have pointed the person at its file) and is handed to the Install page; it is never converted or installed there. Because the home drive can be a
+  registered storage location, **a file inside Cygnus's own cache folder is never adopted in place** (it is copied into the applications
+  folder, or refused for `adopt`): otherwise the next download's cleanup would delete the installed program. What this cannot promise:
+  GitHub vouches for who uploaded the file to the project, not for what is in it, and a checksum only proves the file that arrived is the file
+  GitHub holds. The downloaded file itself is not checked for newer versions (a `.deb`, `.rpm` or archive from a release page has no update
+  information); an installed AppImage that carries its own update information is checked like any other.
 - **A maker's package is downloaded, not converted, from the page.** `fetch_vendor_package` uses the same vendor package lists as the update
   check (HTTPS only, capped, strictly validated), downloads over HTTPS into a folder of its own (`~/.cache/cygnus/downloads/vendor/<program>`,
-  mode 0700; only an earlier download of that program is removed, at most three programs' downloads are kept, nothing is deleted
-  through a link, and the Updates page's folder is never touched), checks the SHA-256 the maker publishes (the `.deb` has one; the `.rpm`
+  mode 0700; only an earlier download of that program is removed, at most three programs' downloads are kept (a folder younger than an hour is never
+  cleared), nothing is deleted through a link, and the Updates page's folder is never touched), checks the SHA-256 the maker publishes (the `.deb` has one; the `.rpm`
   address has none, and the page says that only the secure connection vouches for it), and shares the one-download-at-a-time lock with the
   Updates page. The file is then opened on the Install page, where it is analysed and confirmed like any file you chose.
 - The catalogue is built off the window's main thread and cached by each file's identity (path, size, date, inode); what is typed in the

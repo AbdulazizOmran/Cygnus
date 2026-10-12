@@ -43,9 +43,14 @@ CHROME = entry("com.google.Chrome", "Google Chrome", [flatpak(app="com.google.Ch
                                                                                               "label": "The vendor's own package", "note": "", "installed": False}], ("browsers",))
 EDGE = entry("vendor:microsoft-edge-stable", "Microsoft Edge", [{"kind": "vendor", "package": "microsoft-edge-stable", "formats": ["deb"],
                                                                   "label": "The vendor's own package", "note": "", "installed": True}], ("browsers",))
+RELEASE = {"kind": "release", "key": "obsidian", "formats": ["appimage", "deb", "archive"], "page": "https://github.com/obsidianmd/obsidian-releases/releases",
+           "label": "The maker's own download (GitHub)", "installed": False}
+OBSIDIAN = entry("md.obsidian.Obsidian", "Obsidian", [flatpak(app="md.obsidian.Obsidian"), RELEASE], ("office",))
+HELIUM = entry("release:helium", "Helium", [{**RELEASE, "key": "helium", "formats": ["appimage", "deb", "archive"], "installed": True,
+                                              "page": "https://github.com/imputnet/helium-linux/releases"}], ("browsers",))  # Cygnus already manages one
 MANY = [entry(f"org.example.App{i:02}", f"App {i:02}", [flatpak(app=f"org.example.App{i:02}")]) for i in range(90)]
-ALL = [FIREFOX, CHROME, EDGE, *MANY]
-GROUPS = [{"id": "browsers", "name": "Web browsers", "count": 3}, {"id": "internet", "name": "Internet", "count": 90}]
+ALL = [FIREFOX, CHROME, EDGE, OBSIDIAN, HELIUM, *MANY]
+GROUPS = [{"id": "browsers", "name": "Web browsers", "count": 4}, {"id": "internet", "name": "Internet", "count": 90}, {"id": "office", "name": "Office", "count": 1}]
 
 
 def fake_search(query="", group="", kind="", offset=0):
@@ -61,15 +66,23 @@ def fake_fetch(package, fmt, progress):
     return {"ok": True, "file_url": f"file:///nonexistent/{package}.{fmt}", "version": "9.9", "format": fmt, "checked": fmt == "deb", "package": package}
 
 
+def fake_release_fetch(key, fmt, progress):
+    log["fetches"].append(["release", key, fmt])
+    progress("Downloading…")
+    return {"ok": True, "file_url": f"file:///nonexistent/{key}.{fmt}", "version": "v9.9", "format": fmt, "format_label": {"appimage": "AppImage"}.get(fmt, "." + fmt),
+            "checked": fmt != "appimage", "package": key}
+
+
 def refuse(*_a, **_k):
     raise CygnusError("the fake backend analyses nothing")
 
 
 service.discover_overview = lambda: {"total": len(ALL), "sources": [{"kind": "flatpak", "label": "flathub", "updated": time.time() - 3 * 86400}],
-                                     "problems": [], "repo_missing": True, "vendors": 2}
+                                     "problems": [], "repo_missing": True, "vendors": 2, "releases": 2}
 service.discover_search = fake_search
 service.discover_app = lambda key: next(e for e in ALL if e["key"] == key)
 service.fetch_vendor_package = fake_fetch
+service.fetch_release_download = fake_release_fetch
 service.analyse_flatpak_ref = refuse  # the Install page is only opened, not driven
 service.analyse_file = refuse
 
@@ -108,12 +121,17 @@ def click(name, index=0, only_visible=True):
     return go
 
 
+RELEASE_BUTTONS = ("releaseButton_appimage", "releaseButton_deb", "releaseButton_rpm", "releaseButton_archive", "releaseButton_pkg", "releasePageButton", "releaseInstalledNote")
+
+
 def snap(label, *expressions):
     def go():
         log["snaps"][label] = {
             "title": js("pageStack.currentItem.title"),
             "values": [js(e) for e in expressions],
-            "visible": {n: [bool(c.property("visible")) for c in children(n)] for n in ("repoMissing", "moreButton", "flatpakButton", "repoButton", "debButton", "rpmButton", "websiteButton")},
+            "visible": {n: [bool(c.property("visible")) for c in children(n)] for n in ("repoMissing", "moreButton", "flatpakButton", "repoButton", "debButton", "rpmButton", "websiteButton",
+                                                                                          *RELEASE_BUTTONS)},
+            "texts": {n: [c.property("text") for c in children(n)] for n in RELEASE_BUTTONS},
             "page": js("pageStack.currentItem.objectName || pageStack.currentItem.toString().split('_')[0]"),
             "count_text": [i.property("text") for i in children("resultCount")],
         }
@@ -161,6 +179,19 @@ STEPS = [
     (open_page("discoverApp", {"entryKey": "com.google.Chrome"}), 2000),
     (click("rpmButton"), 1500),
     (snap("rpm-handover", "pageStack.currentItem.fileUrl", "pageStack.currentItem.launchNotice"), 10),
+    (open_page("discover", {}), 2500),
+    (lambda: (js("pageStack.currentItem.kind = 'release'"), js("pageStack.currentItem.search(false)")), 1000),  # the filter for the makers' own downloads
+    (snap("release-only", "pageStack.currentItem.results.length"), 10),
+    (lambda: (js("pageStack.currentItem.kind = ''"), js("pageStack.currentItem.search(false)")), 1000),
+    (open_page("discoverApp", {"entryKey": "md.obsidian.Obsidian"}), 2000),  # the Flatpak, and the maker's own download beside it
+    (snap("release-card", "pageStack.currentItem.entry.name", "pageStack.currentItem.entry.sources.length"), 10),
+    (click("releaseButton_deb"), 1500),
+    (snap("release-deb-handover", "pageStack.currentItem.fileUrl", "pageStack.currentItem.launchNotice"), 10),
+    (open_page("discoverApp", {"entryKey": "md.obsidian.Obsidian"}), 2000),
+    (click("releaseButton_appimage"), 1500),
+    (snap("release-appimage-handover", "pageStack.currentItem.fileUrl", "pageStack.currentItem.launchNotice"), 10),
+    (open_page("discoverApp", {"entryKey": "release:helium"}), 2000),  # a program that is not on Flathub: the download alone
+    (snap("release-alone", "pageStack.currentItem.entry.name", "pageStack.currentItem.entry.sources.length"), 10),
 ]
 
 

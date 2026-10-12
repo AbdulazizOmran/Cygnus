@@ -95,6 +95,26 @@ def test_a_download_redirected_to_plain_http_never_contacts_it(server, tmp_path)
     assert requested == ["https://a.example/pkg.tar"] and not list(dest.iterdir())
 
 
+def test_a_download_asks_the_host_rule_about_every_hop_and_never_contacts_a_refused_host(server, tmp_path):
+    """Release downloads from GitHub pass a rule that allows github.com and *.githubusercontent.com only."""
+    from cygnus.core.backends import release_feeds as rf
+
+    pages, requested = server
+    body = b"program bytes" * 50
+    pages["https://github.com/acme/demo/releases/download/v1/demo.deb"] = FakeResponse(302, {"Location": "https://release-assets.githubusercontent.com/x/y"})
+    pages["https://release-assets.githubusercontent.com/x/y"] = FakeResponse(200, {"Content-Length": str(len(body))}, body)
+    path = http.download("https://github.com/acme/demo/releases/download/v1/demo.deb", tmp_path, expected_sha256=hashlib.sha256(body).hexdigest(),
+                         host_ok=rf.github_host)
+    assert path.read_bytes() == body and requested == ["https://github.com/acme/demo/releases/download/v1/demo.deb", "https://release-assets.githubusercontent.com/x/y"]
+    requested.clear()
+    pages["https://github.com/acme/demo/releases/download/v1/other.deb"] = FakeResponse(302, {"Location": "https://evil.example/other.deb"})
+    pages["https://evil.example/other.deb"] = FakeResponse(200, {"Content-Length": "3"}, b"bad")
+    dest = tmp_path / "second"
+    with pytest.raises(http.HttpError, match="not allowed"):
+        http.download("https://github.com/acme/demo/releases/download/v1/other.deb", dest, host_ok=rf.github_host)
+    assert requested == ["https://github.com/acme/demo/releases/download/v1/other.deb"] and not list(dest.iterdir())  # the third party was never contacted
+
+
 def test_the_first_url_must_be_https_too():
     with pytest.raises(http.HttpError, match="non-HTTPS"):
         http.get("http://a.example/x")

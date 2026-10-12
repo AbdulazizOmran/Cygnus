@@ -548,6 +548,55 @@ def test_one_id_published_several_times_in_one_source_is_one_way_to_get_it():
     assert [s["package"] for s in both[0]["sources"]] == ["app", "app-git"]  # different packages are different ways
 
 
+def _release(key="demo", flathub_id="", formats=("appimage", "deb"), **over):
+    base = {"key": key, "formats": list(formats), "name": "Demo", "summary": "Does demos.", "categories": ["Network"], "developer": "Acme", "url": "https://demo.example/",
+            "flathub_id": flathub_id, "icon_name": "demo", "page": "https://github.com/acme/demo/releases"}
+    return {**base, **over}
+
+
+def test_a_release_download_joins_the_flatpak_only_when_its_exact_flathub_id_is_in_the_data():
+    flathub = {"flathub": {"apps": [_app("org.acme.Demo", "Demo")]}}
+    joined = d.build_entries([_src("flatpak", "flathub")], [], loader=_loader(**flathub), releases=[_release(flathub_id="org.acme.Demo")])
+    assert len(joined) == 1 and [s["kind"] for s in joined[0]["sources"]] == ["flatpak", "release"]
+    source = joined[0]["sources"][1]
+    assert source == {"kind": "release", "key": "demo", "formats": ["appimage", "deb"], "page": "https://github.com/acme/demo/releases",
+                      "label": "The maker's own download (GitHub)"}
+    apart = d.build_entries([_src("flatpak", "flathub")], [], loader=_loader(**flathub), releases=[_release(flathub_id="org.acme.Demo2")])
+    assert sorted(e["key"] for e in apart) == ["org.acme.Demo", "release:demo"]  # a near miss is never merged
+    alone = next(e for e in apart if e["key"] == "release:demo")
+    assert alone["name"] == "Demo" and alone["sources"][0]["kind"] == "release" and alone["groups"] == ["internet"] and alone["icon_name"] == "demo"
+    assert not any(s["kind"] == "release" for s in next(e for e in apart if e["key"] == "org.acme.Demo")["sources"])
+
+
+def test_a_release_download_is_not_merged_into_an_entry_that_only_a_repository_lists():
+    entries = d.build_entries([_src("repo", "extra")], [], loader=_loader(extra={"apps": [_app("org.acme.Demo", "Demo", pkgname="demo")]}),
+                              releases=[_release(flathub_id="org.acme.Demo")])
+    assert sorted(e["key"] for e in entries) == ["org.acme.Demo", "release:demo"]
+
+
+def test_releases_default_to_none_and_the_search_can_ask_for_them():
+    assert d.build_entries([], [], loader=_loader()) == []
+    entries = d.build_entries([_src("flatpak", "flathub")], [_vendor()], loader=_loader(flathub={"apps": [_app("org.x.Other", "Other")]}),
+                              releases=[_release(), _release("second", name="Second")])
+    assert [e["key"] for e in d.search(entries, kind="release")["entries"]] == ["release:demo", "release:second"]
+    assert [e["key"] for e in d.search(entries, kind="vendor")["entries"]] == ["vendor:vendor-app"]
+    assert d.search(entries, "second")["entries"][0]["key"] == "release:second"
+
+
+def test_the_search_does_not_match_the_kind_written_in_a_key():
+    """Found by review: searching "release" or "vendor" listed every program of that kind, because the key (release:helium) was searched."""
+    entries = d.build_entries([], [_vendor("some-tool", name="Some Tool", summary="Does tool things.", developer="Acme")], loader=_loader(),
+                              releases=[_release("helium", name="Helium", summary="A browser.", developer="Imput")])
+    assert d.search(entries, "release")["entries"] == [] and d.search(entries, "vendor")["entries"] == []
+    assert [e["key"] for e in d.search(entries, "helium")["entries"]] == ["release:helium"]  # the program's own name in the key still finds it
+    assert [e["key"] for e in d.search(entries, "some-tool")["entries"]] == ["vendor:some-tool"]
+
+
+def test_the_signature_changes_when_the_releases_do():
+    base = d.signature([], [], [_release()])
+    assert base == d.signature([], [], [_release()]) and base != d.signature([], [], [_release(name="Other")]) and base != d.signature([], [])
+
+
 def test_a_desktop_suffix_on_an_id_does_not_make_a_second_application():
     entries = d.build_entries([_src("flatpak", "f"), _src("repo", "r")], [], loader=_loader(
         f={"apps": [_app("org.gnome.Calc.desktop", "Calculator")]}, r={"apps": [_app("org.gnome.Calc", "Calculator", pkgname="gnome-calculator")]}))

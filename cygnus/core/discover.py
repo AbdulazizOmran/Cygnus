@@ -344,7 +344,7 @@ def _stamp(path: Path) -> list[Any]:
     return [str(path), st.st_size, st.st_mtime_ns, st.st_ino]
 
 
-def signature(sources: list[Source], vendors: list[dict[str, Any]]) -> str:
+def signature(sources: list[Source], vendors: list[dict[str, Any]], releases: list[dict[str, Any]] = ()) -> str:
     """What the merged catalogue is made of: each data file as it is now (a file that vanished is left out) and the vendors' entries. A
     change in any of them is a different signature, so the catalogue is built again."""
     parts: list[Any] = []
@@ -353,7 +353,7 @@ def signature(sources: list[Source], vendors: list[dict[str, Any]]) -> str:
             parts.append([source.kind, source.label, _stamp(source.xml)])
         except OSError:
             continue
-    return hashlib.sha256(json.dumps([parts, vendors], sort_keys=True, default=str).encode()).hexdigest()
+    return hashlib.sha256(json.dumps([parts, vendors, list(releases)], sort_keys=True, default=str).encode()).hexdigest()
 
 
 _MEMORY: dict[str, tuple[list[Any], dict[str, Any]]] = {}
@@ -429,9 +429,11 @@ def _app_key(app_id: str) -> str:
     return app_id[:-len(".desktop")] if app_id.endswith(".desktop") else app_id
 
 
-def build_entries(sources: list[Source], vendors: list[dict[str, Any]], *, loader: Callable[[Source], dict[str, Any]] = load_index) -> list[dict[str, Any]]:
+def build_entries(sources: list[Source], vendors: list[dict[str, Any]], *, loader: Callable[[Source], dict[str, Any]] = load_index,
+                  releases: list[dict[str, Any]] = ()) -> list[dict[str, Any]]:
     """One entry per application: what the Flatpak remotes and the repositories say, merged by the exact AppStream id, plus the vendors'
-    .deb/.rpm programs (merged into a Flatpak entry only where the vendor's Flathub id is in that data; otherwise listed on their own).
+    .deb/.rpm programs and the makers' own release downloads (AppImage, .deb, .rpm, archive; merged into a Flatpak entry only where the exact
+    Flathub id written for them is in that data; otherwise listed on their own).
     Each entry: key, name, summary, developer, groups, categories, icon (a file path or ""), icon_name (a theme icon for the fallback),
     url, description, sources: [{kind, label, ...}]."""
     entries: dict[str, dict[str, Any]] = {}
@@ -473,6 +475,18 @@ def build_entries(sources: list[Source], vendors: list[dict[str, Any]], *, loade
         entries[key] = {"key": key, "name": vendor["name"], "summary": vendor["summary"], "developer": vendor.get("developer", ""),
                         "categories": list(vendor["categories"]), "keywords": [], "url": vendor.get("url", ""), "description": vendor.get("description", ""),
                         "icon": "", "icon_name": vendor.get("icon_name", "package-x-generic"), "sources": [source]}
+    for release in releases:
+        flathub_id = release.get("flathub_id") or ""
+        target = entries.get(flathub_id) if flathub_id else None
+        source = {"kind": "release", "key": release["key"], "formats": list(release["formats"]), "page": release.get("page", ""),
+                  "label": "The maker's own download (GitHub)"}
+        if target is not None and any(s["kind"] == "flatpak" for s in target["sources"]):
+            target["sources"].append(source)
+            continue
+        key = f"release:{release['key']}"
+        entries[key] = {"key": key, "name": release["name"], "summary": release["summary"], "developer": release.get("developer", ""),
+                        "categories": list(release["categories"]), "keywords": [], "url": release.get("url", ""), "description": "",
+                        "icon": "", "icon_name": release.get("icon_name", "package-x-generic"), "sources": [source]}
     out = []
     for entry in entries.values():
         if not entry["sources"]:
@@ -488,7 +502,7 @@ def build_entries(sources: list[Source], vendors: list[dict[str, Any]], *, loade
 def _rank(entry: dict[str, Any], terms: list[str]) -> int | None:
     name, summary = entry["name"].lower(), entry["summary"].lower()
     keywords = " ".join(entry["keywords"]).lower()
-    other = f"{entry['developer']} {entry['key']}".lower()
+    other = f"{entry['developer']} {entry['key'].removeprefix('release:').removeprefix('vendor:')}".lower()  # the kind in a key is not something to search for
     for term in terms:
         if not (term in name or term in summary or term in keywords or term in other):
             return None

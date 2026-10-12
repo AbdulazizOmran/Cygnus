@@ -627,8 +627,8 @@ def install_appimage(path: str, location_label: str, progress: Callable[[str], N
     rv = locations.resolve(loc)
     if not rv.online:
         raise CygnusError(f"{loc.label} is not available: {rv.reason}")
-    if rv.path and str(Path(cand.source)).startswith(rv.path.rstrip("/") + "/"):
-        steps = appimage_ops.plan_adopt(cand, app_key=key, location=loc, manifest=manifest)  # already there
+    if rv.path and str(Path(cand.source)).startswith(rv.path.rstrip("/") + "/") and not paths.is_in_cache(cand.source):
+        steps = appimage_ops.plan_adopt(cand, app_key=key, location=loc, manifest=manifest)  # already there (a file in Cygnus's own download folder is copied, not adopted)
         kind = "adopt"
     else:
         steps = appimage_ops.plan_install(cand, app_key=key, location=loc, apps_dir=locations.apps_dir(loc, rv),
@@ -1018,6 +1018,8 @@ def adopt_appimage(path: str, progress: Callable[[str], None]) -> dict[str, Any]
     cand = detect_file(path)
     if cand.format is not PackageFormat.APPIMAGE:
         raise CygnusError("not an AppImage")
+    if paths.is_in_cache(cand.source):
+        raise CygnusError("That file is in Cygnus's download folder, which Cygnus clears out. Install it instead: that puts a copy in your applications folder.")
     manifest = catalog.find_for({**cand.identity, "name": cand.name or ""}, catalog.bundled_manifests())
     if appimage_ops.require_pinned_signature(Path(cand.source), manifest):
         progress(f"Signature verified with {manifest.manifest.application.vendor.name}'s pinned key")
@@ -1616,11 +1618,12 @@ MARKS_SECONDS = 5.0  # how long "what is installed" is trusted: typing in the se
 def _catalogue() -> dict[str, Any]:
     """The merged catalogue: built once, and again when a data file or a vendor entry has changed. A data file that cannot be read is
     reported and left out; it does not take the others with it."""
-    from cygnus.core import discover, vendor_catalog
+    from cygnus.core import discover, release_catalog, vendor_catalog
 
     sources = [*discover.flatpak_sources(), *discover.repo_sources()]
     vendors = vendor_catalog.vendors()
-    signature = discover.signature(sources, vendors)
+    releases = release_catalog.releases()
+    signature = discover.signature(sources, vendors, releases)
     with _DISCOVER_LOCK:
         if _CATALOGUE["signature"] == signature:
             return _CATALOGUE
@@ -1639,7 +1642,7 @@ def _catalogue() -> dict[str, Any]:
             except OSError:
                 updated = 0.0
             shown.append({"kind": source.kind, "label": source.label, "updated": updated})
-        _CATALOGUE.update(signature=signature, entries=discover.build_entries(usable, vendors, loader=lambda source: loaded[source]), sources=shown,
+        _CATALOGUE.update(signature=signature, entries=discover.build_entries(usable, vendors, loader=lambda source: loaded[source], releases=releases), sources=shown,
                           problems=problems,
                           repo_missing=not any(s.kind == "repo" for s in sources))
         return _CATALOGUE
@@ -1671,12 +1674,14 @@ def _installed_marks() -> dict[str, set[str]]:
     except CygnusError:
         pass
     vendor: set[str] = set()
+    apps: set[str] = set()
     try:
-        vendor = {r["source"].get("vendor_package") for r in regdb.list_installations(_registry())
-                  if r["source"].get("made_by") == "converted" and r["source"].get("vendor_package")}
+        rows = regdb.list_installations(_registry())
+        vendor = {r["source"].get("vendor_package") for r in rows if r["source"].get("made_by") == "converted" and r["source"].get("vendor_package")}
+        apps = {str(r["name"]).strip().lower() for r in rows if r.get("name")}  # every program Cygnus manages, by the name it shows
     except (CygnusError, OSError):
         pass
-    marks = {"flatpak": flatpaks, "pacman": pacman, "vendor": vendor}
+    marks = {"flatpak": flatpaks, "pacman": pacman, "vendor": vendor, "apps": apps}
     with _DISCOVER_LOCK:
         _MARKS.update(at=time.monotonic(), value=marks)
     return marks
@@ -1693,6 +1698,10 @@ def _shown(entry: dict[str, Any], marks: dict[str, set[str]]) -> dict[str, Any]:
             src["installed"] = src["id"].removesuffix(".desktop") in marks["flatpak"]
         elif src["kind"] == "repo":
             src["installed"] = src["package"] in marks["pacman"]
+        elif src["kind"] == "release":
+            # a file from a maker's release page is not tracked, so this is only a hint: Cygnus already manages a program with this very name (installing
+            # a second copy would add another row and replace the first one's menu entry)
+            src["installed"] = entry["name"].strip().lower() in marks.get("apps", ())
         else:  # a vendor's package: installed once Cygnus converted it, or once pacman has a package of that name
             src["installed"] = src["package"] in marks["vendor"] or src["package"] in marks["pacman"]
         sources.append(src)
@@ -1705,7 +1714,8 @@ def discover_overview() -> dict[str, Any]:
     """What Discover is made of: the data it read (and how old), what could not be read, and whether the repositories' data is missing."""
     cat = _catalogue()
     return {"total": len(cat["entries"]), "sources": cat["sources"], "problems": cat["problems"], "repo_missing": cat["repo_missing"],
-            "vendors": sum(1 for e in cat["entries"] if any(s["kind"] == "vendor" for s in e["sources"]))}
+            "vendors": sum(1 for e in cat["entries"] if any(s["kind"] == "vendor" for s in e["sources"])),
+            "releases": sum(1 for e in cat["entries"] if any(s["kind"] == "release" for s in e["sources"]))}
 
 
 def discover_search(query: Any = "", group: Any = "", kind: Any = "", offset: Any = 0) -> dict[str, Any]:
@@ -1715,7 +1725,7 @@ def discover_search(query: Any = "", group: Any = "", kind: Any = "", offset: An
 
     text = query if isinstance(query, str) else ""
     wanted_group = group if isinstance(group, str) and group in discover.GROUP_IDS else ""
-    wanted_kind = kind if isinstance(kind, str) and kind in ("flatpak", "repo", "vendor") else ""
+    wanted_kind = kind if isinstance(kind, str) and kind in ("flatpak", "repo", "vendor", "release") else ""
     start = offset if isinstance(offset, int) and not isinstance(offset, bool) else 0
     result = discover.search(_catalogue()["entries"], text[:200], wanted_group, wanted_kind, start)
     marks = _installed_marks()
@@ -1731,13 +1741,19 @@ def discover_app(key: Any) -> dict[str, Any]:
     return _shown(entry, _installed_marks())
 
 
-def _vendor_download_folder(package: str) -> Path:
-    """An empty folder of our own for one vendor download. Only an earlier download of the same program is removed (they are big), and
-    at most three programs' downloads are kept: the folder the Updates page uses is never touched, and nothing is deleted through a link."""
+KEEP_DOWNLOAD_SECONDS = 3600
+
+
+def _vendor_download_folder(package: str, kind: str = "vendor") -> Path:
+    """An empty folder of our own for one Discover download (`kind`: "vendor" or "release", each with a folder of its own so one program's name
+    can never reach another kind's files). Only an earlier download of the same program is removed (they are big), and at most three programs'
+    downloads are kept (a folder younger than an hour is kept whatever the count: a notice may just have pointed the person at it): the folder the
+    Updates page uses is never touched, and nothing is deleted through a link."""
     import shutil
+    import time
 
     root = paths.cache_dir() / "downloads"
-    base = root / "vendor"
+    base = root / kind
     for part in (root, base):
         if part.is_symlink() or (part.exists() and not part.is_dir()):
             raise CygnusError(f"{part} is not a plain folder, so Cygnus will not put or remove files there")
@@ -1750,7 +1766,8 @@ def _vendor_download_folder(package: str) -> Path:
     mine.mkdir(mode=0o700)
     others = sorted((p for p in base.iterdir() if p != mine and p.is_dir() and not p.is_symlink()), key=lambda p: p.stat().st_mtime, reverse=True)
     for old in others[2:]:
-        shutil.rmtree(old, ignore_errors=True)
+        if time.time() - old.stat().st_mtime > KEEP_DOWNLOAD_SECONDS:  # a download from the last hour may be the one a notice just pointed the person at
+            shutil.rmtree(old, ignore_errors=True)
     return mine
 
 
@@ -1783,6 +1800,38 @@ def fetch_vendor_package(package: Any, fmt: Any, progress: Callable[[str], None]
                 "checked": bool(release.sha256), "package": package,
                 # said only if the page was left while it downloaded (the page itself opens the Install page when it is still there)
                 "late_attention": f"The vendor's .{fmt} for {package} finished downloading: {path}. To review and install it, open the Install page and choose that file."}
+    except OSError as exc:  # a full disk, a folder that cannot be written: said in words, not as a raw error
+        raise CygnusError(f"the download could not be saved: {exc.strerror or exc}") from exc
+    finally:
+        _FETCH_LOCK.release()
+
+
+def fetch_release_download(key: Any, fmt: Any, progress: Callable[[str], None], *, newest=None, download=None) -> dict[str, Any]:
+    """Download the file a program's maker publishes on its GitHub release page (an AppImage, a .deb or .rpm, an archive, an Arch package) for a
+    program Discover lists. It is only fetched (over HTTPS, from GitHub's own hosts, checked against the SHA-256 GitHub publishes for it where
+    there is one), never converted or installed here: the person opens it on the Install page, where it is analysed and confirmed like any
+    file they chose. Which file is "the" file is decided by a pattern written for that program and format; none or several is an error."""
+    from cygnus.core.backends import release_feeds as rf
+    from cygnus.core.util import http
+
+    project = rf.PROJECTS.get(key) if isinstance(key, str) else None
+    if project is None or not isinstance(fmt, str) or fmt not in project.assets:
+        raise CygnusError("that is not a program and download kind Cygnus knows")
+    if not _FETCH_LOCK.acquire(blocking=False):
+        return {"ok": False, "error": "Another download is still going. Wait for it to finish."}
+    try:
+        progress("Looking for the newest version…")
+        asset = (newest or rf.newest)(project, fmt)
+        folder = _vendor_download_folder(project.key, "release")
+        progress(f"Downloading {asset.name}…")
+        path = (download or http.download)(asset.url, folder, expected_sha256=asset.sha256, limit=asset.size, host_ok=rf.github_host,
+                                           progress=_download_progress(progress, asset.name))
+        if Path(path).stat().st_size != asset.size:  # GitHub says how big the file is: a shorter one is damaged even when no checksum was published
+            Path(path).unlink(missing_ok=True)
+            raise CygnusError(f"the file that arrived is not the size GitHub says it is ({asset.size} bytes), so it was thrown away. Try again.")
+        return {"ok": True, "path": str(path), "file_url": Path(path).as_uri(), "version": asset.version, "format": fmt,
+                "format_label": rf.LABELS[fmt], "checked": bool(asset.sha256), "package": project.key,
+                "late_attention": f"The {rf.LABELS[fmt]} finished downloading: {path}. To review and install it, open the Install page and choose that file."}
     except OSError as exc:  # a full disk, a folder that cannot be written: said in words, not as a raw error
         raise CygnusError(f"the download could not be saved: {exc.strerror or exc}") from exc
     finally:

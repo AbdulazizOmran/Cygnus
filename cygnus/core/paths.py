@@ -28,6 +28,15 @@ def cache_dir() -> Path:
     return _xdg("XDG_CACHE_HOME", ".cache") / _DIR_NAME
 
 
+def is_in_cache(path: str | Path) -> bool:
+    """Is `path` inside Cygnus's own cache folder, where it keeps downloads it is free to delete later? A program must never be adopted in place
+    there (the cache is under the home folder, so it also counts as "already in storage" for a location on the home drive)."""
+    try:
+        return Path(os.path.realpath(path)).is_relative_to(os.path.realpath(cache_dir()))
+    except (OSError, ValueError):
+        return False
+
+
 def state_dir() -> Path:
     return _xdg("XDG_STATE_HOME", ".local/state") / _DIR_NAME
 

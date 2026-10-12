@@ -273,6 +273,10 @@ class Backend(QObject):
     def fetchVendorPackage(self, package: str, fmt: str) -> str:
         return self._submit(lambda progress: service.fetch_vendor_package(package, fmt, progress), wants_progress=True)
 
+    @Slot(str, str, result=str)
+    def fetchReleaseDownload(self, key: str, fmt: str) -> str:
+        return self._submit(lambda progress: service.fetch_release_download(key, fmt, progress), wants_progress=True)
+
     @Slot(str, result=str)
     def defaultBrowserInfo(self, installation_id: str) -> str:
         return self._submit(lambda: service.default_browser_info(installation_id))

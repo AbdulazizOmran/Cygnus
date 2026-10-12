@@ -26,6 +26,22 @@ def test_adopt_list_uninstall(tmp_path, capsys):
     assert app.exists()
 
 
+def test_adopt_refuses_a_file_in_cygnus_own_download_folder(tmp_path, capsys):
+    """A download there is cleared by the next download; registering it in place would leave the installed program pointing at a deleted file."""
+    from cygnus.core import paths
+
+    reg = str(tmp_path / "r.db")
+    folder = paths.cache_dir() / "downloads" / "release" / "hello"
+    folder.mkdir(parents=True)
+    app = builders.build_appimage(folder)
+    assert main(["--registry", reg, "adopt", "--yes", str(app)]) == 2
+    err = capsys.readouterr().err
+    assert "download folder" in err and "cygnus install" in err
+    assert not (integrate.xdg_data_home() / "applications/hello.desktop").exists()
+    assert main(["--registry", reg, "list", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out) == []  # nothing was registered
+
+
 def test_install_to_location(tmp_path, monkeypatch, capsys):
     reg_path = tmp_path / "r.db"
     reg = open_registry(reg_path)

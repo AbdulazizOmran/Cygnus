@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from cygnus import APP_ID, __version__
-from cygnus.core import preferences
+from cygnus.core import paths, preferences
 from cygnus.core.detect import detect_file
 from cygnus.core.errors import CygnusError
 from cygnus.core.registry import open_registry
@@ -388,6 +388,12 @@ def cmd_discover(args: argparse.Namespace) -> int:
                 print(f"  • Flatpak: cygnus install {src['remote']}:{src['id']}{mark}")
             elif src["kind"] == "repo":
                 print(f"  • Your repositories: cygnus packages install {src['package']}{mark}")
+            elif src["kind"] == "release":
+                from cygnus.core.backends import release_feeds
+
+                kinds = " / ".join(release_feeds.LABELS.get(f, f) for f in src["formats"])
+                print(f"  • The maker's own download ({kinds}): Discover in the Cygnus window fetches and checks the newest file; or get it from "
+                      f"{src['page']}, then cygnus install FILE{mark}")
             else:
                 print(f"  • The vendor's own package ({' / '.join(src['formats'])}): download it, then cygnus install FILE{mark}")
         return 0
@@ -1127,6 +1133,8 @@ def cmd_adopt(args: argparse.Namespace) -> int:
     cand = detect_file(args.file)
     if cand.format is not PackageFormat.APPIMAGE:
         raise CygnusError("only AppImages can be adopted in place for now")
+    if paths.is_in_cache(cand.source):
+        raise CygnusError("That file is in Cygnus's download folder, which Cygnus clears out. Use `cygnus install` instead: it puts a copy in your applications folder.")
     reg = open_registry(args.registry)
     manifest = catalog.find_for({**cand.identity, "name": cand.name or ""}, catalog.bundled_manifests())
     if appimage_ops.require_pinned_signature(Path(cand.source), manifest):
@@ -1785,12 +1793,12 @@ def build_parser() -> argparse.ArgumentParser:
     tr = sub.add_parser("tray", help="the optional update icon in the system tray").add_subparsers(dest="sub", required=True)
     for name, text in (("status", "is it on, and what would it say (changes nothing)"), ("on", "switch it on and start it"), ("off", "switch it off and remove its start-up entry")):
         tr.add_parser(name, help=text).set_defaults(func=cmd_tray)
-    dc = sub.add_parser("discover", help="browse the programs you can get (Flathub, your repositories, vendors' own packages)").add_subparsers(
+    dc = sub.add_parser("discover", help="browse the programs you can get (Flathub, your repositories, vendors' own packages, makers' own downloads)").add_subparsers(
         dest="sub", required=True)
     s = dc.add_parser("search", help="find programs; every word must appear in the name, what it does, its keywords or its maker (changes nothing)")
     s.add_argument("words", nargs="*", help="what to look for (nothing lists everything)")
     s.add_argument("--group", help="only one kind of program (browsers, chat, development, games, graphics, media, office, learn, system, internet, utility, other)")
-    s.add_argument("--source", choices=["flatpak", "repo", "vendor"], help="only programs that can be got this way")
+    s.add_argument("--source", choices=["flatpak", "repo", "vendor", "release"], help="only programs that can be got this way")
     s.add_argument("--page", type=int, default=1, help="which page of results (40 to a page)")
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_discover)

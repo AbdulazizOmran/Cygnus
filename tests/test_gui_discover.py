@@ -26,13 +26,13 @@ def drive(tmp_path_factory):
 
 def test_the_list_fills_with_the_first_page_and_says_how_many_there_are(drive):
     start = drive["snaps"]["start"]
-    assert start["title"] == "Discover" and start["values"][:3] == [40, 93, 2]
+    assert start["title"] == "Discover" and start["values"][:3] == [40, 95, 3]
     assert drive["searches"][0] == ["", "", "", 0]
 
 
 def test_the_count_reads_as_plain_english_with_no_translation_loaded(drive):
     """Qt's qsTr("%n program(s)") only fills in the number without a translation, which showed "93 program(s)": the sentence is chosen by hand."""
-    assert drive["snaps"]["start"]["count_text"] == ["93 programs"]
+    assert drive["snaps"]["start"]["count_text"] == ["95 programs"]
     assert drive["snaps"]["typed"]["count_text"] == ["1 program"]
     assert all("(s)" not in t for snap in drive["snaps"].values() for t in snap["count_text"])
 
@@ -55,7 +55,7 @@ def test_show_more_goes_on_with_the_list_on_screen_not_with_a_query_still_waitin
 
 
 def test_choosing_a_group_filters_and_choosing_it_again_clears_it(drive):
-    assert drive["snaps"]["group"]["values"] == ["browsers", 3]
+    assert drive["snaps"]["group"]["values"] == ["browsers", 4]
     assert drive["snaps"]["group-cleared"]["values"] == ["", 40]
     assert ["", "browsers", "", 0] in drive["searches"]
 
@@ -65,7 +65,7 @@ def test_the_source_filter_asks_for_vendor_packages_only(drive):
 
 
 def test_show_more_adds_the_next_page_after_the_ones_already_there(drive):
-    assert drive["snaps"]["more"]["values"] == [80, 93]
+    assert drive["snaps"]["more"]["values"] == [80, 95]
     assert ["", "", "", 40] in drive["searches"]
 
 
@@ -75,6 +75,7 @@ def test_a_program_shows_every_way_to_get_it(drive):
     visible = firefox["visible"]  # one card per way: the Flatpak card has the Install button, the repository card its own
     assert visible["websiteButton"] == [True] and visible["flatpakButton"] == [True, False] and visible["repoButton"] == [False, True]
     assert visible["debButton"] == [False, False] and visible["rpmButton"] == [False, False]
+    assert all(visible[name] == [] for name in ("releaseButton_appimage", "releaseButton_deb", "releaseButton_archive"))  # no maker's download card at all
     chrome = drive["snaps"]["chrome"]["visible"]  # Chrome: the Flatpak, and the vendor's package in both formats
     assert chrome["flatpakButton"] == [True, False] and chrome["debButton"] == [False, True] and chrome["rpmButton"] == [False, True]
     assert chrome["repoButton"] == [False, False] and chrome["websiteButton"] == [False]  # no website known: no button
@@ -97,6 +98,43 @@ def test_a_vendors_deb_is_fetched_then_handed_over_with_the_checksum_said_in_wor
 
 
 def test_a_vendors_rpm_says_plainly_that_nothing_vouches_for_it_but_the_connection(drive):
-    assert drive["fetches"] == [["google-chrome-stable", "deb"], ["google-chrome-stable", "rpm"]]  # each button fetched once, nothing else was
+    vendor = [f for f in drive["fetches"] if f[0] != "release"]
+    assert vendor == [["google-chrome-stable", "deb"], ["google-chrome-stable", "rpm"]]  # each button fetched once, nothing else was
     values = drive["snaps"]["rpm-handover"]["values"]
     assert values[0] == "file:///nonexistent/google-chrome-stable.rpm" and "publishes none" in values[1]
+
+
+def test_the_source_filter_asks_for_the_makers_own_downloads_only(drive):
+    assert ["", "", "release", 0] in drive["searches"] and drive["snaps"]["release-only"]["values"] == [2]
+
+
+def test_a_program_with_a_makers_download_shows_one_button_for_each_kind_of_file_it_has(drive):
+    card = drive["snaps"]["release-card"]
+    assert card["values"] == ["Obsidian", 2]
+    assert card["visible"]["flatpakButton"] == [True, False]  # the Flatpak card keeps its own button
+    assert card["visible"]["releaseButton_appimage"] == [True] and card["visible"]["releaseButton_deb"] == [True] and card["visible"]["releaseButton_archive"] == [True]
+    assert card["visible"]["releaseButton_rpm"] == [] and card["visible"]["releaseButton_pkg"] == []  # nothing is offered that the project does not have
+    assert card["visible"]["releasePageButton"] == [False, True]  # only the release card shows it: the way out when Cygnus cannot choose a file
+    assert card["texts"]["releasePageButton"][1] == "Open the release page"
+    assert card["texts"]["releaseButton_appimage"] == ["Download the AppImage and review…"]
+    assert card["texts"]["releaseButton_deb"] == ["Download the .deb and review…"] and card["texts"]["releaseButton_archive"] == ["Download the archive and review…"]
+
+
+def test_a_makers_download_is_fetched_then_handed_over_to_the_install_page_and_says_how_it_was_checked(drive):
+    assert ["release", "obsidian", "deb"] in drive["fetches"] and ["release", "obsidian", "appimage"] in drive["fetches"]
+    deb = drive["snaps"]["release-deb-handover"]
+    assert deb["title"] == "Install" and deb["values"][0] == "file:///nonexistent/obsidian.deb"
+    assert "the .deb from the maker's GitHub release page for Obsidian (version v9.9)" in deb["values"][1]
+    assert "checked it against the checksum GitHub publishes for it" in deb["values"][1] and "nothing is installed until you confirm" in deb["values"][1]
+    appimage = drive["snaps"]["release-appimage-handover"]["values"]
+    assert appimage[0] == "file:///nonexistent/obsidian.appimage" and "the AppImage from the maker's GitHub release page" in appimage[1]
+    assert "could not check it against a checksum, because GitHub has none for this file" in appimage[1]
+
+
+def test_a_program_that_is_not_on_flathub_shows_the_makers_download_alone(drive):
+    assert drive["snaps"]["release-alone"]["values"] == ["Helium", 1]
+    assert drive["snaps"]["release-alone"]["visible"]["releaseButton_archive"] == [True]
+    assert drive["snaps"]["release-alone"]["visible"]["releaseInstalledNote"] == [True]  # a Helium Cygnus already manages: the card warns before a second copy
+    assert "replace the first one's menu entry" in drive["snaps"]["release-alone"]["texts"]["releaseInstalledNote"][0]
+    assert drive["snaps"]["release-card"]["visible"]["releaseInstalledNote"] == [False, False]  # no warning where nothing of that name is installed
+    assert drive["fetches"] == [["google-chrome-stable", "deb"], ["google-chrome-stable", "rpm"], ["release", "obsidian", "deb"], ["release", "obsidian", "appimage"]]

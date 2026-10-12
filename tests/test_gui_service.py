@@ -459,6 +459,45 @@ def test_with_a_registered_location_the_analysis_names_the_target_the_install_us
     assert service.install_appimage(str(app), plan["target"], lambda line: None)["ok"]
 
 
+@pytest.mark.needs_tool("mksquashfs", "unsquashfs")
+def test_an_appimage_in_cygnus_own_download_folder_is_copied_not_adopted_in_place(tmp_path, monkeypatch):
+    """The home drive holds the cache folder, so a download there counts as "already in storage": it would be registered where it lies and the next
+    download (which clears old ones) would delete the installed program."""
+    from cygnus.core import paths
+
+    home_drive = paths.cache_dir().parent.parent  # a registered location that contains the cache, as the SSD at the home folder does
+    home_drive.mkdir(parents=True, exist_ok=True)
+    reg = open_registry()
+    reg.add_location(StorageLocation(id="ssd", label="SSD", fs_uuid="Y", fs_type="btrfs", location_class="user-owned",
+                                     canonical_mount=str(home_drive), capabilities=HDD_CAPS))
+    reg.close()
+    monkeypatch.setattr(locations, "resolve", lambda loc, cands=None: locations.ResolvedLocation(loc, True, str(home_drive)))
+    folder = paths.cache_dir() / "downloads" / "release" / "hello"
+    folder.mkdir(parents=True)
+    app = builders.build_appimage(folder)
+    assert service.install_appimage(str(app), "SSD", lambda line: None)["ok"]
+    [row] = service.list_apps()
+    assert row["origin"] == "installed" and row["path"] != str(app) and not paths.is_in_cache(row["path"])
+    assert Path(row["path"]).exists() and app.exists()
+    with pytest.raises(CygnusError, match="download folder"):
+        service.adopt_appimage(str(app), lambda line: None)
+
+
+def test_is_in_cache_is_about_the_real_location(tmp_path):
+    from cygnus.core import paths
+
+    inside = paths.cache_dir() / "downloads" / "x" / "f.AppImage"
+    inside.parent.mkdir(parents=True)
+    inside.write_bytes(b"x")
+    outside = tmp_path / "elsewhere.AppImage"
+    outside.write_bytes(b"x")
+    (tmp_path / "link").symlink_to(inside)  # a link outside that points inside: the file is in the cache
+    (paths.cache_dir() / "out").symlink_to(outside)  # a link inside that points outside: the file is not
+    assert paths.is_in_cache(inside) and paths.is_in_cache(tmp_path / "link") and paths.is_in_cache(paths.cache_dir() / "downloads" / ".." / "downloads" / "x")
+    assert not paths.is_in_cache(outside) and not paths.is_in_cache(paths.cache_dir() / "out") and not paths.is_in_cache(tmp_path)
+    assert not paths.is_in_cache(str(paths.cache_dir()) + "-other/f")  # a name that merely starts the same
+
+
 def test_a_local_package_installed_from_the_gui_is_recorded_so_it_can_be_removed_later(monkeypatch, tmp_path):
     from cygnus.core.privilege import Plan
     from cygnus.gui import fixes

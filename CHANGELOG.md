@@ -2,7 +2,7 @@
 
 ## Next (planned 0.2.0, in progress) — what other package managers have
 
-- **Translations, ready for translators.** The text on the screens is now translatable (376 texts, about seven in ten of the pieces of text on the screens; the rest is
+- **Translations, ready for translators.** The text on the screens is now translatable (387 texts, about seven in ten of the pieces of text on the screens; the rest is
   built from pieces at run time and stays English for now), with a template (`cygnus/gui/i18n/cygnus.ts`), tools (`packaging/translations.sh`) and a loader
   that picks the language of your desktop (or `CYGNUS_LANGUAGE`). Cygnus ships no translation and nothing is machine-translated: add a language
   by following `docs/translating.md`. Errors, plans and the terminal are produced in Python and stay in English. A test keeps the template equal to
@@ -15,7 +15,12 @@
   no root helper; its menu's "Look for updates now" runs the normal background check). Clicking it opens Cygnus; switching it off removes it.
 - **Discover: browse what you can get.** A new **Discover** page (and `cygnus discover search | info`) lists the programs on Flathub
   and your other Flatpak remotes, in your repositories (when the data package `archlinux-appstream-data` is installed: a new optional part)
-  and the ones their makers publish as a `.deb` or `.rpm` (14 known programs from nine makers, plus your own sources, including stable Visual Studio Code). Search
+  and the ones their makers publish as a `.deb` or `.rpm` (14 known programs from nine makers, plus your own sources, including stable Visual Studio Code),
+  and **the makers' own downloads from GitHub**: an AppImage, `.deb`, `.rpm`, archive or Arch package for 24 hand-checked programs (Helium, Zen Browser,
+  Obsidian, Heroic, RustDesk, Joplin, DBeaver, FreeCAD and others; 21 of them are merged with their Flathub entry by exact id). A download button asks GitHub
+  for the newest release only when pressed, picks the one matching file (none or several is an error in words), checks GitHub's published SHA-256, and opens
+  the file on the Install page; these downloads are not watched for updates, and a card says so when a program of that name is already managed by Cygnus (a second copy would replace the first one's menu entry). A file inside Cygnus's own download folder is now copied, never adopted in
+  place (it would have been deleted by the next download's cleanup). Search
   by words, filter by kind or by how it can be got, and open a program to see every way to get it, in plain words. The same program from
   several places is one entry, merged only by its exact id (or a hand-checked Flathub id for a maker's package), never by a similar name.
   Nothing is installed from Discover: a Flatpak goes to the Install page, a repository package to its page in Packages, and a maker's

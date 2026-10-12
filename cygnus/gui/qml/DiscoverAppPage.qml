@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
 // One program from Discover, with every way to get it. Each way is only a hand-over: it opens the page that already does that job (the
-// Install page for a Flatpak or a vendor's file, the Packages page for a repository package), where the usual analysis and confirmation
+// Install page for a Flatpak, a vendor's file or a maker's download, the Packages page for a repository package), where the usual analysis and confirmation
 // happen. Nothing is installed from here.
 Kirigami.ScrollablePage {
     id: page
@@ -93,12 +93,53 @@ Kirigami.ScrollablePage {
         });
     }
 
+    // A maker's own download from its GitHub release page: the newest file of that kind is looked up when you press the button, fetched over HTTPS
+    // (checked against the checksum GitHub publishes for it, where there is one), then opened on the Install page like any file you chose.
+    function fetchRelease(source, format) {
+        if (busyText !== "")
+            return;
+        errorText = "";
+        progressValue = -1;
+        busyText = qsTr("Looking for the newest version…");
+        page.ask(backend.fetchReleaseDownload(source.key, format), function (r) {
+            busyText = "";
+            if (!r.ok || !r.result.ok) {
+                errorText = root.plain(root.why(r));
+                return;
+            }
+            root.openPage("install", {
+                "fileUrl": r.result.file_url,
+                "launchNotice": root.fill(qsTr("Cygnus downloaded the %1 from the maker's GitHub release page for %2 (version %3) and %4. Look at what it would do below; nothing is installed until you confirm."), [r.result.format_label, root.flat(page.entry.name), root.flat(r.result.version), r.result.checked ? qsTr("checked it against the checksum GitHub publishes for it") : qsTr("could not check it against a checksum, because GitHub has none for this file (the connection was secure, and that is all that vouches for it)")])
+            });
+        }, function (line) {
+            if (line !== "")
+                page.busyText = line;
+        });
+    }
+
+    function releaseButtonText(format) {
+        switch (format) {
+        case "appimage":
+            return qsTr("Download the AppImage and review…");
+        case "deb":
+            return qsTr("Download the .deb and review…");
+        case "rpm":
+            return qsTr("Download the .rpm and review…");
+        case "archive":
+            return qsTr("Download the archive and review…");
+        default:
+            return qsTr("Download the Arch package and review…");
+        }
+    }
+
     function kindText(source) {
         switch (source.kind) {
         case "flatpak":
             return qsTr("Runs in a sandbox of its own and updates through Flatpak. Cygnus looks at what it needs and where it will go before it installs anything.");
         case "repo":
             return qsTr("Part of your system: installed and updated by pacman together with everything else, and it uses the libraries your system already has.");
+        case "release":
+            return qsTr("The file its makers put on their GitHub release page. Cygnus looks up the newest one when you press a button, checks the checksum GitHub publishes for it, and shows you what installing it would do. It is not sandboxed. Cygnus does not watch it for updates: come back here for the newest file (an AppImage that carries its own update information is the exception).");
         default:
             return qsTr("The maker's own package, which Cygnus converts into a pacman package when that is safe (it shows you what the vendor's install scripts would have done). It is not sandboxed, and it does not update itself: Cygnus tells you about newer versions and you download and review them.");
         }
@@ -185,6 +226,7 @@ Kirigami.ScrollablePage {
         Repeater {
             model: page.entry ? page.entry.sources : []
             Kirigami.AbstractCard {
+                id: card
                 required property var modelData
                 Layout.fillWidth: true
                 contentItem: ColumnLayout {
@@ -252,6 +294,38 @@ Kirigami.ScrollablePage {
                         }
                         Item {
                             Layout.fillWidth: true
+                        }
+                    }
+                    QQC2.Label {
+                        objectName: "releaseInstalledNote"
+                        textFormat: Text.PlainText
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        visible: modelData.kind === "release" && modelData.installed
+                        font.bold: true
+                        text: qsTr("Cygnus already manages a program with this name. Installing this file as well would add a second copy and replace the first one's menu entry. To get a newer version of the one you have, use the Updates page.")
+                    }
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: Kirigami.Units.smallSpacing
+                        visible: modelData.kind === "release"
+                        Repeater {
+                            model: card.modelData.kind === "release" ? card.modelData.formats : []
+                            QQC2.Button {
+                                required property string modelData
+                                objectName: "releaseButton_" + modelData
+                                enabled: page.busyText === ""
+                                text: page.releaseButtonText(modelData)
+                                icon.name: "download"
+                                onClicked: page.fetchRelease(card.modelData, modelData)
+                            }
+                        }
+                        QQC2.Button {
+                            objectName: "releasePageButton"
+                            visible: !!card.modelData.page && card.modelData.page.indexOf("https://") === 0
+                            text: qsTr("Open the release page")
+                            icon.name: "internet-services"
+                            onClicked: Qt.openUrlExternally(card.modelData.page)
                         }
                     }
                 }

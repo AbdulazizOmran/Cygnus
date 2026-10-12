@@ -60,3 +60,29 @@ def test_show_more_continues_what_was_asked_not_what_is_typed_since():
     assert "backend.discoverSearch(asked.query, asked.group, asked.kind, offset)" in search
     assert "resultQuery = asked.query" in search  # remembered only when the answer is the one still wanted (after the sequence check)
     assert search.index("if (seq !== searchSeq)") < search.index("resultQuery = asked.query")
+
+
+def test_the_makers_download_buttons_are_one_per_kind_and_hand_over_through_the_backend():
+    code = (QML / "DiscoverAppPage.qml").read_text()
+    assert "backend.fetchReleaseDownload(source.key, format)" in code
+    assert 'model: card.modelData.kind === "release" ? card.modelData.formats : []' in code  # a button exists only for a kind the project has
+    assert 'objectName: "releaseButton_" + modelData' in code and "page.fetchRelease(card.modelData, modelData)" in code
+    assert 'root.openPage("install"' in code[code.index("function fetchRelease"):code.index("function releaseButtonText")]  # handed over, never installed from here
+
+
+def test_the_makers_download_says_it_is_not_watched_for_updates_and_how_it_was_checked():
+    code = (QML / "DiscoverAppPage.qml").read_text()
+    assert "Cygnus does not watch it for updates" in code
+    notice = code[code.index("function fetchRelease"):code.index("function releaseButtonText")]
+    assert "checksum GitHub publishes for it" in notice and "could not check it against a checksum" in notice and "nothing is installed until you confirm" in notice
+
+
+def test_the_release_page_can_be_opened_from_the_card_and_only_when_it_is_an_https_address():
+    code = (QML / "DiscoverAppPage.qml").read_text()
+    block = code[code.index('objectName: "releasePageButton"'):][:420]
+    assert 'card.modelData.page.indexOf("https://") === 0' in block and "Qt.openUrlExternally(card.modelData.page)" in block
+
+
+def test_the_source_filter_offers_the_makers_downloads():
+    code = (QML / "DiscoverPage.qml").read_text()
+    assert 'value: "release"' in code and 'release: qsTr("Maker\'s own download")' in code

@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
 // Discover: browse the programs you can get, from Flathub (and any other Flatpak remote you have), from your own repositories and from the
-// vendors that publish a .deb or .rpm. Nothing is installed from here: opening a program shows every way to get it, and each way goes through
+// vendors that publish a .deb or .rpm, and from the makers' own download pages (AppImage, .deb, .rpm, archive). Nothing is installed from here: opening a program shows every way to get it, and each way goes through
 // the page that already exists for it, with its own look-before-you-confirm.
 Kirigami.ScrollablePage {
     id: page
@@ -62,6 +62,10 @@ Kirigami.ScrollablePage {
         {
             label: qsTr("A vendor's own package (.deb / .rpm)"),
             value: "vendor"
+        },
+        {
+            label: qsTr("The maker's own download (AppImage, .deb, .rpm, archive, Arch package)"),
+            value: "release"
         }
     ]
 
@@ -126,7 +130,8 @@ Kirigami.ScrollablePage {
         const names = {
             flatpak: qsTr("Flatpak"),
             repo: qsTr("Your repositories"),
-            vendor: qsTr("Vendor's own package")
+            vendor: qsTr("Vendor's own package"),
+            release: qsTr("Maker's own download")
         };
         return entry.sources.map(s => names[s.kind] || s.kind).filter((n, i, all) => all.indexOf(n) === i).join(" · ");
     }

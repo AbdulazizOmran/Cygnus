@@ -203,7 +203,7 @@ def test_what_cannot_be_asked_is_simply_not_marked(monkeypatch):
 
     monkeypatch.setattr(fb, "FlatpakEnv", lambda: (_ for _ in ()).throw(RuntimeError("no libflatpak")))
     monkeypatch.setattr(packages, "installed_versions", lambda **k: (_ for _ in ()).throw(CygnusError("databases unreadable")))
-    assert service._installed_marks() == {"flatpak": set(), "pacman": set(), "vendor": set()}
+    assert service._installed_marks() == {"flatpak": set(), "pacman": set(), "vendor": set(), "apps": set()}
 
 
 def test_installed_marks_are_trusted_for_a_few_seconds_only(monkeypatch):
@@ -346,3 +346,170 @@ def test_a_link_where_a_download_folder_belongs_is_never_followed(tmp_path):
 def test_the_download_is_not_made_by_the_updates_page_helper(monkeypatch):
     monkeypatch.setattr(service, "_fresh_updates_folder", lambda: pytest.fail("the Updates page's helper deletes earlier downloads"))
     assert _fetch()[0]["ok"]
+
+
+# -- fetching a maker's own download from its release page --------------------------------------------------------------------------------
+PROGRAM = b"program"
+
+
+def _asset(fmt="appimage", sha="cd" * 32, name="Demo-1.2.3-x86_64.AppImage"):
+    from cygnus.core.backends import release_feeds as rf
+
+    return rf.Asset("v1.2.3", name, f"https://github.com/acme/demo/releases/download/v1.2.3/{name}", sha, len(PROGRAM), fmt)
+
+
+def _fetch_release(key="obsidian", fmt="appimage", *, asset=None, downloaded=None, lines=None):
+    got = {}
+
+    def download(url, folder, *, expected_sha256, limit, host_ok, progress):
+        got.update(url=url, folder=Path(folder), sha=expected_sha256, limit=limit, host_ok=host_ok)
+        path = Path(folder) / url.rsplit("/", 1)[-1]
+        path.write_bytes(PROGRAM)
+        return path
+
+    result = service.fetch_release_download(key, fmt, (lines if lines is not None else []).append, newest=lambda project, f: asset or _asset(f),
+                                            download=downloaded or download)
+    return result, got
+
+
+def test_a_release_file_is_downloaded_from_githubs_hosts_with_its_published_checksum_and_handed_over_as_a_file():
+    from cygnus.core.backends import release_feeds as rf
+
+    lines = []
+    result, got = _fetch_release(lines=lines)
+    assert result["ok"] and result["checked"] is True and result["version"] == "v1.2.3" and result["format"] == "appimage"
+    assert result["format_label"] == "AppImage" and result["package"] == "obsidian"
+    assert got["sha"] == "cd" * 32 and got["limit"] == len(PROGRAM) and got["host_ok"] is rf.github_host and got["url"].startswith("https://github.com/")
+    assert got["limit"] != rf.MAX_FILE  # the size GitHub declares is the limit of the download, not the largest size Cygnus would ever accept
+    assert result["file_url"] == Path(result["path"]).as_uri() and Path(result["path"]).read_bytes() == b"program"
+    assert got["folder"] == paths.cache_dir() / "downloads" / "release" / "obsidian"  # its own folder, never the vendors' or the updates'
+    assert any("Looking for" in l for l in lines) and any("Downloading Demo-1.2.3-x86_64.AppImage" in l for l in lines)
+    assert "Install page" in result["late_attention"] and result["path"] in result["late_attention"]
+    assert result["late_attention"].startswith("The AppImage finished downloading")  # the window adds the program's name in front
+    assert (paths.cache_dir() / "downloads" / "release" / "obsidian").stat().st_mode & 0o777 == 0o700
+
+
+def test_a_file_without_a_published_checksum_says_it_was_not_checked():
+    result, got = _fetch_release(asset=_asset(sha=None))
+    assert result["ok"] and result["checked"] is False and got["sha"] is None
+
+
+def test_only_a_known_program_and_one_of_its_download_kinds_is_fetched():
+    for key, fmt in (("nothing", "appimage"), ("../x", "appimage"), (None, "appimage"), (5, "deb"), ("obsidian", "rpm"), ("obsidian", "../x"), ("obsidian", None),
+                     ("logseq", "deb"), ("obsidian", "pkg")):
+        with pytest.raises(CygnusError, match="not a program and download kind"):
+            _fetch_release(key, fmt)
+
+
+def test_release_and_vendor_downloads_never_share_a_folder():
+    a, got_a = _fetch_release("obsidian")
+    other = service._vendor_download_folder("obsidian")  # a vendor package that happened to share the name
+    assert other == paths.cache_dir() / "downloads" / "vendor" / "obsidian" and other != got_a["folder"]
+    assert Path(a["path"]).exists()  # making the vendor's folder did not touch the release file
+
+
+def test_a_file_that_arrives_in_another_size_than_github_declares_is_thrown_away():
+    """Found by review: the declared size was checked and then never used, and a file with no published checksum had nothing else to check it by."""
+    def short(url, folder, **kw):
+        path = Path(folder) / "partial.AppImage"
+        path.write_bytes(PROGRAM[:3])
+        return path
+
+    with pytest.raises(CygnusError, match="not the size GitHub says"):
+        _fetch_release(asset=_asset(sha=None), downloaded=short)
+    assert not (paths.cache_dir() / "downloads" / "release" / "obsidian" / "partial.AppImage").exists()
+
+
+def _age(folder, seconds):
+    import os
+    import time
+
+    then = time.time() - seconds
+    os.utime(folder, (then, then))
+
+
+def test_an_earlier_release_download_of_the_same_program_is_replaced_and_old_ones_are_cleared():
+    first, _ = _fetch_release("obsidian")
+    second, _ = _fetch_release("obsidian")
+    assert first["path"] == second["path"] and Path(second["path"]).exists()
+    base = paths.cache_dir() / "downloads" / "release"
+    for key in ("zettlr", "joplin", "tabby"):
+        _fetch_release(key)
+        for folder in base.iterdir():
+            _age(folder, 7200)  # each download is older than an hour by the time the next one starts
+    _fetch_release("cemu")
+    assert len([p for p in base.iterdir() if p.is_dir()]) <= 3
+
+
+def test_a_download_from_the_last_hour_is_never_cleared_whatever_the_count():
+    """Found by review: a notice for a download that finished after the person left Discover points at its file; the next download must not delete it."""
+    base = paths.cache_dir() / "downloads" / "release"
+    first, _ = _fetch_release("obsidian")
+    for key in ("zettlr", "joplin", "tabby", "cemu"):
+        _fetch_release(key)
+    assert len([p for p in base.iterdir() if p.is_dir()]) == 5 and Path(first["path"]).exists()
+
+
+def test_a_busy_download_slot_says_so_and_a_failure_frees_it():
+    assert service._FETCH_LOCK.acquire(blocking=False)
+    try:
+        result, _ = _fetch_release()
+        assert result["ok"] is False and "Another download" in result["error"]
+    finally:
+        service._FETCH_LOCK.release()
+
+    def broken(project, fmt):
+        raise CygnusError("GitHub is limiting how often this connection may ask. Try again in a little while.")
+
+    with pytest.raises(CygnusError, match="limiting"):
+        service.fetch_release_download("obsidian", "appimage", lambda line: None, newest=broken)
+    assert _fetch_release()[0]["ok"] is True  # the slot was freed by the failure
+
+
+def test_a_download_that_cannot_be_saved_is_said_in_words():
+    def full(url, folder, **kw):
+        raise OSError(28, "No space left on device")
+
+    with pytest.raises(CygnusError, match="could not be saved: No space left"):
+        _fetch_release(downloaded=full)
+
+
+def test_the_overview_counts_the_makers_downloads_and_the_search_can_ask_for_them(catalogue):
+    overview = service.discover_overview()
+    assert overview["releases"] == 24 and overview["vendors"] >= 1
+    found = service.discover_search("", "", "release", 0)
+    assert found["total"] == 24 and all(any(s["kind"] == "release" for s in e["sources"]) for e in found["entries"])
+    assert service.discover_search("", "", "bogus", 0)["total"] == overview["total"]  # an unknown kind asks for everything
+
+
+def test_a_release_source_is_shown_without_an_installed_mark_and_without_failing(catalogue):
+    entry = service.discover_app("release:helium")
+    [source] = entry["sources"]
+    assert source["kind"] == "release" and source["installed"] is False and source["formats"] == ["appimage", "deb", "archive"]
+    assert source["page"] == "https://github.com/imputnet/helium-linux/releases" and entry["installed"] is False
+    assert entry["name"] == "Helium" and entry["sources"][0]["label"] == "The maker's own download (GitHub)"
+
+
+def test_a_release_card_says_installed_when_cygnus_already_manages_a_program_of_that_name(catalogue, monkeypatch):
+    """Installing a second copy of an installed AppImage adds another row and replaces the first one's menu entry (helium.desktop, for instance, which the
+    default-browser choice depends on): the card must not look like a fresh install."""
+    monkeypatch.setattr(service, "_installed_marks", lambda: {"flatpak": set(), "pacman": set(), "vendor": set(), "apps": {"helium"}})
+    helium = service.discover_app("release:helium")
+    assert helium["sources"][0]["installed"] is True and helium["installed"] is True
+    assert service.discover_app("release:tabby")["installed"] is False  # another program is not affected
+    monkeypatch.setattr(service, "_installed_marks", lambda: {"flatpak": set(), "pacman": set(), "vendor": set()})  # marks from an older cache lack the key
+    assert service.discover_app("release:helium")["installed"] is False
+
+
+def test_the_programs_cygnus_manages_are_marked_by_their_shown_name(monkeypatch):
+    from cygnus.core.registry import db as regdb
+
+    service._MARKS.update(at=0.0, value=None)
+    from cygnus.core.backends import flatpak as fb
+
+    monkeypatch.setattr(fb, "FlatpakEnv", lambda: (_ for _ in ()).throw(RuntimeError("no libflatpak")))
+    monkeypatch.setattr(packages, "installed_versions", lambda **k: {})
+    monkeypatch.setattr(regdb, "list_installations", lambda reg: [{"name": " Helium ", "source": {}}, {"name": "Zettlr", "source": {"made_by": "converted", "vendor_package": "zettlr"}},
+                                                                   {"name": None, "source": {}}])
+    marks = service._installed_marks()
+    assert marks["apps"] == {"helium", "zettlr"} and marks["vendor"] == {"zettlr"}

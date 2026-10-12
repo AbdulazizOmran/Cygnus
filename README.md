@@ -60,8 +60,8 @@ it started.
 * **Flatpak permissions** in plain words: what an installed Flatpak may do outside its sandbox, with what lets it leave the sandbox marked and
   your own overrides shown (read-only).
 * **An optional update icon** in the system tray while updates are waiting (off until you switch it on; the icon only reads stored results and never goes to the network).
-* **Discover**: browse what you can get from Flathub, your repositories and the makers' own `.deb`/`.rpm` packages, with every way to get a
-  program explained in plain words. It only lists: each choice goes to the page that already installs it, with its own confirmation.
+* **Discover**: browse what you can get from Flathub, your repositories, the makers' own `.deb`/`.rpm` packages and the AppImage, `.deb`, `.rpm`,
+  archive or Arch package 24 well-known programs publish on GitHub, with every way to get a program explained in plain words. It only lists: each choice goes to the page that already installs it, with its own confirmation.
 * **Your default browser**: a browser Cygnus manages (Helium, for example) can be made the one links open with, in one click
   or with `cygnus default-browser set`. Cygnus reads the result back from every place the desktop looks, undoes it with a plain
   message if it did not take, and remembers what was set before so you can put it back. Only your own settings change.
@@ -112,8 +112,8 @@ for updates of what you installed: your distribution's package mirrors (through 
 `dl.flathub.org`, `aur.archlinux.org`, `archlinux.org` (the news feed, read when you start a system update), `api.github.com` / `github.com` (AppImage update information, and a check whether a newer Cygnus exists: GitHub sees your address
 and `Cygnus/<version>`, nothing else),
 and the vendor
-package lists of programs you converted (for example `dl.google.com`, `packages.microsoft.com`), and a vendor's own server only when you press
-"Download and review" on Discover for that vendor's program. Browsing Discover itself contacts nothing: it reads files already on your computer. Everything it stores is in
+package lists of programs you converted (for example `dl.google.com`, `packages.microsoft.com`), and a vendor's own server (or GitHub, for a program's own release download) only when you press
+a download button on a program's page in Discover (or "Download and review" on the Updates page). Browsing Discover itself contacts nothing: it reads files already on your computer. Everything it stores is in
 `~/.local/share/cygnus`, `~/.config/cygnus`, `~/.cache/cygnus` and `~/.local/state/cygnus`, plus the helper's own
 record of administrator actions in `/var/lib/cygnus`.
 

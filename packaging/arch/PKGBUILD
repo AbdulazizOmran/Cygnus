@@ -5,7 +5,7 @@
 
 pkgname=cygnus
 pkgver=0.1.2
-pkgrel=3
+pkgrel=5
 pkgdesc="Application installer and manager for CachyOS / KDE Plasma: choose the drive each app lives on"
 arch=('any')
 url="https://github.com/AbdulazizOmran/Cygnus"

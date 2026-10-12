@@ -6,7 +6,7 @@ wrong word in an installer is worse than an English one), but everything is in p
 ## What can be translated, honestly
 
 - **The text written on the screens**: menus, page titles, buttons, descriptions, hints, status lines and the plain sentences on each page. The template
-  (`cygnus/gui/i18n/cygnus.ts`) lists them: 376 texts at the time of writing. Counting every piece of text on the screens that reads like text for a
+  (`cygnus/gui/i18n/cygnus.ts`) lists them: 387 texts at the time of writing. Counting every piece of text on the screens that reads like text for a
   person (a sentence that is put together from several pieces at run time counts as several), **about seven in ten are translatable**
   (`packaging/translations.sh coverage` prints the exact figures for the version you have).
 - **Not yet**: the text the screens put together from several pieces at run time (a sentence with a name, a count and a verb in the middle), which is

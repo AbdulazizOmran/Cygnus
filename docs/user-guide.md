@@ -218,21 +218,37 @@ entry and a launcher that keep working when its drive is unplugged. The file sta
 **Discover** is the page to browse when you do not know yet which program you want. It lists the programs on Flathub (and on any
 other Flatpak remote you have), the ones in your own repositories, and the ones their makers publish as a `.deb` or `.rpm` (Chrome, Edge,
 Vivaldi, Brave, Opera, Signal, 1Password, TeamViewer, Slack, Visual Studio Code, Google Earth and any source you added with
-`cygnus feed add`). Type in the search box (every word must appear in the name, what it does, its keywords, its maker or its id; the best
+`cygnus feed add`), and the downloads their makers put on their GitHub release page: an AppImage, a `.deb`, an `.rpm`, an archive or an Arch
+package, for 24 programs (Helium, Zen Browser, Obsidian, Heroic, LocalSend, RustDesk, Zettlr, Logseq, Joplin, Ferdium, Mailspring, Beekeeper
+Studio, DBeaver, Anytype, Cryptomator, balenaEtcher, Tabby, Cherry Studio, AppFlowy, Cemu, LosslessCut, Vesktop, UltiMaker Cura and
+FreeCAD). Type in the search box (every word must appear in the name, what it does, its keywords, its maker or its id; the best
 matches come first), pick a kind of program, or only the programs that can be got one way. Opening a program shows **every way to
 get it**, in plain words: the Flatpak (sandboxed, updated by Flatpak), the repository package (part of your system) and the maker's own
-package (converted by Cygnus when that is safe; not sandboxed; it does not update itself). The same program from several places is one
+package (converted by Cygnus when that is safe; not sandboxed; it does not update itself) and, where there is one, the maker's own download
+from its release page (one button for each kind of file it publishes). The same program from several places is one
 entry, but only when the data says it is the same program (the same AppStream id, or a maker's package whose Flathub id was checked by
 hand), never because the names look alike.
 
 Nothing is installed from Discover. Each way opens the page that already does that job and asks the usual questions: a Flatpak goes to the
 Install page (what it needs and where it goes), a repository package to its page in Packages, a maker's file is first downloaded over
 HTTPS and checked against the checksum the maker publishes (the `.deb` has one; the maker's `.rpm` address has none, and the page says so),
-then opened on the Install page for the full look before anything is converted. Programs from your own repositories are listed only when
+then opened on the Install page for the full look before anything is converted. A **maker's own download** works the same way: when you press
+its button Cygnus asks GitHub for the newest release (nothing is asked while you only browse), picks the one file of that kind (if the maker
+renamed its files so that none, or more than one, fits, Cygnus says so and does not guess), downloads it from GitHub's own servers, checks it
+against the SHA-256 GitHub publishes for it (should a file have none, the page says that nothing vouches for it but the secure
+connection), and opens it on the Install page, where an AppImage is copied to the drive you choose, a `.deb` or `.rpm` is converted, an
+archive is unpacked and an Arch package goes through pacman, each with its usual look and confirmation. GitHub vouches for who uploaded a file to
+the project, not for what is in it. Cygnus **does not watch these downloads for updates**: a `.deb`, `.rpm` or archive from a release page has
+no update information, and an AppImage is only checked for updates once installed, and only when its maker put update information inside; come back to
+Discover for the newest file. If Cygnus cannot choose a file (the maker renamed its files), the card's **Open the release page** button takes you to the page. When Cygnus
+already manages a program with the same name, the card is marked installed and says that installing the file as well would add a second copy and
+replace the first one's menu entry: update the installed one from the Updates page instead. Only programs
+whose releases were checked by hand are listed (no community wrappers, and none whose releases publish no checksums), and nothing from other distributions'
+whole archives (Debian, Fedora): their dependencies would not resolve on Arch. Programs from your own repositories are listed only when
 AppStream data for them is installed: the package `archlinux-appstream-data` (Settings → Optional parts; it holds data only) puts it in
 `/usr/share/swcatalog`, and Discover also reads the other standard catalogue folders (`/var/lib/swcatalog`, `/usr/share/app-info`); a program
 listed from there is opened on its page in Packages, which says so if no repository has it. Screenshots are not fetched.
-Terminal: `cygnus discover search [WORDS] [--group G] [--source flatpak|repo|vendor] [--page N]` and `cygnus discover info ID`.
+Terminal: `cygnus discover search [WORDS] [--group G] [--source flatpak|repo|vendor|release] [--page N]` and `cygnus discover info ID`.
 
 ## Packages from your repositories
 

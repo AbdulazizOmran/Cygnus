@@ -1,0 +1,2615 @@
+{
+ "_about": "File names of each project's newest GitHub release, read with the GitHub API on 2026-10-12 (names, sizes, download addresses, whether a sha256 digest was published). Used only to check that every file-name pattern in release_feeds matches exactly one real file.",
+ "releases": {
+  "AppFlowy-IO/AppFlowy": {
+   "tag": "0.14.8",
+   "assets": [
+    {
+     "name": "AppFlowy-0.14.8-android.apk",
+     "size": 222375877,
+     "digest": true,
+     "url": "https://github.com/AppFlowy-IO/AppFlowy/releases/download/0.14.8/AppFlowy-0.14.8-android.apk"
+    },
+    {
+     "name": "AppFlowy-0.14.8-linux-x86_64.AppImage",
+     "size": 176978424,
+     "digest": true,
+     "url": "https://github.com/AppFlowy-IO/AppFlowy/releases/download/0.14.8/AppFlowy-0.14.8-linux-x86_64.AppImage"
+    },
+    {
+     "name": "AppFlowy-0.14.8-linux-x86_64.deb",
+     "size": 139584408,
+     "digest": true,
+     "url": "https://github.com/AppFlowy-IO/AppFlowy/releases/download/0.14.8/AppFlowy-0.14.8-linux-x86_64.deb"
+    },
+    {
+     "name": "AppFlowy-0.14.8-linux-x86_64.rpm",
+     "size": 189647774,
+     "digest": true,
+     "url": "https://github.com/AppFlowy-IO/AppFlowy/releases/download/0.14.8/AppFlowy-0.14.8-linux-x86_64.rpm"
+    },
+    {
+     "name": "AppFlowy-0.14.8-linux-x86_64.tar.gz",
+     "size": 190550131,
+     "digest": true,
+     "url": "https://github.com/AppFlowy-IO/AppFlowy/releases/download/0.14.8/AppFlowy-0.14.8-linux-x86_64.tar.gz"
+    },
+    {
+     "name": "AppFlowy-0.14.8-macos-arm64.dmg",
+     "size": 138310942,
+     "digest": true,
+     "url": "https://github.com/AppFlowy-IO/AppFlowy/releases/download/0.14.8/AppFlowy-0.14.8-macos-arm64.dmg"
+    },
+    {
+     "name": "AppFlowy-0.14.8-macos-arm64.zip",
+     "size": 139819259,
+     "digest": true,
+     "url": "https://github.com/AppFlowy-IO/AppFlowy/releases/download/0.14.8/AppFlowy-0.14.8-macos-arm64.zip"
+    },
+    {
+     "name": "AppFlowy-0.14.8-windows-x86_64.exe",
+     "size": 88714064,
+     "digest": true,
+     "url": "https://github.com/AppFlowy-IO/AppFlowy/releases/download/0.14.8/AppFlowy-0.14.8-windows-x86_64.exe"
+    },
+    {
+     "name": "AppFlowy-0.14.8-windows-x86_64.zip",
+     "size": 127899051,
+     "digest": true,
+     "url": "https://github.com/AppFlowy-IO/AppFlowy/releases/download/0.14.8/AppFlowy-0.14.8-windows-x86_64.zip"
+    }
+   ]
+  },
+  "CherryHQ/cherry-studio": {
+   "tag": "v2.1.6",
+   "assets": [
+    {
+     "name": "Cherry-Studio-2.1.6-linux-arm64.AppImage",
+     "size": 416722570,
+     "digest": true,
+     "url": "https://github.com/CherryHQ/cherry-studio/releases/download/v2.1.6/Cherry-Studio-2.1.6-linux-arm64.AppImage"
+    },
+    {
+     "name": "Cherry-Studio-2.1.6-linux-arm64.deb",
+     "size": 339921876,
+     "digest": true,
+     "url": "https://github.com/CherryHQ/cherry-studio/releases/download/v2.1.6/Cherry-Studio-2.1.6-linux-arm64.deb"
+    },
+    {
+     "name": "Cherry-Studio-2.1.6-linux-arm64.rpm",
+     "size": 293016289,
+     "digest": true,
+     "url": "https://github.com/CherryHQ/cherry-studio/releases/download/v2.1.6/Cherry-Studio-2.1.6-linux-arm64.rpm"
+    },
+    {
+     "name": "Cherry-Studio-2.1.6-linux-x64.AppImage",
+     "size": 418148073,
+     "digest": true,
+     "url": "https://github.com/CherryHQ/cherry-studio/releases/download/v2.1.6/Cherry-Studio-2.1.6-linux-x64.AppImage"
+    },
+    {
+     "name": "Cherry-Studio-2.1.6-linux-x64.deb",
+     "size": 353966640,
+     "digest": true,
+     "url": "https://github.com/CherryHQ/cherry-studio/releases/download/v2.1.6/Cherry-Studio-2.1.6-linux-x64.deb"
+    },
+    {
+     "name": "Cherry-Studio-2.1.6-linux-x64.rpm",
+     "size": 305920949,
+     "digest": true,
+     "url": "https://github.com/CherryHQ/cherry-studio/releases/download/v2.1.6/Cherry-Studio-2.1.6-linux-x64.rpm"
+    },
+    {
+     "name": "Cherry-Studio-2.1.6-mac-arm64.dmg",
+     "size": 410734117,
+     "digest": true,
+     "url": "https://github.com/CherryHQ/cherry-studio/releases/download/v2.1.6/Cherry-Studio-2.1.6-mac-arm64.dmg"
+    },
+    {
+     "name": "Cherry-Studio-2.1.6-mac-arm64.zip",
+     "size": 397516991,
+     "digest": true,
+     "url": "https://github.com/CherryHQ/cherry-studio/releases/download/v2.1.6/Cherry-Studio-2.1.6-mac-arm64.zip"
+    },
+    {
+     "name": "Cherry-Studio-2.1.6-mac-arm64.zip.blockmap",
+     "size": 415737,
+     "digest": true,
+     "url": "https://github.com/CherryHQ/cherry-studio/releases/download/v2.1.6/Cherry-Studio-2.1.6-mac-arm64.zip.blockmap"
+    },
+    {
+     "name": "Cherry-Studio-2.1.6-mac-x64.dmg",
+     "size": 438954189,
+     "digest": true,
+     "url": "https://github.com/CherryHQ/cherry-studio/releases/download/v2.1.6/Cherry-Studio-2.1.6-mac-x64.dmg"
+    },
+    {
+     "name": "Cherry-Studio-2.1.6-mac-x64.zip",
+     "size": 425183898,
+     "digest": true,
+     "url": "https://github.com/CherryHQ/cherry-studio/releases/download/v2.1.6/Cherry-Studio-2.1.6-mac-x64.zip"
+    },
+    {
+     "name": "Cherry-Studio-2.1.6-mac-x64.zip.blockmap",
+     "size": 442287,
+     "digest": true,
+     "url": "https://github.com/CherryHQ/cherry-studio/releases/download/v2.1.6/Cherry-Studio-2.1.6-mac-x64.zip.blockmap"
+    },
+    {
+     "name": "Cherry-Studio-2.1.6-win-arm64-portable.exe",
+     "size": 369178520,
+     "digest": true,
+     "url": "https://github.com/CherryHQ/cherry-studio/releases/download/v2.1.6/Cherry-Studio-2.1.6-win-arm64-portable.exe"
+    },
+    {
+     "name": "Cherry-Studio-2.1.6-win-arm64-setup.exe",
+     "size": 369552576,
+     "digest": true,
+     "url": "https://github.com/CherryHQ/cherry-studio/releases/download/v2.1.6/Cherry-Studio-2.1.6-win-arm64-setup.exe"
+    },
+    {
+     "name": "Cherry-Studio-2.1.6-win-arm64-setup.exe.blockmap",
+     "size": 386954,
+     "digest": true,
+     "url": "https://github.com/CherryHQ/cherry-studio/releases/download/v2.1.6/Cherry-Studio-2.1.6-win-arm64-setup.exe.blockmap"
+    },
+    {
+     "name": "Cherry-Studio-2.1.6-win-x64-portable.exe",
+     "size": 395662608,
+     "digest": true,
+     "url": "https://github.com/CherryHQ/cherry-studio/releases/download/v2.1.6/Cherry-Studio-2.1.6-win-x64-portable.exe"
+    },
+    {
+     "name": "Cherry-Studio-2.1.6-win-x64-setup.exe",
+     "size": 396037216,
+     "digest": true,
+     "url": "https://github.com/CherryHQ/cherry-studio/releases/download/v2.1.6/Cherry-Studio-2.1.6-win-x64-setup.exe"
+    },
+    {
+     "name": "Cherry-Studio-2.1.6-win-x64-setup.exe.blockmap",
+     "size": 413158,
+     "digest": true,
+     "url": "https://github.com/CherryHQ/cherry-studio/releases/download/v2.1.6/Cherry-Studio-2.1.6-win-x64-setup.exe.blockmap"
+    },
+    {
+     "name": "latest-linux-arm64.yml",
+     "size": 2342,
+     "digest": true,
+     "url": "https://github.com/CherryHQ/cherry-studio/releases/download/v2.1.6/latest-linux-arm64.yml"
+    },
+    {
+     "name": "latest-linux.yml",
+     "size": 2334,
+     "digest": true,
+     "url": "https://github.com/CherryHQ/cherry-studio/releases/download/v2.1.6/latest-linux.yml"
+    },
+    {
+     "name": "latest-mac.yml",
+     "size": 2131,
+     "digest": true,
+     "url": "https://github.com/CherryHQ/cherry-studio/releases/download/v2.1.6/latest-mac.yml"
+    },
+    {
+     "name": "latest.yml",
+     "size": 2149,
+     "digest": true,
+     "url": "https://github.com/CherryHQ/cherry-studio/releases/download/v2.1.6/latest.yml"
+    },
+    {
+     "name": "release-history.json",
+     "size": 233265,
+     "digest": true,
+     "url": "https://github.com/CherryHQ/cherry-studio/releases/download/v2.1.6/release-history.json"
+    }
+   ]
+  },
+  "Eugeny/tabby": {
+   "tag": "v1.0.238",
+   "assets": [
+    {
+     "name": "latest-arm64-linux-arm64.yml",
+     "size": 1358,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/latest-arm64-linux-arm64.yml"
+    },
+    {
+     "name": "latest-arm64-mac.yml",
+     "size": 657,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/latest-arm64-mac.yml"
+    },
+    {
+     "name": "latest-arm64.yml",
+     "size": 357,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/latest-arm64.yml"
+    },
+    {
+     "name": "latest-armv7l-linux-arm.yml",
+     "size": 1366,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/latest-armv7l-linux-arm.yml"
+    },
+    {
+     "name": "latest-x64-linux.yml",
+     "size": 1342,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/latest-x64-linux.yml"
+    },
+    {
+     "name": "latest-x64.yml",
+     "size": 353,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/latest-x64.yml"
+    },
+    {
+     "name": "latest-x86_64-mac.yml",
+     "size": 661,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/latest-x86_64-mac.yml"
+    },
+    {
+     "name": "tabby-1.0.238-linux-arm64.AppImage",
+     "size": 169287060,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/tabby-1.0.238-linux-arm64.AppImage"
+    },
+    {
+     "name": "tabby-1.0.238-linux-arm64.deb",
+     "size": 125550188,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/tabby-1.0.238-linux-arm64.deb"
+    },
+    {
+     "name": "tabby-1.0.238-linux-arm64.pacman",
+     "size": 112041456,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/tabby-1.0.238-linux-arm64.pacman"
+    },
+    {
+     "name": "tabby-1.0.238-linux-arm64.rpm",
+     "size": 108328641,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/tabby-1.0.238-linux-arm64.rpm"
+    },
+    {
+     "name": "tabby-1.0.238-linux-arm64.tar.gz",
+     "size": 159821007,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/tabby-1.0.238-linux-arm64.tar.gz"
+    },
+    {
+     "name": "tabby-1.0.238-linux-armv7l.AppImage",
+     "size": 165589059,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/tabby-1.0.238-linux-armv7l.AppImage"
+    },
+    {
+     "name": "tabby-1.0.238-linux-armv7l.deb",
+     "size": 128403336,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/tabby-1.0.238-linux-armv7l.deb"
+    },
+    {
+     "name": "tabby-1.0.238-linux-armv7l.pacman",
+     "size": 116559804,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/tabby-1.0.238-linux-armv7l.pacman"
+    },
+    {
+     "name": "tabby-1.0.238-linux-armv7l.rpm",
+     "size": 112602113,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/tabby-1.0.238-linux-armv7l.rpm"
+    },
+    {
+     "name": "tabby-1.0.238-linux-armv7l.tar.gz",
+     "size": 158095256,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/tabby-1.0.238-linux-armv7l.tar.gz"
+    },
+    {
+     "name": "tabby-1.0.238-linux-x64.AppImage",
+     "size": 168153321,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/tabby-1.0.238-linux-x64.AppImage"
+    },
+    {
+     "name": "tabby-1.0.238-linux-x64.deb",
+     "size": 130349456,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/tabby-1.0.238-linux-x64.deb"
+    },
+    {
+     "name": "tabby-1.0.238-linux-x64.pacman",
+     "size": 117117196,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/tabby-1.0.238-linux-x64.pacman"
+    },
+    {
+     "name": "tabby-1.0.238-linux-x64.rpm",
+     "size": 113337069,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/tabby-1.0.238-linux-x64.rpm"
+    },
+    {
+     "name": "tabby-1.0.238-linux-x64.tar.gz",
+     "size": 159098403,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/tabby-1.0.238-linux-x64.tar.gz"
+    },
+    {
+     "name": "tabby-1.0.238-macos-arm64.dmg",
+     "size": 162632008,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/tabby-1.0.238-macos-arm64.dmg"
+    },
+    {
+     "name": "tabby-1.0.238-macos-arm64.dmg.blockmap",
+     "size": 170950,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/tabby-1.0.238-macos-arm64.dmg.blockmap"
+    },
+    {
+     "name": "tabby-1.0.238-macos-arm64.zip",
+     "size": 157072503,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/tabby-1.0.238-macos-arm64.zip"
+    },
+    {
+     "name": "tabby-1.0.238-macos-x86_64.dmg",
+     "size": 168689034,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/tabby-1.0.238-macos-x86_64.dmg"
+    },
+    {
+     "name": "tabby-1.0.238-macos-x86_64.dmg.blockmap",
+     "size": 177605,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/tabby-1.0.238-macos-x86_64.dmg.blockmap"
+    },
+    {
+     "name": "tabby-1.0.238-macos-x86_64.zip",
+     "size": 163103385,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/tabby-1.0.238-macos-x86_64.zip"
+    },
+    {
+     "name": "tabby-1.0.238-portable-arm64.zip",
+     "size": 184261614,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/tabby-1.0.238-portable-arm64.zip"
+    },
+    {
+     "name": "tabby-1.0.238-portable-x64.zip",
+     "size": 185884613,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/tabby-1.0.238-portable-x64.zip"
+    },
+    {
+     "name": "tabby-1.0.238-setup-arm64.exe",
+     "size": 150590024,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/tabby-1.0.238-setup-arm64.exe"
+    },
+    {
+     "name": "tabby-1.0.238-setup-arm64.exe.blockmap",
+     "size": 158188,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/tabby-1.0.238-setup-arm64.exe.blockmap"
+    },
+    {
+     "name": "tabby-1.0.238-setup-x64.exe",
+     "size": 169744184,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/tabby-1.0.238-setup-x64.exe"
+    },
+    {
+     "name": "tabby-1.0.238-setup-x64.exe.blockmap",
+     "size": 179731,
+     "digest": true,
+     "url": "https://github.com/Eugeny/tabby/releases/download/v1.0.238/tabby-1.0.238-setup-x64.exe.blockmap"
+    }
+   ]
+  },
+  "Foundry376/Mailspring": {
+   "tag": "1.26.0",
+   "assets": [
+    {
+     "name": "mailspring-1.26.0-0.1.aarch64.rpm",
+     "size": 190303139,
+     "digest": true,
+     "url": "https://github.com/Foundry376/Mailspring/releases/download/1.26.0/mailspring-1.26.0-0.1.aarch64.rpm"
+    },
+    {
+     "name": "mailspring-1.26.0-0.1.x86_64.rpm",
+     "size": 188497205,
+     "digest": true,
+     "url": "https://github.com/Foundry376/Mailspring/releases/download/1.26.0/mailspring-1.26.0-0.1.x86_64.rpm"
+    },
+    {
+     "name": "mailspring-1.26.0-amd64.deb",
+     "size": 145563174,
+     "digest": true,
+     "url": "https://github.com/Foundry376/Mailspring/releases/download/1.26.0/mailspring-1.26.0-amd64.deb"
+    },
+    {
+     "name": "mailspring-1.26.0-arm64.deb",
+     "size": 145021432,
+     "digest": true,
+     "url": "https://github.com/Foundry376/Mailspring/releases/download/1.26.0/mailspring-1.26.0-arm64.deb"
+    },
+    {
+     "name": "Mailspring-1.26.0-full.nupkg",
+     "size": 242937430,
+     "digest": true,
+     "url": "https://github.com/Foundry376/Mailspring/releases/download/1.26.0/Mailspring-1.26.0-full.nupkg"
+    },
+    {
+     "name": "Mailspring-AppleSilicon.zip",
+     "size": 179692582,
+     "digest": true,
+     "url": "https://github.com/Foundry376/Mailspring/releases/download/1.26.0/Mailspring-AppleSilicon.zip"
+    },
+    {
+     "name": "Mailspring.zip",
+     "size": 186591655,
+     "digest": true,
+     "url": "https://github.com/Foundry376/Mailspring/releases/download/1.26.0/Mailspring.zip"
+    },
+    {
+     "name": "MailspringSetup.exe",
+     "size": 243384648,
+     "digest": true,
+     "url": "https://github.com/Foundry376/Mailspring/releases/download/1.26.0/MailspringSetup.exe"
+    },
+    {
+     "name": "RELEASES",
+     "size": 82,
+     "digest": true,
+     "url": "https://github.com/Foundry376/Mailspring/releases/download/1.26.0/RELEASES"
+    }
+   ]
+  },
+  "FreeCAD/FreeCAD": {
+   "tag": "1.1.4",
+   "assets": [
+    {
+     "name": "FreeCAD_1.1.4-Linux-aarch64-py311.AppImage",
+     "size": 755591688,
+     "digest": true,
+     "url": "https://github.com/FreeCAD/FreeCAD/releases/download/1.1.4/FreeCAD_1.1.4-Linux-aarch64-py311.AppImage"
+    },
+    {
+     "name": "FreeCAD_1.1.4-Linux-aarch64-py311.AppImage-SHA256.txt",
+     "size": 109,
+     "digest": true,
+     "url": "https://github.com/FreeCAD/FreeCAD/releases/download/1.1.4/FreeCAD_1.1.4-Linux-aarch64-py311.AppImage-SHA256.txt"
+    },
+    {
+     "name": "FreeCAD_1.1.4-Linux-aarch64-py311.AppImage.zsync",
+     "size": 1476024,
+     "digest": true,
+     "url": "https://github.com/FreeCAD/FreeCAD/releases/download/1.1.4/FreeCAD_1.1.4-Linux-aarch64-py311.AppImage.zsync"
+    },
+    {
+     "name": "FreeCAD_1.1.4-Linux-x86_64-py311.AppImage",
+     "size": 820812280,
+     "digest": true,
+     "url": "https://github.com/FreeCAD/FreeCAD/releases/download/1.1.4/FreeCAD_1.1.4-Linux-x86_64-py311.AppImage"
+    },
+    {
+     "name": "FreeCAD_1.1.4-Linux-x86_64-py311.AppImage-SHA256.txt",
+     "size": 108,
+     "digest": true,
+     "url": "https://github.com/FreeCAD/FreeCAD/releases/download/1.1.4/FreeCAD_1.1.4-Linux-x86_64-py311.AppImage-SHA256.txt"
+    },
+    {
+     "name": "FreeCAD_1.1.4-Linux-x86_64-py311.AppImage.zsync",
+     "size": 1603406,
+     "digest": true,
+     "url": "https://github.com/FreeCAD/FreeCAD/releases/download/1.1.4/FreeCAD_1.1.4-Linux-x86_64-py311.AppImage.zsync"
+    },
+    {
+     "name": "FreeCAD_1.1.4-macOS-arm64-py311.dmg",
+     "size": 649760538,
+     "digest": true,
+     "url": "https://github.com/FreeCAD/FreeCAD/releases/download/1.1.4/FreeCAD_1.1.4-macOS-arm64-py311.dmg"
+    },
+    {
+     "name": "FreeCAD_1.1.4-macOS-arm64-py311.dmg-SHA256.txt",
+     "size": 102,
+     "digest": true,
+     "url": "https://github.com/FreeCAD/FreeCAD/releases/download/1.1.4/FreeCAD_1.1.4-macOS-arm64-py311.dmg-SHA256.txt"
+    },
+    {
+     "name": "FreeCAD_1.1.4-macOS-x86_64-py311.dmg",
+     "size": 720059196,
+     "digest": true,
+     "url": "https://github.com/FreeCAD/FreeCAD/releases/download/1.1.4/FreeCAD_1.1.4-macOS-x86_64-py311.dmg"
+    },
+    {
+     "name": "FreeCAD_1.1.4-macOS-x86_64-py311.dmg-SHA256.txt",
+     "size": 103,
+     "digest": true,
+     "url": "https://github.com/FreeCAD/FreeCAD/releases/download/1.1.4/FreeCAD_1.1.4-macOS-x86_64-py311.dmg-SHA256.txt"
+    },
+    {
+     "name": "FreeCAD_1.1.4-Windows-x86_64-py311-installer.exe",
+     "size": 519314976,
+     "digest": true,
+     "url": "https://github.com/FreeCAD/FreeCAD/releases/download/1.1.4/FreeCAD_1.1.4-Windows-x86_64-py311-installer.exe"
+    },
+    {
+     "name": "FreeCAD_1.1.4-Windows-x86_64-py311-installer.exe-SHA256.txt",
+     "size": 115,
+     "digest": true,
+     "url": "https://github.com/FreeCAD/FreeCAD/releases/download/1.1.4/FreeCAD_1.1.4-Windows-x86_64-py311-installer.exe-SHA256.txt"
+    },
+    {
+     "name": "FreeCAD_1.1.4-Windows-x86_64-py311.7z",
+     "size": 418088341,
+     "digest": true,
+     "url": "https://github.com/FreeCAD/FreeCAD/releases/download/1.1.4/FreeCAD_1.1.4-Windows-x86_64-py311.7z"
+    },
+    {
+     "name": "FreeCAD_1.1.4-Windows-x86_64-py311.7z-SHA256.txt",
+     "size": 104,
+     "digest": true,
+     "url": "https://github.com/FreeCAD/FreeCAD/releases/download/1.1.4/FreeCAD_1.1.4-Windows-x86_64-py311.7z-SHA256.txt"
+    },
+    {
+     "name": "freecad_source_1.1.4.tar.gz",
+     "size": 98203668,
+     "digest": true,
+     "url": "https://github.com/FreeCAD/FreeCAD/releases/download/1.1.4/freecad_source_1.1.4.tar.gz"
+    },
+    {
+     "name": "freecad_source_1.1.4.tar.gz-SHA256.txt",
+     "size": 94,
+     "digest": true,
+     "url": "https://github.com/FreeCAD/FreeCAD/releases/download/1.1.4/freecad_source_1.1.4.tar.gz-SHA256.txt"
+    }
+   ]
+  },
+  "Heroic-Games-Launcher/HeroicGamesLauncher": {
+   "tag": "v2.22.3",
+   "assets": [
+    {
+     "name": "Heroic-2.22.3-linux-amd64.deb",
+     "size": 127528508,
+     "digest": true,
+     "url": "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v2.22.3/Heroic-2.22.3-linux-amd64.deb"
+    },
+    {
+     "name": "Heroic-2.22.3-linux-x64.pacman",
+     "size": 116970036,
+     "digest": true,
+     "url": "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v2.22.3/Heroic-2.22.3-linux-x64.pacman"
+    },
+    {
+     "name": "Heroic-2.22.3-linux-x64.tar.xz",
+     "size": 113419672,
+     "digest": true,
+     "url": "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v2.22.3/Heroic-2.22.3-linux-x64.tar.xz"
+    },
+    {
+     "name": "Heroic-2.22.3-linux-x86_64.AppImage",
+     "size": 158820922,
+     "digest": true,
+     "url": "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v2.22.3/Heroic-2.22.3-linux-x86_64.AppImage"
+    },
+    {
+     "name": "Heroic-2.22.3-linux-x86_64.rpm",
+     "size": 114342829,
+     "digest": true,
+     "url": "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v2.22.3/Heroic-2.22.3-linux-x86_64.rpm"
+    },
+    {
+     "name": "Heroic-2.22.3-macOS-arm64.dmg",
+     "size": 170044152,
+     "digest": true,
+     "url": "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v2.22.3/Heroic-2.22.3-macOS-arm64.dmg"
+    },
+    {
+     "name": "Heroic-2.22.3-macOS-arm64.dmg.blockmap",
+     "size": 178350,
+     "digest": true,
+     "url": "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v2.22.3/Heroic-2.22.3-macOS-arm64.dmg.blockmap"
+    },
+    {
+     "name": "Heroic-2.22.3-macOS-arm64.zip",
+     "size": 164549241,
+     "digest": true,
+     "url": "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v2.22.3/Heroic-2.22.3-macOS-arm64.zip"
+    },
+    {
+     "name": "Heroic-2.22.3-macOS-arm64.zip.blockmap",
+     "size": 173133,
+     "digest": true,
+     "url": "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v2.22.3/Heroic-2.22.3-macOS-arm64.zip.blockmap"
+    },
+    {
+     "name": "Heroic-2.22.3-macOS-x64.dmg",
+     "size": 176605764,
+     "digest": true,
+     "url": "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v2.22.3/Heroic-2.22.3-macOS-x64.dmg"
+    },
+    {
+     "name": "Heroic-2.22.3-macOS-x64.dmg.blockmap",
+     "size": 182755,
+     "digest": true,
+     "url": "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v2.22.3/Heroic-2.22.3-macOS-x64.dmg.blockmap"
+    },
+    {
+     "name": "Heroic-2.22.3-macOS-x64.zip",
+     "size": 171146383,
+     "digest": true,
+     "url": "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v2.22.3/Heroic-2.22.3-macOS-x64.zip"
+    },
+    {
+     "name": "Heroic-2.22.3-macOS-x64.zip.blockmap",
+     "size": 178428,
+     "digest": true,
+     "url": "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v2.22.3/Heroic-2.22.3-macOS-x64.zip.blockmap"
+    },
+    {
+     "name": "Heroic-2.22.3-Portable-arm64.exe",
+     "size": 153668864,
+     "digest": true,
+     "url": "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v2.22.3/Heroic-2.22.3-Portable-arm64.exe"
+    },
+    {
+     "name": "Heroic-2.22.3-Portable-x64.exe",
+     "size": 154731368,
+     "digest": true,
+     "url": "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v2.22.3/Heroic-2.22.3-Portable-x64.exe"
+    },
+    {
+     "name": "Heroic-2.22.3-Setup-arm64.exe",
+     "size": 153885880,
+     "digest": true,
+     "url": "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v2.22.3/Heroic-2.22.3-Setup-arm64.exe"
+    },
+    {
+     "name": "Heroic-2.22.3-Setup-arm64.exe.blockmap",
+     "size": 163477,
+     "digest": true,
+     "url": "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v2.22.3/Heroic-2.22.3-Setup-arm64.exe.blockmap"
+    },
+    {
+     "name": "Heroic-2.22.3-Setup-x64.exe",
+     "size": 154948712,
+     "digest": true,
+     "url": "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v2.22.3/Heroic-2.22.3-Setup-x64.exe"
+    },
+    {
+     "name": "Heroic-2.22.3-Setup-x64.exe.blockmap",
+     "size": 163143,
+     "digest": true,
+     "url": "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v2.22.3/Heroic-2.22.3-Setup-x64.exe.blockmap"
+    },
+    {
+     "name": "latest-linux.yml",
+     "size": 875,
+     "digest": true,
+     "url": "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v2.22.3/latest-linux.yml"
+    },
+    {
+     "name": "latest-mac.yml",
+     "size": 830,
+     "digest": true,
+     "url": "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v2.22.3/latest-mac.yml"
+    },
+    {
+     "name": "latest.yml",
+     "size": 512,
+     "digest": true,
+     "url": "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v2.22.3/latest.yml"
+    }
+   ]
+  },
+  "UltiMaker/Cura": {
+   "tag": "5.13.0",
+   "assets": [
+    {
+     "name": "UltiMaker-Cura-5.13.0-linux-X64.AppImage",
+     "size": 334154232,
+     "digest": true,
+     "url": "https://github.com/Ultimaker/Cura/releases/download/5.13.0/UltiMaker-Cura-5.13.0-linux-X64.AppImage"
+    },
+    {
+     "name": "UltiMaker-Cura-5.13.0-linux-X64.AppImage.asc",
+     "size": 488,
+     "digest": true,
+     "url": "https://github.com/Ultimaker/Cura/releases/download/5.13.0/UltiMaker-Cura-5.13.0-linux-X64.AppImage.asc"
+    },
+    {
+     "name": "UltiMaker-Cura-5.13.0-macos-ARM64.dmg",
+     "size": 172070501,
+     "digest": true,
+     "url": "https://github.com/Ultimaker/Cura/releases/download/5.13.0/UltiMaker-Cura-5.13.0-macos-ARM64.dmg"
+    },
+    {
+     "name": "UltiMaker-Cura-5.13.0-macos-ARM64.pkg",
+     "size": 171095904,
+     "digest": true,
+     "url": "https://github.com/Ultimaker/Cura/releases/download/5.13.0/UltiMaker-Cura-5.13.0-macos-ARM64.pkg"
+    },
+    {
+     "name": "UltiMaker-Cura-5.13.0-macos-X64.dmg",
+     "size": 191468858,
+     "digest": true,
+     "url": "https://github.com/Ultimaker/Cura/releases/download/5.13.0/UltiMaker-Cura-5.13.0-macos-X64.dmg"
+    },
+    {
+     "name": "UltiMaker-Cura-5.13.0-macos-X64.pkg",
+     "size": 190821201,
+     "digest": true,
+     "url": "https://github.com/Ultimaker/Cura/releases/download/5.13.0/UltiMaker-Cura-5.13.0-macos-X64.pkg"
+    },
+    {
+     "name": "UltiMaker-Cura-5.13.0-win64-X64.exe",
+     "size": 165382744,
+     "digest": true,
+     "url": "https://github.com/Ultimaker/Cura/releases/download/5.13.0/UltiMaker-Cura-5.13.0-win64-X64.exe"
+    },
+    {
+     "name": "UltiMaker-Cura-5.13.0-win64-X64.msi",
+     "size": 179818496,
+     "digest": true,
+     "url": "https://github.com/Ultimaker/Cura/releases/download/5.13.0/UltiMaker-Cura-5.13.0-win64-X64.msi"
+    }
+   ]
+  },
+  "Vencord/Vesktop": {
+   "tag": "v1.6.7",
+   "assets": [
+    {
+     "name": "dev.vencord.Vesktop.metainfo.xml",
+     "size": 20464,
+     "digest": true,
+     "url": "https://github.com/Vencord/Vesktop/releases/download/v1.6.7/dev.vencord.Vesktop.metainfo.xml"
+    },
+    {
+     "name": "latest-linux-arm64.yml",
+     "size": 686,
+     "digest": true,
+     "url": "https://github.com/Vencord/Vesktop/releases/download/v1.6.7/latest-linux-arm64.yml"
+    },
+    {
+     "name": "latest-linux.yml",
+     "size": 674,
+     "digest": true,
+     "url": "https://github.com/Vencord/Vesktop/releases/download/v1.6.7/latest-linux.yml"
+    },
+    {
+     "name": "latest-mac.yml",
+     "size": 517,
+     "digest": true,
+     "url": "https://github.com/Vencord/Vesktop/releases/download/v1.6.7/latest-mac.yml"
+    },
+    {
+     "name": "latest.yml",
+     "size": 343,
+     "digest": true,
+     "url": "https://github.com/Vencord/Vesktop/releases/download/v1.6.7/latest.yml"
+    },
+    {
+     "name": "Vesktop-1.6.7-arm64-win.zip",
+     "size": 141077476,
+     "digest": true,
+     "url": "https://github.com/Vencord/Vesktop/releases/download/v1.6.7/Vesktop-1.6.7-arm64-win.zip"
+    },
+    {
+     "name": "Vesktop-1.6.7-arm64.AppImage",
+     "size": 132813931,
+     "digest": true,
+     "url": "https://github.com/Vencord/Vesktop/releases/download/v1.6.7/Vesktop-1.6.7-arm64.AppImage"
+    },
+    {
+     "name": "vesktop-1.6.7-arm64.tar.gz",
+     "size": 125407290,
+     "digest": true,
+     "url": "https://github.com/Vencord/Vesktop/releases/download/v1.6.7/vesktop-1.6.7-arm64.tar.gz"
+    },
+    {
+     "name": "Vesktop-1.6.7-universal-mac.zip",
+     "size": 224282223,
+     "digest": true,
+     "url": "https://github.com/Vencord/Vesktop/releases/download/v1.6.7/Vesktop-1.6.7-universal-mac.zip"
+    },
+    {
+     "name": "Vesktop-1.6.7-universal-mac.zip.blockmap",
+     "size": 234841,
+     "digest": true,
+     "url": "https://github.com/Vencord/Vesktop/releases/download/v1.6.7/Vesktop-1.6.7-universal-mac.zip.blockmap"
+    },
+    {
+     "name": "Vesktop-1.6.7-universal.dmg",
+     "size": 224788697,
+     "digest": true,
+     "url": "https://github.com/Vencord/Vesktop/releases/download/v1.6.7/Vesktop-1.6.7-universal.dmg"
+    },
+    {
+     "name": "Vesktop-1.6.7-universal.dmg.blockmap",
+     "size": 234846,
+     "digest": true,
+     "url": "https://github.com/Vencord/Vesktop/releases/download/v1.6.7/Vesktop-1.6.7-universal.dmg.blockmap"
+    },
+    {
+     "name": "Vesktop-1.6.7-win.zip",
+     "size": 144162512,
+     "digest": true,
+     "url": "https://github.com/Vencord/Vesktop/releases/download/v1.6.7/Vesktop-1.6.7-win.zip"
+    },
+    {
+     "name": "vesktop-1.6.7.aarch64.rpm",
+     "size": 85451405,
+     "digest": true,
+     "url": "https://github.com/Vencord/Vesktop/releases/download/v1.6.7/vesktop-1.6.7.aarch64.rpm"
+    },
+    {
+     "name": "Vesktop-1.6.7.AppImage",
+     "size": 133047244,
+     "digest": true,
+     "url": "https://github.com/Vencord/Vesktop/releases/download/v1.6.7/Vesktop-1.6.7.AppImage"
+    },
+    {
+     "name": "vesktop-1.6.7.tar.gz",
+     "size": 125893067,
+     "digest": true,
+     "url": "https://github.com/Vencord/Vesktop/releases/download/v1.6.7/vesktop-1.6.7.tar.gz"
+    },
+    {
+     "name": "vesktop-1.6.7.x86_64.rpm",
+     "size": 91193933,
+     "digest": true,
+     "url": "https://github.com/Vencord/Vesktop/releases/download/v1.6.7/vesktop-1.6.7.x86_64.rpm"
+    },
+    {
+     "name": "Vesktop-Setup-1.6.7.exe",
+     "size": 199875058,
+     "digest": true,
+     "url": "https://github.com/Vencord/Vesktop/releases/download/v1.6.7/Vesktop-Setup-1.6.7.exe"
+    },
+    {
+     "name": "Vesktop-Setup-1.6.7.exe.blockmap",
+     "size": 206559,
+     "digest": true,
+     "url": "https://github.com/Vencord/Vesktop/releases/download/v1.6.7/Vesktop-Setup-1.6.7.exe.blockmap"
+    },
+    {
+     "name": "vesktop_1.6.7_amd64.deb",
+     "size": 104427528,
+     "digest": true,
+     "url": "https://github.com/Vencord/Vesktop/releases/download/v1.6.7/vesktop_1.6.7_amd64.deb"
+    },
+    {
+     "name": "vesktop_1.6.7_arm64.deb",
+     "size": 98578048,
+     "digest": true,
+     "url": "https://github.com/Vencord/Vesktop/releases/download/v1.6.7/vesktop_1.6.7_arm64.deb"
+    }
+   ]
+  },
+  "Zettlr/Zettlr": {
+   "tag": "v4.8.0",
+   "assets": [
+    {
+     "name": "SHA256SUMS.txt",
+     "size": 811,
+     "digest": true,
+     "url": "https://github.com/Zettlr/Zettlr/releases/download/v4.8.0/SHA256SUMS.txt"
+    },
+    {
+     "name": "Zettlr-4.8.0-aarch64.rpm",
+     "size": 138722181,
+     "digest": true,
+     "url": "https://github.com/Zettlr/Zettlr/releases/download/v4.8.0/Zettlr-4.8.0-aarch64.rpm"
+    },
+    {
+     "name": "Zettlr-4.8.0-amd64.deb",
+     "size": 135430530,
+     "digest": true,
+     "url": "https://github.com/Zettlr/Zettlr/releases/download/v4.8.0/Zettlr-4.8.0-amd64.deb"
+    },
+    {
+     "name": "Zettlr-4.8.0-arm64.AppImage",
+     "size": 193293063,
+     "digest": true,
+     "url": "https://github.com/Zettlr/Zettlr/releases/download/v4.8.0/Zettlr-4.8.0-arm64.AppImage"
+    },
+    {
+     "name": "Zettlr-4.8.0-arm64.deb",
+     "size": 136252128,
+     "digest": true,
+     "url": "https://github.com/Zettlr/Zettlr/releases/download/v4.8.0/Zettlr-4.8.0-arm64.deb"
+    },
+    {
+     "name": "Zettlr-4.8.0-arm64.dmg",
+     "size": 193524402,
+     "digest": true,
+     "url": "https://github.com/Zettlr/Zettlr/releases/download/v4.8.0/Zettlr-4.8.0-arm64.dmg"
+    },
+    {
+     "name": "Zettlr-4.8.0-x64.dmg",
+     "size": 184877770,
+     "digest": true,
+     "url": "https://github.com/Zettlr/Zettlr/releases/download/v4.8.0/Zettlr-4.8.0-x64.dmg"
+    },
+    {
+     "name": "Zettlr-4.8.0-x64.exe",
+     "size": 157306080,
+     "digest": true,
+     "url": "https://github.com/Zettlr/Zettlr/releases/download/v4.8.0/Zettlr-4.8.0-x64.exe"
+    },
+    {
+     "name": "Zettlr-4.8.0-x86_64.AppImage",
+     "size": 189489911,
+     "digest": true,
+     "url": "https://github.com/Zettlr/Zettlr/releases/download/v4.8.0/Zettlr-4.8.0-x86_64.AppImage"
+    },
+    {
+     "name": "Zettlr-4.8.0-x86_64.rpm",
+     "size": 142224017,
+     "digest": true,
+     "url": "https://github.com/Zettlr/Zettlr/releases/download/v4.8.0/Zettlr-4.8.0-x86_64.rpm"
+    }
+   ]
+  },
+  "anyproto/anytype-ts": {
+   "tag": "v0.57.4",
+   "assets": [
+    {
+     "name": "Anytype-0.57.4-mac-arm64.dmg",
+     "size": 289403338,
+     "digest": true,
+     "url": "https://github.com/anyproto/anytype-ts/releases/download/v0.57.4/Anytype-0.57.4-mac-arm64.dmg"
+    },
+    {
+     "name": "Anytype-0.57.4-mac-arm64.zip",
+     "size": 283226043,
+     "digest": true,
+     "url": "https://github.com/anyproto/anytype-ts/releases/download/v0.57.4/Anytype-0.57.4-mac-arm64.zip"
+    },
+    {
+     "name": "Anytype-0.57.4-mac-x64.dmg",
+     "size": 302258223,
+     "digest": true,
+     "url": "https://github.com/anyproto/anytype-ts/releases/download/v0.57.4/Anytype-0.57.4-mac-x64.dmg"
+    },
+    {
+     "name": "Anytype-0.57.4-mac-x64.zip",
+     "size": 295957766,
+     "digest": true,
+     "url": "https://github.com/anyproto/anytype-ts/releases/download/v0.57.4/Anytype-0.57.4-mac-x64.zip"
+    },
+    {
+     "name": "Anytype-0.57.4.AppImage",
+     "size": 285730013,
+     "digest": true,
+     "url": "https://github.com/anyproto/anytype-ts/releases/download/v0.57.4/Anytype-0.57.4.AppImage"
+    },
+    {
+     "name": "anytype-0.57.4.tar.gz",
+     "size": 273628520,
+     "digest": true,
+     "url": "https://github.com/anyproto/anytype-ts/releases/download/v0.57.4/anytype-0.57.4.tar.gz"
+    },
+    {
+     "name": "anytype-0.57.4.x86_64.rpm",
+     "size": 212207021,
+     "digest": true,
+     "url": "https://github.com/anyproto/anytype-ts/releases/download/v0.57.4/anytype-0.57.4.x86_64.rpm"
+    },
+    {
+     "name": "Anytype.Setup.0.57.4.exe",
+     "size": 250862224,
+     "digest": true,
+     "url": "https://github.com/anyproto/anytype-ts/releases/download/v0.57.4/Anytype.Setup.0.57.4.exe"
+    },
+    {
+     "name": "anytype_0.57.4_amd64.deb",
+     "size": 238962612,
+     "digest": true,
+     "url": "https://github.com/anyproto/anytype-ts/releases/download/v0.57.4/anytype_0.57.4_amd64.deb"
+    }
+   ]
+  },
+  "balena-io/etcher": {
+   "tag": "v2.1.7",
+   "assets": [
+    {
+     "name": "balena-etcher-2.1.7-1.x86_64.rpm",
+     "size": 127816693,
+     "digest": true,
+     "url": "https://github.com/balena-io/etcher/releases/download/v2.1.7/balena-etcher-2.1.7-1.x86_64.rpm"
+    },
+    {
+     "name": "balena-etcher_2.1.7_amd64.deb",
+     "size": 123913766,
+     "digest": true,
+     "url": "https://github.com/balena-io/etcher/releases/download/v2.1.7/balena-etcher_2.1.7_amd64.deb"
+    },
+    {
+     "name": "balenaEtcher-2.1.7-arm64.dmg",
+     "size": 154704595,
+     "digest": true,
+     "url": "https://github.com/balena-io/etcher/releases/download/v2.1.7/balenaEtcher-2.1.7-arm64.dmg"
+    },
+    {
+     "name": "balenaEtcher-2.1.7-x64.dmg",
+     "size": 166251987,
+     "digest": true,
+     "url": "https://github.com/balena-io/etcher/releases/download/v2.1.7/balenaEtcher-2.1.7-x64.dmg"
+    },
+    {
+     "name": "balenaEtcher-2.1.7.Setup.exe",
+     "size": 200093336,
+     "digest": true,
+     "url": "https://github.com/balena-io/etcher/releases/download/v2.1.7/balenaEtcher-2.1.7.Setup.exe"
+    },
+    {
+     "name": "balenaEtcher-darwin-arm64-2.1.7.zip",
+     "size": 154298204,
+     "digest": true,
+     "url": "https://github.com/balena-io/etcher/releases/download/v2.1.7/balenaEtcher-darwin-arm64-2.1.7.zip"
+    },
+    {
+     "name": "balenaEtcher-darwin-x64-2.1.7.zip",
+     "size": 165968407,
+     "digest": true,
+     "url": "https://github.com/balena-io/etcher/releases/download/v2.1.7/balenaEtcher-darwin-x64-2.1.7.zip"
+    },
+    {
+     "name": "balenaEtcher-linux-x64-2.1.7.zip",
+     "size": 163379817,
+     "digest": true,
+     "url": "https://github.com/balena-io/etcher/releases/download/v2.1.7/balenaEtcher-linux-x64-2.1.7.zip"
+    },
+    {
+     "name": "balenaEtcher-win32-x64-2.1.7.zip",
+     "size": 207380102,
+     "digest": true,
+     "url": "https://github.com/balena-io/etcher/releases/download/v2.1.7/balenaEtcher-win32-x64-2.1.7.zip"
+    },
+    {
+     "name": "npm-sbom.json",
+     "size": 3513053,
+     "digest": true,
+     "url": "https://github.com/balena-io/etcher/releases/download/v2.1.7/npm-sbom.json"
+    },
+    {
+     "name": "SHA256SUMS.Darwin.arm64.txt",
+     "size": 197,
+     "digest": true,
+     "url": "https://github.com/balena-io/etcher/releases/download/v2.1.7/SHA256SUMS.Darwin.arm64.txt"
+    },
+    {
+     "name": "SHA256SUMS.Darwin.x64.txt",
+     "size": 193,
+     "digest": true,
+     "url": "https://github.com/balena-io/etcher/releases/download/v2.1.7/SHA256SUMS.Darwin.x64.txt"
+    },
+    {
+     "name": "SHA256SUMS.Linux.x64.txt",
+     "size": 294,
+     "digest": true,
+     "url": "https://github.com/balena-io/etcher/releases/download/v2.1.7/SHA256SUMS.Linux.x64.txt"
+    },
+    {
+     "name": "SHA256SUMS.Windows.x64.txt",
+     "size": 194,
+     "digest": true,
+     "url": "https://github.com/balena-io/etcher/releases/download/v2.1.7/SHA256SUMS.Windows.x64.txt"
+    }
+   ]
+  },
+  "beekeeper-studio/beekeeper-studio": {
+   "tag": "v6.1.6",
+   "assets": [
+    {
+     "name": "Beekeeper-Studio-6.1.6-aarch64.flatpak",
+     "size": 229527576,
+     "digest": true,
+     "url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v6.1.6/Beekeeper-Studio-6.1.6-aarch64.flatpak"
+    },
+    {
+     "name": "beekeeper-studio-6.1.6-aarch64.pacman",
+     "size": 234737244,
+     "digest": true,
+     "url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v6.1.6/beekeeper-studio-6.1.6-aarch64.pacman"
+    },
+    {
+     "name": "Beekeeper-Studio-6.1.6-arm64-mac.zip",
+     "size": 346959985,
+     "digest": true,
+     "url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v6.1.6/Beekeeper-Studio-6.1.6-arm64-mac.zip"
+    },
+    {
+     "name": "Beekeeper-Studio-6.1.6-arm64.AppImage",
+     "size": 365210862,
+     "digest": true,
+     "url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v6.1.6/Beekeeper-Studio-6.1.6-arm64.AppImage"
+    },
+    {
+     "name": "Beekeeper-Studio-6.1.6-arm64.dmg",
+     "size": 346540668,
+     "digest": true,
+     "url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v6.1.6/Beekeeper-Studio-6.1.6-arm64.dmg"
+    },
+    {
+     "name": "Beekeeper-Studio-6.1.6-arm64.dmg.blockmap",
+     "size": 361659,
+     "digest": true,
+     "url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v6.1.6/Beekeeper-Studio-6.1.6-arm64.dmg.blockmap"
+    },
+    {
+     "name": "Beekeeper-Studio-6.1.6-mac.zip",
+     "size": 354811173,
+     "digest": true,
+     "url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v6.1.6/Beekeeper-Studio-6.1.6-mac.zip"
+    },
+    {
+     "name": "Beekeeper-Studio-6.1.6-portable.exe",
+     "size": 255492528,
+     "digest": true,
+     "url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v6.1.6/Beekeeper-Studio-6.1.6-portable.exe"
+    },
+    {
+     "name": "Beekeeper-Studio-6.1.6-x86_64.flatpak",
+     "size": 239884504,
+     "digest": true,
+     "url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v6.1.6/Beekeeper-Studio-6.1.6-x86_64.flatpak"
+    },
+    {
+     "name": "beekeeper-studio-6.1.6.aarch64.rpm",
+     "size": 216215921,
+     "digest": true,
+     "url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v6.1.6/beekeeper-studio-6.1.6.aarch64.rpm"
+    },
+    {
+     "name": "Beekeeper-Studio-6.1.6.AppImage",
+     "size": 369664148,
+     "digest": true,
+     "url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v6.1.6/Beekeeper-Studio-6.1.6.AppImage"
+    },
+    {
+     "name": "Beekeeper-Studio-6.1.6.dmg",
+     "size": 354336124,
+     "digest": true,
+     "url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v6.1.6/Beekeeper-Studio-6.1.6.dmg"
+    },
+    {
+     "name": "Beekeeper-Studio-6.1.6.dmg.blockmap",
+     "size": 367958,
+     "digest": true,
+     "url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v6.1.6/Beekeeper-Studio-6.1.6.dmg.blockmap"
+    },
+    {
+     "name": "beekeeper-studio-6.1.6.pacman",
+     "size": 246208324,
+     "digest": true,
+     "url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v6.1.6/beekeeper-studio-6.1.6.pacman"
+    },
+    {
+     "name": "beekeeper-studio-6.1.6.x86_64.rpm",
+     "size": 231068077,
+     "digest": true,
+     "url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v6.1.6/beekeeper-studio-6.1.6.x86_64.rpm"
+    },
+    {
+     "name": "Beekeeper-Studio-Setup-6.1.6.exe",
+     "size": 255855152,
+     "digest": true,
+     "url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v6.1.6/Beekeeper-Studio-Setup-6.1.6.exe"
+    },
+    {
+     "name": "Beekeeper-Studio-Setup-6.1.6.exe.blockmap",
+     "size": 267904,
+     "digest": true,
+     "url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v6.1.6/Beekeeper-Studio-Setup-6.1.6.exe.blockmap"
+    },
+    {
+     "name": "beekeeper-studio_6.1.6_amd64.deb",
+     "size": 281298876,
+     "digest": true,
+     "url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v6.1.6/beekeeper-studio_6.1.6_amd64.deb"
+    },
+    {
+     "name": "beekeeper-studio_6.1.6_amd64.snap",
+     "size": 446423040,
+     "digest": true,
+     "url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v6.1.6/beekeeper-studio_6.1.6_amd64.snap"
+    },
+    {
+     "name": "beekeeper-studio_6.1.6_arm64.deb",
+     "size": 270047652,
+     "digest": true,
+     "url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v6.1.6/beekeeper-studio_6.1.6_arm64.deb"
+    },
+    {
+     "name": "beekeeper-studio_6.1.6_arm64.snap",
+     "size": 435261440,
+     "digest": true,
+     "url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v6.1.6/beekeeper-studio_6.1.6_arm64.snap"
+    },
+    {
+     "name": "Beekeeper.Studio-6.1.6-arm64-mac.zip.blockmap",
+     "size": 361830,
+     "digest": true,
+     "url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v6.1.6/Beekeeper.Studio-6.1.6-arm64-mac.zip.blockmap"
+    },
+    {
+     "name": "Beekeeper.Studio-6.1.6-mac.zip.blockmap",
+     "size": 369413,
+     "digest": true,
+     "url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v6.1.6/Beekeeper.Studio-6.1.6-mac.zip.blockmap"
+    },
+    {
+     "name": "latest-linux-arm64.yml",
+     "size": 9049,
+     "digest": true,
+     "url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v6.1.6/latest-linux-arm64.yml"
+    },
+    {
+     "name": "latest-linux.yml",
+     "size": 9028,
+     "digest": true,
+     "url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v6.1.6/latest-linux.yml"
+    },
+    {
+     "name": "latest-mac.yml",
+     "size": 9001,
+     "digest": true,
+     "url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v6.1.6/latest-mac.yml"
+    },
+    {
+     "name": "latest.yml",
+     "size": 8660,
+     "digest": true,
+     "url": "https://github.com/beekeeper-studio/beekeeper-studio/releases/download/v6.1.6/latest.yml"
+    }
+   ]
+  },
+  "cemu-project/Cemu": {
+   "tag": "v2.6",
+   "assets": [
+    {
+     "name": "cemu-2.6-macos-12-x64.dmg",
+     "size": 36588188,
+     "digest": false,
+     "url": "https://github.com/cemu-project/Cemu/releases/download/v2.6/cemu-2.6-macos-12-x64.dmg"
+    },
+    {
+     "name": "cemu-2.6-ubuntu-22.04-x64.zip",
+     "size": 31825643,
+     "digest": true,
+     "url": "https://github.com/cemu-project/Cemu/releases/download/v2.6/cemu-2.6-ubuntu-22.04-x64.zip"
+    },
+    {
+     "name": "cemu-2.6-windows-x64.zip",
+     "size": 26374093,
+     "digest": false,
+     "url": "https://github.com/cemu-project/Cemu/releases/download/v2.6/cemu-2.6-windows-x64.zip"
+    },
+    {
+     "name": "Cemu-2.6-x86_64.AppImage",
+     "size": 61423960,
+     "digest": true,
+     "url": "https://github.com/cemu-project/Cemu/releases/download/v2.6/Cemu-2.6-x86_64.AppImage"
+    }
+   ]
+  },
+  "cryptomator/cryptomator": {
+   "tag": "1.19.3",
+   "assets": [
+    {
+     "name": "cryptomator-1.19.3-aarch64.AppImage",
+     "size": 61753864,
+     "digest": true,
+     "url": "https://github.com/cryptomator/cryptomator/releases/download/1.19.3/cryptomator-1.19.3-aarch64.AppImage"
+    },
+    {
+     "name": "cryptomator-1.19.3-aarch64.AppImage.asc",
+     "size": 833,
+     "digest": true,
+     "url": "https://github.com/cryptomator/cryptomator/releases/download/1.19.3/cryptomator-1.19.3-aarch64.AppImage.asc"
+    },
+    {
+     "name": "cryptomator-1.19.3-aarch64.AppImage.zsync",
+     "size": 211319,
+     "digest": true,
+     "url": "https://github.com/cryptomator/cryptomator/releases/download/1.19.3/cryptomator-1.19.3-aarch64.AppImage.zsync"
+    },
+    {
+     "name": "cryptomator-1.19.3-aarch64.AppImage.zsync.asc",
+     "size": 833,
+     "digest": true,
+     "url": "https://github.com/cryptomator/cryptomator/releases/download/1.19.3/cryptomator-1.19.3-aarch64.AppImage.zsync.asc"
+    },
+    {
+     "name": "Cryptomator-1.19.3-arm64.dmg",
+     "size": 62393246,
+     "digest": true,
+     "url": "https://github.com/cryptomator/cryptomator/releases/download/1.19.3/Cryptomator-1.19.3-arm64.dmg"
+    },
+    {
+     "name": "Cryptomator-1.19.3-arm64.dmg.asc",
+     "size": 870,
+     "digest": true,
+     "url": "https://github.com/cryptomator/cryptomator/releases/download/1.19.3/Cryptomator-1.19.3-arm64.dmg.asc"
+    },
+    {
+     "name": "Cryptomator-1.19.3-x64.dmg",
+     "size": 63801297,
+     "digest": true,
+     "url": "https://github.com/cryptomator/cryptomator/releases/download/1.19.3/Cryptomator-1.19.3-x64.dmg"
+    },
+    {
+     "name": "Cryptomator-1.19.3-x64.dmg.asc",
+     "size": 870,
+     "digest": true,
+     "url": "https://github.com/cryptomator/cryptomator/releases/download/1.19.3/Cryptomator-1.19.3-x64.dmg.asc"
+    },
+    {
+     "name": "Cryptomator-1.19.3-x64.exe",
+     "size": 57605976,
+     "digest": true,
+     "url": "https://github.com/cryptomator/cryptomator/releases/download/1.19.3/Cryptomator-1.19.3-x64.exe"
+    },
+    {
+     "name": "Cryptomator-1.19.3-x64.exe.asc",
+     "size": 833,
+     "digest": true,
+     "url": "https://github.com/cryptomator/cryptomator/releases/download/1.19.3/Cryptomator-1.19.3-x64.exe.asc"
+    },
+    {
+     "name": "Cryptomator-1.19.3-x64.msi",
+     "size": 56815616,
+     "digest": true,
+     "url": "https://github.com/cryptomator/cryptomator/releases/download/1.19.3/Cryptomator-1.19.3-x64.msi"
+    },
+    {
+     "name": "Cryptomator-1.19.3-x64.msi.asc",
+     "size": 833,
+     "digest": true,
+     "url": "https://github.com/cryptomator/cryptomator/releases/download/1.19.3/Cryptomator-1.19.3-x64.msi.asc"
+    },
+    {
+     "name": "cryptomator-1.19.3-x86_64.AppImage",
+     "size": 62700024,
+     "digest": true,
+     "url": "https://github.com/cryptomator/cryptomator/releases/download/1.19.3/cryptomator-1.19.3-x86_64.AppImage"
+    },
+    {
+     "name": "cryptomator-1.19.3-x86_64.AppImage.asc",
+     "size": 833,
+     "digest": true,
+     "url": "https://github.com/cryptomator/cryptomator/releases/download/1.19.3/cryptomator-1.19.3-x86_64.AppImage.asc"
+    },
+    {
+     "name": "cryptomator-1.19.3-x86_64.AppImage.zsync",
+     "size": 214551,
+     "digest": true,
+     "url": "https://github.com/cryptomator/cryptomator/releases/download/1.19.3/cryptomator-1.19.3-x86_64.AppImage.zsync"
+    },
+    {
+     "name": "cryptomator-1.19.3-x86_64.AppImage.zsync.asc",
+     "size": 833,
+     "digest": true,
+     "url": "https://github.com/cryptomator/cryptomator/releases/download/1.19.3/cryptomator-1.19.3-x86_64.AppImage.zsync.asc"
+    },
+    {
+     "name": "cryptomator-1.19.3.tar.gz.asc",
+     "size": 833,
+     "digest": true,
+     "url": "https://github.com/cryptomator/cryptomator/releases/download/1.19.3/cryptomator-1.19.3.tar.gz.asc"
+    },
+    {
+     "name": "cryptomator_1.19.3-0ppa1_amd64.deb",
+     "size": 52309774,
+     "digest": true,
+     "url": "https://github.com/cryptomator/cryptomator/releases/download/1.19.3/cryptomator_1.19.3-0ppa1_amd64.deb"
+    },
+    {
+     "name": "cryptomator_1.19.3-0ppa1_amd64.deb.asc",
+     "size": 833,
+     "digest": true,
+     "url": "https://github.com/cryptomator/cryptomator/releases/download/1.19.3/cryptomator_1.19.3-0ppa1_amd64.deb.asc"
+    }
+   ]
+  },
+  "dbeaver/dbeaver": {
+   "tag": "26.2.2",
+   "assets": [
+    {
+     "name": "dbeaver-ce-26.2.2-linux-aarch64.deb",
+     "size": 126473112,
+     "digest": true,
+     "url": "https://github.com/dbeaver/dbeaver/releases/download/26.2.2/dbeaver-ce-26.2.2-linux-aarch64.deb"
+    },
+    {
+     "name": "dbeaver-ce-26.2.2-linux-aarch64.rpm",
+     "size": 126561360,
+     "digest": true,
+     "url": "https://github.com/dbeaver/dbeaver/releases/download/26.2.2/dbeaver-ce-26.2.2-linux-aarch64.rpm"
+    },
+    {
+     "name": "dbeaver-ce-26.2.2-linux-aarch64.tar.gz",
+     "size": 126436018,
+     "digest": true,
+     "url": "https://github.com/dbeaver/dbeaver/releases/download/26.2.2/dbeaver-ce-26.2.2-linux-aarch64.tar.gz"
+    },
+    {
+     "name": "dbeaver-ce-26.2.2-linux-x86_64.deb",
+     "size": 127539626,
+     "digest": true,
+     "url": "https://github.com/dbeaver/dbeaver/releases/download/26.2.2/dbeaver-ce-26.2.2-linux-x86_64.deb"
+    },
+    {
+     "name": "dbeaver-ce-26.2.2-linux-x86_64.rpm",
+     "size": 127622693,
+     "digest": true,
+     "url": "https://github.com/dbeaver/dbeaver/releases/download/26.2.2/dbeaver-ce-26.2.2-linux-x86_64.rpm"
+    },
+    {
+     "name": "dbeaver-ce-26.2.2-linux-x86_64.tar.gz",
+     "size": 127503062,
+     "digest": true,
+     "url": "https://github.com/dbeaver/dbeaver/releases/download/26.2.2/dbeaver-ce-26.2.2-linux-x86_64.tar.gz"
+    },
+    {
+     "name": "dbeaver-ce-26.2.2-macos-aarch64.dmg",
+     "size": 122907891,
+     "digest": true,
+     "url": "https://github.com/dbeaver/dbeaver/releases/download/26.2.2/dbeaver-ce-26.2.2-macos-aarch64.dmg"
+    },
+    {
+     "name": "dbeaver-ce-26.2.2-macos-x86_64.dmg",
+     "size": 124276362,
+     "digest": true,
+     "url": "https://github.com/dbeaver/dbeaver/releases/download/26.2.2/dbeaver-ce-26.2.2-macos-x86_64.dmg"
+    },
+    {
+     "name": "dbeaver-ce-26.2.2-windows-aarch64.exe",
+     "size": 111113264,
+     "digest": true,
+     "url": "https://github.com/dbeaver/dbeaver/releases/download/26.2.2/dbeaver-ce-26.2.2-windows-aarch64.exe"
+    },
+    {
+     "name": "dbeaver-ce-26.2.2-windows-aarch64.zip",
+     "size": 122416987,
+     "digest": true,
+     "url": "https://github.com/dbeaver/dbeaver/releases/download/26.2.2/dbeaver-ce-26.2.2-windows-aarch64.zip"
+    },
+    {
+     "name": "dbeaver-ce-26.2.2-windows-x86_64.exe",
+     "size": 113470696,
+     "digest": true,
+     "url": "https://github.com/dbeaver/dbeaver/releases/download/26.2.2/dbeaver-ce-26.2.2-windows-x86_64.exe"
+    },
+    {
+     "name": "dbeaver-ce-26.2.2-windows-x86_64.zip",
+     "size": 124729549,
+     "digest": true,
+     "url": "https://github.com/dbeaver/dbeaver/releases/download/26.2.2/dbeaver-ce-26.2.2-windows-x86_64.zip"
+    }
+   ]
+  },
+  "ferdium/ferdium-app": {
+   "tag": "v7.2.3",
+   "assets": [
+    {
+     "name": "Ferdium-linux-7.2.3-aarch64.rpm",
+     "size": 104715589,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/Ferdium-linux-7.2.3-aarch64.rpm"
+    },
+    {
+     "name": "Ferdium-linux-7.2.3-amd64.deb",
+     "size": 126253168,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/Ferdium-linux-7.2.3-amd64.deb"
+    },
+    {
+     "name": "Ferdium-linux-7.2.3-arm64.deb",
+     "size": 120221624,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/Ferdium-linux-7.2.3-arm64.deb"
+    },
+    {
+     "name": "Ferdium-linux-7.2.3-armv7l.deb",
+     "size": 128244336,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/Ferdium-linux-7.2.3-armv7l.deb"
+    },
+    {
+     "name": "Ferdium-linux-7.2.3-x86_64.rpm",
+     "size": 110557389,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/Ferdium-linux-7.2.3-x86_64.rpm"
+    },
+    {
+     "name": "Ferdium-linux-7.2.3.freebsd",
+     "size": 112952600,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/Ferdium-linux-7.2.3.freebsd"
+    },
+    {
+     "name": "Ferdium-linux-7.2.3.tar.gz",
+     "size": 162953377,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/Ferdium-linux-7.2.3.tar.gz"
+    },
+    {
+     "name": "Ferdium-linux-Portable-7.2.3-x86_64.AppImage",
+     "size": 173196736,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/Ferdium-linux-Portable-7.2.3-x86_64.AppImage"
+    },
+    {
+     "name": "Ferdium-mac-7.2.3-arm64.dmg",
+     "size": 167567454,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/Ferdium-mac-7.2.3-arm64.dmg"
+    },
+    {
+     "name": "Ferdium-mac-7.2.3-arm64.dmg.blockmap",
+     "size": 175690,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/Ferdium-mac-7.2.3-arm64.dmg.blockmap"
+    },
+    {
+     "name": "Ferdium-mac-7.2.3-x64.dmg",
+     "size": 171360981,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/Ferdium-mac-7.2.3-x64.dmg"
+    },
+    {
+     "name": "Ferdium-mac-7.2.3-x64.dmg.blockmap",
+     "size": 179745,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/Ferdium-mac-7.2.3-x64.dmg.blockmap"
+    },
+    {
+     "name": "Ferdium-mac-bundle-7.2.3-arm64.zip",
+     "size": 160221326,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/Ferdium-mac-bundle-7.2.3-arm64.zip"
+    },
+    {
+     "name": "Ferdium-mac-bundle-7.2.3-arm64.zip.blockmap",
+     "size": 167289,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/Ferdium-mac-bundle-7.2.3-arm64.zip.blockmap"
+    },
+    {
+     "name": "Ferdium-mac-bundle-7.2.3-x64.zip",
+     "size": 164067539,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/Ferdium-mac-bundle-7.2.3-x64.zip"
+    },
+    {
+     "name": "Ferdium-mac-bundle-7.2.3-x64.zip.blockmap",
+     "size": 171865,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/Ferdium-mac-bundle-7.2.3-x64.zip.blockmap"
+    },
+    {
+     "name": "Ferdium-win-AutoSetup-7.2.3-arm64.exe",
+     "size": 142298553,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/Ferdium-win-AutoSetup-7.2.3-arm64.exe"
+    },
+    {
+     "name": "Ferdium-win-AutoSetup-7.2.3-arm64.exe.blockmap",
+     "size": 149712,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/Ferdium-win-AutoSetup-7.2.3-arm64.exe.blockmap"
+    },
+    {
+     "name": "Ferdium-win-AutoSetup-7.2.3-ia32.exe",
+     "size": 125597619,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/Ferdium-win-AutoSetup-7.2.3-ia32.exe"
+    },
+    {
+     "name": "Ferdium-win-AutoSetup-7.2.3-ia32.exe.blockmap",
+     "size": 132385,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/Ferdium-win-AutoSetup-7.2.3-ia32.exe.blockmap"
+    },
+    {
+     "name": "Ferdium-win-AutoSetup-7.2.3-x64.exe",
+     "size": 135558756,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/Ferdium-win-AutoSetup-7.2.3-x64.exe"
+    },
+    {
+     "name": "Ferdium-win-AutoSetup-7.2.3-x64.exe.blockmap",
+     "size": 142160,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/Ferdium-win-AutoSetup-7.2.3-x64.exe.blockmap"
+    },
+    {
+     "name": "Ferdium-win-AutoSetup-7.2.3.exe",
+     "size": 401927240,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/Ferdium-win-AutoSetup-7.2.3.exe"
+    },
+    {
+     "name": "Ferdium-win-AutoSetup-7.2.3.exe.blockmap",
+     "size": 419279,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/Ferdium-win-AutoSetup-7.2.3.exe.blockmap"
+    },
+    {
+     "name": "Ferdium-win-Installer-7.2.3-arm64.zip",
+     "size": 195795252,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/Ferdium-win-Installer-7.2.3-arm64.zip"
+    },
+    {
+     "name": "Ferdium-win-Portable-7.2.3-arm64.exe",
+     "size": 142051593,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/Ferdium-win-Portable-7.2.3-arm64.exe"
+    },
+    {
+     "name": "Ferdium-win-Portable-7.2.3-ia32.exe",
+     "size": 125350742,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/Ferdium-win-Portable-7.2.3-ia32.exe"
+    },
+    {
+     "name": "Ferdium-win-Portable-7.2.3-x64.exe",
+     "size": 135311297,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/Ferdium-win-Portable-7.2.3-x64.exe"
+    },
+    {
+     "name": "Ferdium-win-Portable-7.2.3.exe",
+     "size": 401679946,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/Ferdium-win-Portable-7.2.3.exe"
+    },
+    {
+     "name": "latest-linux-arm.yml",
+     "size": 357,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/latest-linux-arm.yml"
+    },
+    {
+     "name": "latest-linux-arm64.yml",
+     "size": 517,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/latest-linux-arm64.yml"
+    },
+    {
+     "name": "latest-linux.yml",
+     "size": 731,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/latest-linux.yml"
+    },
+    {
+     "name": "latest-mac.yml",
+     "size": 840,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/latest-mac.yml"
+    },
+    {
+     "name": "latest.yml",
+     "size": 860,
+     "digest": true,
+     "url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.3/latest.yml"
+    }
+   ]
+  },
+  "imputnet/helium-linux": {
+   "tag": "0.19.2.1",
+   "assets": [
+    {
+     "name": "helium-0.19.2.1-arm64.AppImage",
+     "size": 162544136,
+     "digest": true,
+     "url": "https://github.com/imputnet/helium-linux/releases/download/0.19.2.1/helium-0.19.2.1-arm64.AppImage"
+    },
+    {
+     "name": "helium-0.19.2.1-arm64.AppImage.zsync",
+     "size": 278020,
+     "digest": true,
+     "url": "https://github.com/imputnet/helium-linux/releases/download/0.19.2.1/helium-0.19.2.1-arm64.AppImage.zsync"
+    },
+    {
+     "name": "helium-0.19.2.1-arm64_linux.tar.xz",
+     "size": 116102016,
+     "digest": true,
+     "url": "https://github.com/imputnet/helium-linux/releases/download/0.19.2.1/helium-0.19.2.1-arm64_linux.tar.xz"
+    },
+    {
+     "name": "helium-0.19.2.1-arm64_linux.tar.xz.asc",
+     "size": 119,
+     "digest": true,
+     "url": "https://github.com/imputnet/helium-linux/releases/download/0.19.2.1/helium-0.19.2.1-arm64_linux.tar.xz.asc"
+    },
+    {
+     "name": "helium-0.19.2.1-x86_64.AppImage",
+     "size": 158521848,
+     "digest": true,
+     "url": "https://github.com/imputnet/helium-linux/releases/download/0.19.2.1/helium-0.19.2.1-x86_64.AppImage"
+    },
+    {
+     "name": "helium-0.19.2.1-x86_64.AppImage.zsync",
+     "size": 271148,
+     "digest": true,
+     "url": "https://github.com/imputnet/helium-linux/releases/download/0.19.2.1/helium-0.19.2.1-x86_64.AppImage.zsync"
+    },
+    {
+     "name": "helium-0.19.2.1-x86_64_linux.tar.xz",
+     "size": 121557860,
+     "digest": true,
+     "url": "https://github.com/imputnet/helium-linux/releases/download/0.19.2.1/helium-0.19.2.1-x86_64_linux.tar.xz"
+    },
+    {
+     "name": "helium-0.19.2.1-x86_64_linux.tar.xz.asc",
+     "size": 119,
+     "digest": true,
+     "url": "https://github.com/imputnet/helium-linux/releases/download/0.19.2.1/helium-0.19.2.1-x86_64_linux.tar.xz.asc"
+    },
+    {
+     "name": "helium-bin_0.19.2.1-1_amd64.deb",
+     "size": 126976084,
+     "digest": true,
+     "url": "https://github.com/imputnet/helium-linux/releases/download/0.19.2.1/helium-bin_0.19.2.1-1_amd64.deb"
+    },
+    {
+     "name": "helium-bin_0.19.2.1-1_arm64.deb",
+     "size": 121236116,
+     "digest": true,
+     "url": "https://github.com/imputnet/helium-linux/releases/download/0.19.2.1/helium-bin_0.19.2.1-1_arm64.deb"
+    }
+   ]
+  },
+  "laurent22/joplin": {
+   "tag": "v3.7.21",
+   "assets": [
+    {
+     "name": "Joplin-3.7.21-arm64.DMG",
+     "size": 208484343,
+     "digest": true,
+     "url": "https://github.com/laurent22/joplin/releases/download/v3.7.21/Joplin-3.7.21-arm64.DMG"
+    },
+    {
+     "name": "Joplin-3.7.21-arm64.dmg.blockmap",
+     "size": 217838,
+     "digest": true,
+     "url": "https://github.com/laurent22/joplin/releases/download/v3.7.21/Joplin-3.7.21-arm64.dmg.blockmap"
+    },
+    {
+     "name": "Joplin-3.7.21-arm64.pkg",
+     "size": 208136863,
+     "digest": true,
+     "url": "https://github.com/laurent22/joplin/releases/download/v3.7.21/Joplin-3.7.21-arm64.pkg"
+    },
+    {
+     "name": "Joplin-3.7.21-arm64.zip",
+     "size": 200073544,
+     "digest": true,
+     "url": "https://github.com/laurent22/joplin/releases/download/v3.7.21/Joplin-3.7.21-arm64.zip"
+    },
+    {
+     "name": "Joplin-3.7.21-arm64.zip.blockmap",
+     "size": 210217,
+     "digest": true,
+     "url": "https://github.com/laurent22/joplin/releases/download/v3.7.21/Joplin-3.7.21-arm64.zip.blockmap"
+    },
+    {
+     "name": "Joplin-3.7.21-mac.zip",
+     "size": 198453324,
+     "digest": true,
+     "url": "https://github.com/laurent22/joplin/releases/download/v3.7.21/Joplin-3.7.21-mac.zip"
+    },
+    {
+     "name": "Joplin-3.7.21-mac.zip.blockmap",
+     "size": 209015,
+     "digest": true,
+     "url": "https://github.com/laurent22/joplin/releases/download/v3.7.21/Joplin-3.7.21-mac.zip.blockmap"
+    },
+    {
+     "name": "Joplin-3.7.21.AppImage",
+     "size": 201462481,
+     "digest": true,
+     "url": "https://github.com/laurent22/joplin/releases/download/v3.7.21/Joplin-3.7.21.AppImage"
+    },
+    {
+     "name": "Joplin-3.7.21.AppImage.sha512",
+     "size": 128,
+     "digest": true,
+     "url": "https://github.com/laurent22/joplin/releases/download/v3.7.21/Joplin-3.7.21.AppImage.sha512"
+    },
+    {
+     "name": "Joplin-3.7.21.deb",
+     "size": 162700892,
+     "digest": true,
+     "url": "https://github.com/laurent22/joplin/releases/download/v3.7.21/Joplin-3.7.21.deb"
+    },
+    {
+     "name": "Joplin-3.7.21.dmg",
+     "size": 206702267,
+     "digest": true,
+     "url": "https://github.com/laurent22/joplin/releases/download/v3.7.21/Joplin-3.7.21.dmg"
+    },
+    {
+     "name": "Joplin-3.7.21.dmg.blockmap",
+     "size": 219276,
+     "digest": true,
+     "url": "https://github.com/laurent22/joplin/releases/download/v3.7.21/Joplin-3.7.21.dmg.blockmap"
+    },
+    {
+     "name": "Joplin-3.7.21.pkg",
+     "size": 206477574,
+     "digest": true,
+     "url": "https://github.com/laurent22/joplin/releases/download/v3.7.21/Joplin-3.7.21.pkg"
+    },
+    {
+     "name": "Joplin-Setup-3.7.21.exe",
+     "size": 361008040,
+     "digest": true,
+     "url": "https://github.com/laurent22/joplin/releases/download/v3.7.21/Joplin-Setup-3.7.21.exe"
+    },
+    {
+     "name": "Joplin-Setup-3.7.21.exe.blockmap",
+     "size": 378206,
+     "digest": true,
+     "url": "https://github.com/laurent22/joplin/releases/download/v3.7.21/Joplin-Setup-3.7.21.exe.blockmap"
+    },
+    {
+     "name": "JoplinPortable.exe",
+     "size": 360779352,
+     "digest": true,
+     "url": "https://github.com/laurent22/joplin/releases/download/v3.7.21/JoplinPortable.exe"
+    },
+    {
+     "name": "latest-linux.yml",
+     "size": 515,
+     "digest": true,
+     "url": "https://github.com/laurent22/joplin/releases/download/v3.7.21/latest-linux.yml"
+    },
+    {
+     "name": "latest-mac-arm64.yml",
+     "size": 498,
+     "digest": true,
+     "url": "https://github.com/laurent22/joplin/releases/download/v3.7.21/latest-mac-arm64.yml"
+    },
+    {
+     "name": "latest-mac.yml",
+     "size": 498,
+     "digest": true,
+     "url": "https://github.com/laurent22/joplin/releases/download/v3.7.21/latest-mac.yml"
+    },
+    {
+     "name": "latest.yml",
+     "size": 344,
+     "digest": true,
+     "url": "https://github.com/laurent22/joplin/releases/download/v3.7.21/latest.yml"
+    }
+   ]
+  },
+  "localsend/localsend": {
+   "tag": "v1.18.2",
+   "assets": [
+    {
+     "name": "LocalSend-1.18.2-android-arm32v7.apk",
+     "size": 39333444,
+     "digest": true,
+     "url": "https://github.com/localsend/localsend/releases/download/v1.18.2/LocalSend-1.18.2-android-arm32v7.apk"
+    },
+    {
+     "name": "LocalSend-1.18.2-android-arm64v8.apk",
+     "size": 46558706,
+     "digest": true,
+     "url": "https://github.com/localsend/localsend/releases/download/v1.18.2/LocalSend-1.18.2-android-arm64v8.apk"
+    },
+    {
+     "name": "LocalSend-1.18.2-android-google-play.apk",
+     "size": 128293112,
+     "digest": true,
+     "url": "https://github.com/localsend/localsend/releases/download/v1.18.2/LocalSend-1.18.2-android-google-play.apk"
+    },
+    {
+     "name": "LocalSend-1.18.2-android-x64.apk",
+     "size": 48939435,
+     "digest": true,
+     "url": "https://github.com/localsend/localsend/releases/download/v1.18.2/LocalSend-1.18.2-android-x64.apk"
+    },
+    {
+     "name": "LocalSend-1.18.2-linux-arm-64.deb",
+     "size": 24662482,
+     "digest": true,
+     "url": "https://github.com/localsend/localsend/releases/download/v1.18.2/LocalSend-1.18.2-linux-arm-64.deb"
+    },
+    {
+     "name": "LocalSend-1.18.2-linux-arm-64.tar.gz",
+     "size": 32354331,
+     "digest": true,
+     "url": "https://github.com/localsend/localsend/releases/download/v1.18.2/LocalSend-1.18.2-linux-arm-64.tar.gz"
+    },
+    {
+     "name": "LocalSend-1.18.2-linux-x86-64.AppImage",
+     "size": 66471104,
+     "digest": true,
+     "url": "https://github.com/localsend/localsend/releases/download/v1.18.2/LocalSend-1.18.2-linux-x86-64.AppImage"
+    },
+    {
+     "name": "LocalSend-1.18.2-linux-x86-64.deb",
+     "size": 24665458,
+     "digest": true,
+     "url": "https://github.com/localsend/localsend/releases/download/v1.18.2/LocalSend-1.18.2-linux-x86-64.deb"
+    },
+    {
+     "name": "LocalSend-1.18.2-linux-x86-64.tar.gz",
+     "size": 32011656,
+     "digest": true,
+     "url": "https://github.com/localsend/localsend/releases/download/v1.18.2/LocalSend-1.18.2-linux-x86-64.tar.gz"
+    },
+    {
+     "name": "LocalSend-1.18.2-windows-arm-64.zip",
+     "size": 24414965,
+     "digest": true,
+     "url": "https://github.com/localsend/localsend/releases/download/v1.18.2/LocalSend-1.18.2-windows-arm-64.zip"
+    },
+    {
+     "name": "LocalSend-1.18.2-windows-x86-64-unsigned.exe",
+     "size": 18960550,
+     "digest": true,
+     "url": "https://github.com/localsend/localsend/releases/download/v1.18.2/LocalSend-1.18.2-windows-x86-64-unsigned.exe"
+    },
+    {
+     "name": "LocalSend-1.18.2-windows-x86-64.exe",
+     "size": 19901144,
+     "digest": true,
+     "url": "https://github.com/localsend/localsend/releases/download/v1.18.2/LocalSend-1.18.2-windows-x86-64.exe"
+    },
+    {
+     "name": "LocalSend-1.18.2-windows-x86-64.zip",
+     "size": 26113764,
+     "digest": true,
+     "url": "https://github.com/localsend/localsend/releases/download/v1.18.2/LocalSend-1.18.2-windows-x86-64.zip"
+    },
+    {
+     "name": "LocalSend-1.18.2.dmg",
+     "size": 52700247,
+     "digest": true,
+     "url": "https://github.com/localsend/localsend/releases/download/v1.18.2/LocalSend-1.18.2.dmg"
+    },
+    {
+     "name": "LocalSend-CLI-1.18.2-linux-arm-64.tar.gz",
+     "size": 4639269,
+     "digest": true,
+     "url": "https://github.com/localsend/localsend/releases/download/v1.18.2/LocalSend-CLI-1.18.2-linux-arm-64.tar.gz"
+    },
+    {
+     "name": "LocalSend-CLI-1.18.2-linux-x86-64.tar.gz",
+     "size": 4762297,
+     "digest": true,
+     "url": "https://github.com/localsend/localsend/releases/download/v1.18.2/LocalSend-CLI-1.18.2-linux-x86-64.tar.gz"
+    },
+    {
+     "name": "LocalSend-CLI-1.18.2-macos-arm-64.tar.gz",
+     "size": 4105018,
+     "digest": true,
+     "url": "https://github.com/localsend/localsend/releases/download/v1.18.2/LocalSend-CLI-1.18.2-macos-arm-64.tar.gz"
+    },
+    {
+     "name": "LocalSend-CLI-1.18.2-macos-x86-64.tar.gz",
+     "size": 4397211,
+     "digest": true,
+     "url": "https://github.com/localsend/localsend/releases/download/v1.18.2/LocalSend-CLI-1.18.2-macos-x86-64.tar.gz"
+    },
+    {
+     "name": "LocalSend-CLI-1.18.2-windows-arm-64.exe",
+     "size": 8355328,
+     "digest": true,
+     "url": "https://github.com/localsend/localsend/releases/download/v1.18.2/LocalSend-CLI-1.18.2-windows-arm-64.exe"
+    },
+    {
+     "name": "LocalSend-CLI-1.18.2-windows-x86-64.exe",
+     "size": 9725952,
+     "digest": true,
+     "url": "https://github.com/localsend/localsend/releases/download/v1.18.2/LocalSend-CLI-1.18.2-windows-x86-64.exe"
+    }
+   ]
+  },
+  "logseq/logseq": {
+   "tag": "2.0.2",
+   "assets": [
+    {
+     "name": "latest-arm64-mac.yml",
+     "size": 515,
+     "digest": true,
+     "url": "https://github.com/logseq/logseq/releases/download/2.0.2/latest-arm64-mac.yml"
+    },
+    {
+     "name": "latest-arm64.yml",
+     "size": 359,
+     "digest": true,
+     "url": "https://github.com/logseq/logseq/releases/download/2.0.2/latest-arm64.yml"
+    },
+    {
+     "name": "latest-linux-arm64.yml",
+     "size": 388,
+     "digest": true,
+     "url": "https://github.com/logseq/logseq/releases/download/2.0.2/latest-linux-arm64.yml"
+    },
+    {
+     "name": "latest-linux.yml",
+     "size": 390,
+     "digest": true,
+     "url": "https://github.com/logseq/logseq/releases/download/2.0.2/latest-linux.yml"
+    },
+    {
+     "name": "latest-x64-mac.yml",
+     "size": 509,
+     "digest": true,
+     "url": "https://github.com/logseq/logseq/releases/download/2.0.2/latest-x64-mac.yml"
+    },
+    {
+     "name": "latest-x64.yml",
+     "size": 355,
+     "digest": true,
+     "url": "https://github.com/logseq/logseq/releases/download/2.0.2/latest-x64.yml"
+    },
+    {
+     "name": "Logseq-android-2.0.2.apk",
+     "size": 44178075,
+     "digest": true,
+     "url": "https://github.com/logseq/logseq/releases/download/2.0.2/Logseq-android-2.0.2.apk"
+    },
+    {
+     "name": "Logseq-darwin-arm64-2.0.2.dmg",
+     "size": 177591867,
+     "digest": true,
+     "url": "https://github.com/logseq/logseq/releases/download/2.0.2/Logseq-darwin-arm64-2.0.2.dmg"
+    },
+    {
+     "name": "Logseq-darwin-arm64-2.0.2.dmg.blockmap",
+     "size": 186844,
+     "digest": true,
+     "url": "https://github.com/logseq/logseq/releases/download/2.0.2/Logseq-darwin-arm64-2.0.2.dmg.blockmap"
+    },
+    {
+     "name": "Logseq-darwin-arm64-2.0.2.zip",
+     "size": 171440323,
+     "digest": true,
+     "url": "https://github.com/logseq/logseq/releases/download/2.0.2/Logseq-darwin-arm64-2.0.2.zip"
+    },
+    {
+     "name": "Logseq-darwin-arm64-2.0.2.zip.blockmap",
+     "size": 179472,
+     "digest": true,
+     "url": "https://github.com/logseq/logseq/releases/download/2.0.2/Logseq-darwin-arm64-2.0.2.zip.blockmap"
+    },
+    {
+     "name": "Logseq-darwin-x64-2.0.2.dmg",
+     "size": 170943355,
+     "digest": true,
+     "url": "https://github.com/logseq/logseq/releases/download/2.0.2/Logseq-darwin-x64-2.0.2.dmg"
+    },
+    {
+     "name": "Logseq-darwin-x64-2.0.2.dmg.blockmap",
+     "size": 179169,
+     "digest": true,
+     "url": "https://github.com/logseq/logseq/releases/download/2.0.2/Logseq-darwin-x64-2.0.2.dmg.blockmap"
+    },
+    {
+     "name": "Logseq-darwin-x64-2.0.2.zip",
+     "size": 164988361,
+     "digest": true,
+     "url": "https://github.com/logseq/logseq/releases/download/2.0.2/Logseq-darwin-x64-2.0.2.zip"
+    },
+    {
+     "name": "Logseq-darwin-x64-2.0.2.zip.blockmap",
+     "size": 174024,
+     "digest": true,
+     "url": "https://github.com/logseq/logseq/releases/download/2.0.2/Logseq-darwin-x64-2.0.2.zip.blockmap"
+    },
+    {
+     "name": "Logseq-linux-arm64-2.0.2.AppImage",
+     "size": 175568138,
+     "digest": true,
+     "url": "https://github.com/logseq/logseq/releases/download/2.0.2/Logseq-linux-arm64-2.0.2.AppImage"
+    },
+    {
+     "name": "Logseq-linux-arm64-2.0.2.zip",
+     "size": 179588196,
+     "digest": true,
+     "url": "https://github.com/logseq/logseq/releases/download/2.0.2/Logseq-linux-arm64-2.0.2.zip"
+    },
+    {
+     "name": "Logseq-linux-x86_64-2.0.2.AppImage",
+     "size": 175847888,
+     "digest": true,
+     "url": "https://github.com/logseq/logseq/releases/download/2.0.2/Logseq-linux-x86_64-2.0.2.AppImage"
+    },
+    {
+     "name": "Logseq-linux-x86_64-2.0.2.zip",
+     "size": 179015389,
+     "digest": true,
+     "url": "https://github.com/logseq/logseq/releases/download/2.0.2/Logseq-linux-x86_64-2.0.2.zip"
+    },
+    {
+     "name": "Logseq-win-arm64-2.0.2-nsis.exe",
+     "size": 147426600,
+     "digest": true,
+     "url": "https://github.com/logseq/logseq/releases/download/2.0.2/Logseq-win-arm64-2.0.2-nsis.exe"
+    },
+    {
+     "name": "Logseq-win-arm64-2.0.2-nsis.exe.blockmap",
+     "size": 154846,
+     "digest": true,
+     "url": "https://github.com/logseq/logseq/releases/download/2.0.2/Logseq-win-arm64-2.0.2-nsis.exe.blockmap"
+    },
+    {
+     "name": "Logseq-win-arm64-2.0.2.zip",
+     "size": 194000295,
+     "digest": true,
+     "url": "https://github.com/logseq/logseq/releases/download/2.0.2/Logseq-win-arm64-2.0.2.zip"
+    },
+    {
+     "name": "Logseq-win-x64-2.0.2-nsis.exe",
+     "size": 152653328,
+     "digest": true,
+     "url": "https://github.com/logseq/logseq/releases/download/2.0.2/Logseq-win-x64-2.0.2-nsis.exe"
+    },
+    {
+     "name": "Logseq-win-x64-2.0.2-nsis.exe.blockmap",
+     "size": 161100,
+     "digest": true,
+     "url": "https://github.com/logseq/logseq/releases/download/2.0.2/Logseq-win-x64-2.0.2-nsis.exe.blockmap"
+    },
+    {
+     "name": "Logseq-win-x64-2.0.2.zip",
+     "size": 195883130,
+     "digest": true,
+     "url": "https://github.com/logseq/logseq/releases/download/2.0.2/Logseq-win-x64-2.0.2.zip"
+    },
+    {
+     "name": "SHA256SUMS.txt",
+     "size": 1958,
+     "digest": true,
+     "url": "https://github.com/logseq/logseq/releases/download/2.0.2/SHA256SUMS.txt"
+    },
+    {
+     "name": "VERSION",
+     "size": 6,
+     "digest": true,
+     "url": "https://github.com/logseq/logseq/releases/download/2.0.2/VERSION"
+    }
+   ]
+  },
+  "mifi/lossless-cut": {
+   "tag": "v3.69.0",
+   "assets": [
+    {
+     "name": "latest-linux.yml",
+     "size": 389,
+     "digest": true,
+     "url": "https://github.com/mifi/lossless-cut/releases/download/v3.69.0/latest-linux.yml"
+    },
+    {
+     "name": "latest-mac.yml",
+     "size": 500,
+     "digest": true,
+     "url": "https://github.com/mifi/lossless-cut/releases/download/v3.69.0/latest-mac.yml"
+    },
+    {
+     "name": "LosslessCut-linux-arm64.tar.bz2",
+     "size": 121697523,
+     "digest": true,
+     "url": "https://github.com/mifi/lossless-cut/releases/download/v3.69.0/LosslessCut-linux-arm64.tar.bz2"
+    },
+    {
+     "name": "LosslessCut-linux-armv7l.tar.bz2",
+     "size": 115481272,
+     "digest": true,
+     "url": "https://github.com/mifi/lossless-cut/releases/download/v3.69.0/LosslessCut-linux-armv7l.tar.bz2"
+    },
+    {
+     "name": "LosslessCut-linux-x64.tar.bz2",
+     "size": 190728643,
+     "digest": true,
+     "url": "https://github.com/mifi/lossless-cut/releases/download/v3.69.0/LosslessCut-linux-x64.tar.bz2"
+    },
+    {
+     "name": "LosslessCut-linux-x86_64.AppImage",
+     "size": 221591107,
+     "digest": true,
+     "url": "https://github.com/mifi/lossless-cut/releases/download/v3.69.0/LosslessCut-linux-x86_64.AppImage"
+    },
+    {
+     "name": "LosslessCut-mac-arm64.dmg",
+     "size": 156724100,
+     "digest": true,
+     "url": "https://github.com/mifi/lossless-cut/releases/download/v3.69.0/LosslessCut-mac-arm64.dmg"
+    },
+    {
+     "name": "LosslessCut-mac-arm64.dmg.blockmap",
+     "size": 164136,
+     "digest": true,
+     "url": "https://github.com/mifi/lossless-cut/releases/download/v3.69.0/LosslessCut-mac-arm64.dmg.blockmap"
+    },
+    {
+     "name": "LosslessCut-mac-universal-DONT-USE-THIS-FILE.pkg",
+     "size": 291061505,
+     "digest": true,
+     "url": "https://github.com/mifi/lossless-cut/releases/download/v3.69.0/LosslessCut-mac-universal-DONT-USE-THIS-FILE.pkg"
+    },
+    {
+     "name": "LosslessCut-mac-x64.dmg",
+     "size": 168564969,
+     "digest": true,
+     "url": "https://github.com/mifi/lossless-cut/releases/download/v3.69.0/LosslessCut-mac-x64.dmg"
+    },
+    {
+     "name": "LosslessCut-mac-x64.dmg.blockmap",
+     "size": 177728,
+     "digest": true,
+     "url": "https://github.com/mifi/lossless-cut/releases/download/v3.69.0/LosslessCut-mac-x64.dmg.blockmap"
+    },
+    {
+     "name": "LosslessCut-win-arm64-DONT-USE-THIS-FILE.appx",
+     "size": 231976203,
+     "digest": true,
+     "url": "https://github.com/mifi/lossless-cut/releases/download/v3.69.0/LosslessCut-win-arm64-DONT-USE-THIS-FILE.appx"
+    },
+    {
+     "name": "LosslessCut-win-arm64.7z",
+     "size": 106777858,
+     "digest": true,
+     "url": "https://github.com/mifi/lossless-cut/releases/download/v3.69.0/LosslessCut-win-arm64.7z"
+    },
+    {
+     "name": "LosslessCut-win-x64-DONT-USE-THIS-FILE.appx",
+     "size": 247987861,
+     "digest": true,
+     "url": "https://github.com/mifi/lossless-cut/releases/download/v3.69.0/LosslessCut-win-x64-DONT-USE-THIS-FILE.appx"
+    },
+    {
+     "name": "LosslessCut-win-x64.7z",
+     "size": 146192088,
+     "digest": true,
+     "url": "https://github.com/mifi/lossless-cut/releases/download/v3.69.0/LosslessCut-win-x64.7z"
+    }
+   ]
+  },
+  "obsidianmd/obsidian-releases": {
+   "tag": "v1.14.4",
+   "assets": [
+    {
+     "name": "Obsidian-1.14.4-arm64.AppImage",
+     "size": 139902973,
+     "digest": true,
+     "url": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.14.4/Obsidian-1.14.4-arm64.AppImage"
+    },
+    {
+     "name": "obsidian-1.14.4-arm64.tar.gz",
+     "size": 132065265,
+     "digest": true,
+     "url": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.14.4/obsidian-1.14.4-arm64.tar.gz"
+    },
+    {
+     "name": "Obsidian-1.14.4.apk",
+     "size": 15177776,
+     "digest": true,
+     "url": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.14.4/Obsidian-1.14.4.apk"
+    },
+    {
+     "name": "Obsidian-1.14.4.AppImage",
+     "size": 138733701,
+     "digest": true,
+     "url": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.14.4/Obsidian-1.14.4.AppImage"
+    },
+    {
+     "name": "obsidian-1.14.4.asar.gz",
+     "size": 9200670,
+     "digest": true,
+     "url": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.14.4/obsidian-1.14.4.asar.gz"
+    },
+    {
+     "name": "Obsidian-1.14.4.dmg",
+     "size": 233704463,
+     "digest": true,
+     "url": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.14.4/Obsidian-1.14.4.dmg"
+    },
+    {
+     "name": "Obsidian-1.14.4.exe",
+     "size": 341331008,
+     "digest": true,
+     "url": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.14.4/Obsidian-1.14.4.exe"
+    },
+    {
+     "name": "obsidian-1.14.4.tar.gz",
+     "size": 131209322,
+     "digest": true,
+     "url": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.14.4/obsidian-1.14.4.tar.gz"
+    },
+    {
+     "name": "obsidian_1.14.4_amd64.deb",
+     "size": 108364996,
+     "digest": true,
+     "url": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.14.4/obsidian_1.14.4_amd64.deb"
+    }
+   ]
+  },
+  "rustdesk/rustdesk": {
+   "tag": "1.5.0",
+   "assets": [
+    {
+     "name": "rustdesk-1.5.0-0-x86_64.pkg.tar.zst",
+     "size": 26784015,
+     "digest": true,
+     "url": "https://github.com/rustdesk/rustdesk/releases/download/1.5.0/rustdesk-1.5.0-0-x86_64.pkg.tar.zst"
+    },
+    {
+     "name": "rustdesk-1.5.0-0.aarch64-suse.rpm",
+     "size": 32959275,
+     "digest": true,
+     "url": "https://github.com/rustdesk/rustdesk/releases/download/1.5.0/rustdesk-1.5.0-0.aarch64-suse.rpm"
+    },
+    {
+     "name": "rustdesk-1.5.0-0.aarch64.rpm",
+     "size": 32959223,
+     "digest": true,
+     "url": "https://github.com/rustdesk/rustdesk/releases/download/1.5.0/rustdesk-1.5.0-0.aarch64.rpm"
+    },
+    {
+     "name": "rustdesk-1.5.0-0.x86_64-suse.rpm",
+     "size": 33732987,
+     "digest": true,
+     "url": "https://github.com/rustdesk/rustdesk/releases/download/1.5.0/rustdesk-1.5.0-0.x86_64-suse.rpm"
+    },
+    {
+     "name": "rustdesk-1.5.0-0.x86_64.rpm",
+     "size": 33732946,
+     "digest": true,
+     "url": "https://github.com/rustdesk/rustdesk/releases/download/1.5.0/rustdesk-1.5.0-0.x86_64.rpm"
+    },
+    {
+     "name": "rustdesk-1.5.0-aarch64-signed.apk",
+     "size": 28766338,
+     "digest": true,
+     "url": "https://github.com/rustdesk/rustdesk/releases/download/1.5.0/rustdesk-1.5.0-aarch64-signed.apk"
+    },
+    {
+     "name": "rustdesk-1.5.0-aarch64.AppImage",
+     "size": 84883976,
+     "digest": true,
+     "url": "https://github.com/rustdesk/rustdesk/releases/download/1.5.0/rustdesk-1.5.0-aarch64.AppImage"
+    },
+    {
+     "name": "rustdesk-1.5.0-aarch64.deb",
+     "size": 23194980,
+     "digest": true,
+     "url": "https://github.com/rustdesk/rustdesk/releases/download/1.5.0/rustdesk-1.5.0-aarch64.deb"
+    },
+    {
+     "name": "rustdesk-1.5.0-aarch64.dmg",
+     "size": 29874038,
+     "digest": true,
+     "url": "https://github.com/rustdesk/rustdesk/releases/download/1.5.0/rustdesk-1.5.0-aarch64.dmg"
+    },
+    {
+     "name": "rustdesk-1.5.0-aarch64.exe",
+     "size": 23857008,
+     "digest": true,
+     "url": "https://github.com/rustdesk/rustdesk/releases/download/1.5.0/rustdesk-1.5.0-aarch64.exe"
+    },
+    {
+     "name": "rustdesk-1.5.0-aarch64.flatpak",
+     "size": 23141344,
+     "digest": true,
+     "url": "https://github.com/rustdesk/rustdesk/releases/download/1.5.0/rustdesk-1.5.0-aarch64.flatpak"
+    },
+    {
+     "name": "rustdesk-1.5.0-aarch64.msi",
+     "size": 24428544,
+     "digest": true,
+     "url": "https://github.com/rustdesk/rustdesk/releases/download/1.5.0/rustdesk-1.5.0-aarch64.msi"
+    },
+    {
+     "name": "rustdesk-1.5.0-armv7-sciter.deb",
+     "size": 14913220,
+     "digest": true,
+     "url": "https://github.com/rustdesk/rustdesk/releases/download/1.5.0/rustdesk-1.5.0-armv7-sciter.deb"
+    },
+    {
+     "name": "rustdesk-1.5.0-armv7-signed.apk",
+     "size": 27213962,
+     "digest": true,
+     "url": "https://github.com/rustdesk/rustdesk/releases/download/1.5.0/rustdesk-1.5.0-armv7-signed.apk"
+    },
+    {
+     "name": "rustdesk-1.5.0-universal-signed.apk",
+     "size": 77451974,
+     "digest": true,
+     "url": "https://github.com/rustdesk/rustdesk/releases/download/1.5.0/rustdesk-1.5.0-universal-signed.apk"
+    },
+    {
+     "name": "rustdesk-1.5.0-unsigned.tar.gz",
+     "size": 201562177,
+     "digest": true,
+     "url": "https://github.com/rustdesk/rustdesk/releases/download/1.5.0/rustdesk-1.5.0-unsigned.tar.gz"
+    },
+    {
+     "name": "rustdesk-1.5.0-x86-sciter.exe",
+     "size": 13377392,
+     "digest": true,
+     "url": "https://github.com/rustdesk/rustdesk/releases/download/1.5.0/rustdesk-1.5.0-x86-sciter.exe"
+    },
+    {
+     "name": "rustdesk-1.5.0-x86_64-sciter.deb",
+     "size": 18004180,
+     "digest": true,
+     "url": "https://github.com/rustdesk/rustdesk/releases/download/1.5.0/rustdesk-1.5.0-x86_64-sciter.deb"
+    },
+    {
+     "name": "rustdesk-1.5.0-x86_64-sciter.flatpak",
+     "size": 17870480,
+     "digest": true,
+     "url": "https://github.com/rustdesk/rustdesk/releases/download/1.5.0/rustdesk-1.5.0-x86_64-sciter.flatpak"
+    },
+    {
+     "name": "rustdesk-1.5.0-x86_64-signed.apk",
+     "size": 28237942,
+     "digest": true,
+     "url": "https://github.com/rustdesk/rustdesk/releases/download/1.5.0/rustdesk-1.5.0-x86_64-signed.apk"
+    },
+    {
+     "name": "rustdesk-1.5.0-x86_64.AppImage",
+     "size": 87992824,
+     "digest": true,
+     "url": "https://github.com/rustdesk/rustdesk/releases/download/1.5.0/rustdesk-1.5.0-x86_64.AppImage"
+    },
+    {
+     "name": "rustdesk-1.5.0-x86_64.deb",
+     "size": 24940796,
+     "digest": true,
+     "url": "https://github.com/rustdesk/rustdesk/releases/download/1.5.0/rustdesk-1.5.0-x86_64.deb"
+    },
+    {
+     "name": "rustdesk-1.5.0-x86_64.dmg",
+     "size": 36878402,
+     "digest": true,
+     "url": "https://github.com/rustdesk/rustdesk/releases/download/1.5.0/rustdesk-1.5.0-x86_64.dmg"
+    },
+    {
+     "name": "rustdesk-1.5.0-x86_64.exe",
+     "size": 25887600,
+     "digest": true,
+     "url": "https://github.com/rustdesk/rustdesk/releases/download/1.5.0/rustdesk-1.5.0-x86_64.exe"
+    },
+    {
+     "name": "rustdesk-1.5.0-x86_64.flatpak",
+     "size": 24741448,
+     "digest": true,
+     "url": "https://github.com/rustdesk/rustdesk/releases/download/1.5.0/rustdesk-1.5.0-x86_64.flatpak"
+    },
+    {
+     "name": "rustdesk-1.5.0-x86_64.msi",
+     "size": 26345472,
+     "digest": true,
+     "url": "https://github.com/rustdesk/rustdesk/releases/download/1.5.0/rustdesk-1.5.0-x86_64.msi"
+    },
+    {
+     "name": "rustdesk-unattended-wayland-1.5.0-x86_64.deb",
+     "size": 25161220,
+     "digest": true,
+     "url": "https://github.com/rustdesk/rustdesk/releases/download/1.5.0/rustdesk-unattended-wayland-1.5.0-x86_64.deb"
+    },
+    {
+     "name": "rustdesk.sbom.json",
+     "size": 1850682,
+     "digest": true,
+     "url": "https://github.com/rustdesk/rustdesk/releases/download/1.5.0/rustdesk.sbom.json"
+    }
+   ]
+  },
+  "zen-browser/desktop": {
+   "tag": "1.23.2b",
+   "assets": [
+    {
+     "name": "linux-aarch64.mar",
+     "size": 98819102,
+     "digest": true,
+     "url": "https://github.com/zen-browser/desktop/releases/download/1.23.2b/linux-aarch64.mar"
+    },
+    {
+     "name": "linux.mar",
+     "size": 114369904,
+     "digest": true,
+     "url": "https://github.com/zen-browser/desktop/releases/download/1.23.2b/linux.mar"
+    },
+    {
+     "name": "macos.mar",
+     "size": 167009796,
+     "digest": true,
+     "url": "https://github.com/zen-browser/desktop/releases/download/1.23.2b/macos.mar"
+    },
+    {
+     "name": "windows-arm64.mar",
+     "size": 109725842,
+     "digest": true,
+     "url": "https://github.com/zen-browser/desktop/releases/download/1.23.2b/windows-arm64.mar"
+    },
+    {
+     "name": "windows.mar",
+     "size": 125517958,
+     "digest": true,
+     "url": "https://github.com/zen-browser/desktop/releases/download/1.23.2b/windows.mar"
+    },
+    {
+     "name": "zen-aarch64.AppImage",
+     "size": 130349216,
+     "digest": true,
+     "url": "https://github.com/zen-browser/desktop/releases/download/1.23.2b/zen-aarch64.AppImage"
+    },
+    {
+     "name": "zen-aarch64.AppImage.zsync",
+     "size": 222980,
+     "digest": true,
+     "url": "https://github.com/zen-browser/desktop/releases/download/1.23.2b/zen-aarch64.AppImage.zsync"
+    },
+    {
+     "name": "zen-x86_64.AppImage",
+     "size": 145180128,
+     "digest": true,
+     "url": "https://github.com/zen-browser/desktop/releases/download/1.23.2b/zen-x86_64.AppImage"
+    },
+    {
+     "name": "zen-x86_64.AppImage.zsync",
+     "size": 248325,
+     "digest": true,
+     "url": "https://github.com/zen-browser/desktop/releases/download/1.23.2b/zen-x86_64.AppImage.zsync"
+    },
+    {
+     "name": "zen.installer-arm64.exe",
+     "size": 109110992,
+     "digest": true,
+     "url": "https://github.com/zen-browser/desktop/releases/download/1.23.2b/zen.installer-arm64.exe"
+    },
+    {
+     "name": "zen.installer.exe",
+     "size": 116073832,
+     "digest": true,
+     "url": "https://github.com/zen-browser/desktop/releases/download/1.23.2b/zen.installer.exe"
+    },
+    {
+     "name": "zen.linux-aarch64.tar.xz",
+     "size": 98385244,
+     "digest": true,
+     "url": "https://github.com/zen-browser/desktop/releases/download/1.23.2b/zen.linux-aarch64.tar.xz"
+    },
+    {
+     "name": "zen.linux-x86_64.tar.xz",
+     "size": 111344356,
+     "digest": true,
+     "url": "https://github.com/zen-browser/desktop/releases/download/1.23.2b/zen.linux-x86_64.tar.xz"
+    },
+    {
+     "name": "zen.macos-universal.dmg",
+     "size": 233630679,
+     "digest": true,
+     "url": "https://github.com/zen-browser/desktop/releases/download/1.23.2b/zen.macos-universal.dmg"
+    },
+    {
+     "name": "zen.source.tar.zst",
+     "size": 1075839398,
+     "digest": true,
+     "url": "https://github.com/zen-browser/desktop/releases/download/1.23.2b/zen.source.tar.zst"
+    }
+   ]
+  }
+ }
+}

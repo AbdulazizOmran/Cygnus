@@ -188,10 +188,11 @@ def _is_loopback_http(url: str) -> bool:
 
 
 def download(url: str, dest_dir, *, expected_sha256: str | None = None, limit: int = 4 * 1024**3,
-             timeout: float = 60.0, progress=None):
+             timeout: float = 60.0, progress=None, host_ok=None):
     """Download over HTTPS into dest_dir (same filesystem as the final location), verifying SHA-256.
 
-    Returns the path of the verified file. A partial or mismatching download is deleted.
+    Returns the path of the verified file. A partial or mismatching download is deleted. `host_ok`, when given, is asked about the host of the
+    address and of every redirect, before anything is requested from it.
     """
     import hashlib
     import os
@@ -208,7 +209,7 @@ def download(url: str, dest_dir, *, expected_sha256: str | None = None, limit: i
     h = hashlib.sha256()
     total = 0
     try:
-        with _open(url, headers={"User-Agent": USER_AGENT}, timeout=timeout) as resp:
+        with _open(url, headers={"User-Agent": USER_AGENT}, timeout=timeout, host_ok=host_ok) as resp:
             if resp.status_code >= 400:
                 raise HttpError(f"HTTP {resp.status_code} for {url}", resp.status_code)
             try:
