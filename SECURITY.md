@@ -8,7 +8,7 @@ helper, started over D-Bus and authorised by polkit for each action), so securit
 Please **do not open a public issue** for a security problem. Use one of these, in this order:
 
 1. GitHub's private vulnerability reporting for this repository ("Security" tab → "Report a vulnerability"), if it is enabled;
-2. an email to the maintainer: abdulazizomran10@proton.me (the address in the package's `PKGBUILD`).
+2. an email to the maintainer: spaceorium07@gmail.com (the address in the package's `PKGBUILD`).
 
 Say what an attacker needs (a local unprivileged process? a hostile package file? a web page the browser opens in
 Cygnus?), what they get, and how to reproduce it. A failing test, or the exact file and line, is the best report.

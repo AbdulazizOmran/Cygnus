@@ -1,4 +1,4 @@
-# Maintainer: AbdulazizOmran <abdulazizomran10@proton.me>
+# Maintainer: AbdulazizOmran <spaceorium07@gmail.com>
 #
 # In-tree PKGBUILD: run `makepkg` from packaging/arch/ inside a Cygnus checkout. It builds the
 # working tree it sits in (no download); a release PKGBUILD will use a tagged source tarball instead.

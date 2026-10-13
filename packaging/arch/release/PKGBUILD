@@ -1,4 +1,4 @@
-# Maintainer: AbdulazizOmran <abdulazizomran10@proton.me>
+# Maintainer: AbdulazizOmran <spaceorium07@gmail.com>
 #
 # Release PKGBUILD (also what goes to the AUR): builds the tagged release from GitHub.
 # packaging/release.sh fills in pkgver and the checksum. Keep package() in sync with ../PKGBUILD
